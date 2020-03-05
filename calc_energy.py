@@ -18,7 +18,7 @@ def radius_rescale_factor(amplitude):
 A_integrals = dict()
 B_integrals = dict()
 
-def A_integrand_img_part(diff, amplitude, z,wavenumber):
+def A_integrand_img_part(diff, amplitude, z,wavenumber, radius):
   """
   :param diff: coefficient difference (i-j) or (i+i'-j-j') in e^i(i-j)kz
   :param amplitude: a
@@ -35,7 +35,7 @@ def A_integrand_img_part(diff, amplitude, z,wavenumber):
             radius_rescale_factor(amplitude)*  # r(a) adjustment for volume conservation
             sqrt_g_z(radius, amplitude, wavenumber, z)) # and sqrt(g_zz)
 
-def A_integrand_real_part(diff, amplitude, z, wavenumber):
+def A_integrand_real_part(diff, amplitude, z, wavenumber, radius):
   """
   :param diff: coefficient difference (i-j) or (i+i'-j-j') in e^i(i-j)kz
   :param amplitude: a
@@ -53,7 +53,7 @@ def A_integrand_real_part(diff, amplitude, z, wavenumber):
             sqrt_g_z(radius, amplitude, wavenumber, z))# and sqrt(g_zz)
 
 
-def B_integrand_img_part(i,j, amplitude, z, wavenumber):
+def B_integrand_img_part(i,j, amplitude, z, wavenumber, radius):
   if amplitude == 0:
     z_part = (i * j * wavenumber ** 2 * math.sin((i - j) * wavenumber * z) *  # |d e^... |^2
               radius)  # sqrt(g_theta theta) = radius
@@ -67,7 +67,7 @@ def B_integrand_img_part(i,j, amplitude, z, wavenumber):
               sqrt_g_z(radius, amplitude, wavenumber, z))  # and 1/sqrt(g_zz)
     return (z_part)
 
-def B_integrand_real_part(i, j , amplitude, z, wavenumber):
+def B_integrand_real_part(i, j , amplitude, z, wavenumber, radius, n):
   if amplitude == 0:
     z_part = (i * j * wavenumber ** 2 * math.cos((i - j) * wavenumber * z) *  # |d e^... |^2
               radius)  # sqrt(g_theta theta) = radius
@@ -85,28 +85,32 @@ def B_integrand_real_part(i, j , amplitude, z, wavenumber):
                   radius_rescale_factor(amplitude)) # two from r^2 in A_th, -2 from g^thth, 1 from sqrt_g_thth
     return (z_part + theta_part)
 
-def Kzz_integrand(amplitude, z, wavenumber):
+def Kzz_integrand(amplitude, z, wavenumber, radius):
   return( (amplitude * wavenumber**2 * math.sin(wavenumber*z))**2 *
           radius**3 * (1+amplitude * math.sin(wavenumber*z)) *
           (1+amplitude**2/2)**(-3/2.0)*
           1/(1+(amplitude*wavenumber*math.cos(wavenumber*z))**2))
 
-def Kthth_integrand(amplitude, z, wavenumber):
+def Kthth_integrand(amplitude, z, wavenumber, radius):
   return( 1/((radius )**2)* #part of K_th^th^2
           1/sqrt_g_z(radius, amplitude, wavenumber, z)*# part of K_th^th^2*sqrt_g_zz
           sqrt_g_theta(radius, amplitude, wavenumber, z)*
           1/radius_rescale_factor(amplitude)) # one radius in sqrt_g_theta and -2 in Kthth
 
-def evaluate_A_integrals(amplitude, wavenumber, num_field_coeffs):
+def evaluate_A_integrals(amplitude, wavenumber,
+                         field_coeffs, radius):
   global A_integrals
+  num_field_coeffs = max(field_coeffs)
   for diff in range(-4*num_field_coeffs, 4*num_field_coeffs+1):
-    img_part, error = integrate.quad(lambda z: A_integrand_img_part(diff, amplitude, z, wavenumber=wavenumber),
+    img_part, error = integrate.quad(lambda z: A_integrand_img_part(diff, amplitude, z, wavenumber=wavenumber
+                                                                    , radius=radius),
                               0, 2 *math.pi / wavenumber)
-    real_part, error = integrate.quad(lambda z: A_integrand_real_part(diff, amplitude, z, wavenumber=wavenumber),
+    real_part, error = integrate.quad(lambda z: A_integrand_real_part(diff, amplitude, z, wavenumber=wavenumber,
+                                                                      radius=radius),
                                0, 2 *math.pi / wavenumber)
     A_integrals[diff]= complex(real_part, img_part)
 
-def evaluate_A_integral_0(amplitude, wavenumber, num_field_coeffs):
+def evaluate_A_integral_0(amplitude, wavenumber):
   global A_integrals
   img_part, error = integrate.quad(lambda z: A_integrand_img_part(0, amplitude, z, wavenumber=wavenumber),
                               0, 2 *math.pi / wavenumber)
@@ -116,47 +120,49 @@ def evaluate_A_integral_0(amplitude, wavenumber, num_field_coeffs):
                                0, 2 *math.pi / wavenumber)
   A_integrals[0]= complex(real_part, img_part)
 
-def evaluate_B_integrals(amplitude, wavenumber):
+def evaluate_B_integrals(amplitude, wavenumber, field_coeffs, radius, n):
   global B_integrals
   B_integrals = dict()
-  for i in range(-1*num_field_coeffs, num_field_coeffs+1):
-    for j in range(-1 * num_field_coeffs, num_field_coeffs + 1):
-      img_part, error = integrate.quad(lambda z: B_integrand_img_part(i, j , amplitude, z, wavenumber=wavenumber),
+  for i in field_coeffs:
+    for j in field_coeffs:
+      img_part, error = integrate.quad(lambda z: B_integrand_img_part(i, j , amplitude, z, wavenumber=wavenumber,
+                                                                      radius=radius),
                                        0, 2 * math.pi / wavenumber)
-      real_part, error = integrate.quad(lambda z: B_integrand_real_part(i, j , amplitude, z, wavenumber=wavenumber),
+      real_part, error = integrate.quad(lambda z: B_integrand_real_part(i, j , amplitude, z, wavenumber=wavenumber,
+                                                                      radius=radius, n=n),
                                         0, 2 * math.pi / wavenumber) #throws integrationwarning for amplitude >.9
       B_integrals[(i,j)] = complex(real_part, img_part)
 
 ############# calc energy ################
 
-def calc_field_energy(field_coeffs, amplitude, wavenumber, amplitude_change=True):
+def calc_field_energy(field_coeffs, amplitude, wavenumber, radius, n, alpha, C, u, amplitude_change=True):
   #some memoization: repurpose A integrals as D integrals
   # and don't reevaluate until amplitude change
-  num_field_coeffs = len(field_coeffs)
+  #num_field_coeffs = max(field_coeffs.keys)
   if not A_integrals or amplitude_change:
     #print("amplitude", amplitude)
-    evaluate_A_integrals(amplitude, wavenumber=wavenumber)
-    evaluate_B_integrals(amplitude, wavenumber=wavenumber)
+    evaluate_A_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs,  radius=radius)
+    evaluate_B_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs,  radius=radius, n=n)
     #print("A integrals", A_integrals)
     #print("B integrals", B_integrals)
   A_complex_energy = 0+0j
-  for i in range(-1 * num_field_coeffs, num_field_coeffs + 1):
-    for j in range(-1 * num_field_coeffs, num_field_coeffs + 1):
+  for i in field_coeffs:
+    for j in field_coeffs:
       A_complex_energy+= (field_coeffs[i]*field_coeffs[j].conjugate()*A_integrals[i-j])
   if not math.isclose(A_complex_energy.imag, 0, abs_tol=1e-9):
     print("nonzero imaginary energy component in A", A_complex_energy)
   B_complex_energy = 0 + 0j
-  for i in range(-1 * num_field_coeffs, num_field_coeffs + 1):
-      for j in range(-1 * num_field_coeffs, num_field_coeffs + 1):
+  for i in field_coeffs:
+      for j in field_coeffs:
         B_complex_energy += (field_coeffs[i] * field_coeffs[j].conjugate() * B_integrals[(i,j)])
   if not math.isclose(B_complex_energy.imag, 0, abs_tol=1e-9):
     print("nonzero imaginary energy component in B", B_complex_energy)
   #same reduce / list comprehension as loops this time because there are 4 variables
   D_complex_energy = 0+0j #identity of complex sum
-  for i1 in range(-1 * num_field_coeffs, num_field_coeffs + 1):
-    for i2 in range(-1 * num_field_coeffs, num_field_coeffs + 1):
-      for j1 in range(-1 * num_field_coeffs, num_field_coeffs + 1):
-        for j2 in range(-1 * num_field_coeffs, num_field_coeffs + 1):
+  for i1 in field_coeffs:
+    for i2 in field_coeffs:
+      for j1 in field_coeffs:
+        for j2 in field_coeffs:
           D_complex_energy += (field_coeffs[i1]*field_coeffs[i2]*
                                 field_coeffs[j1].conjugate()*field_coeffs[j2].conjugate()*
                                                 A_integrals[(i1+i2-j1-j2)])
@@ -165,20 +171,20 @@ def calc_field_energy(field_coeffs, amplitude, wavenumber, amplitude_change=True
   return alpha*A_complex_energy.real + C * B_complex_energy.real + 0.5*u*D_complex_energy.real
 
 
-def calc_bending_energy(amplitude, wavenumber):
+def calc_bending_energy(amplitude, wavenumber, radius):
   if amplitude==0:
     Kthth_integral, error= integrate.quad(lambda z: 1.0/radius**2,
                                        0, 2 * math.pi / wavenumber)
     return Kthth_integral
   else:
-    Kzz_integral, error = integrate.quad(lambda z: Kzz_integrand(amplitude, z, wavenumber=wavenumber),
+    Kzz_integral, error = integrate.quad(lambda z: Kzz_integrand(amplitude, z, wavenumber=wavenumber, radius=radius),
                                        0, 2 * math.pi / wavenumber)
-    Kthth_integral, error= integrate.quad(lambda z: Kthth_integrand( amplitude, z, wavenumber=wavenumber),
+    Kthth_integral, error= integrate.quad(lambda z: Kthth_integrand( amplitude, z, wavenumber=wavenumber, radius=radius),
                                        0, 2 * math.pi / wavenumber)
     return(Kzz_integral+Kthth_integral)
 
-def calc_surface_energy(amplitude, wavenumber, kappa, amplitude_change=True):
+def calc_surface_energy(amplitude, wavenumber, radius, gamma, kappa, amplitude_change=True):
   if (not A_integrals) or amplitude_change:
     evaluate_A_integral_0(amplitude)
   #print('surface area', A_integrals[0].real, "a", amplitude)
-  return gamma* A_integrals[0].real + kappa*calc_bending_energy(amplitude, wavenumber)
+  return gamma* A_integrals[0].real + kappa*calc_bending_energy(amplitude, wavenumber, radius)

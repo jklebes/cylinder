@@ -13,7 +13,8 @@ def step_fieldcoeffs(temp, wavenumber):
   proposed_field_coeffs =copy.copy(field_coeffs)
   proposed_field_coeffs[field_coeff_index]+=field_max_stepsize*complex(random.uniform(-1,1), random.uniform(-1,1))
   #print(field_coeff_index, proposed_field_coeffs)
-  new_field_energy = ce.calc_field_energy(proposed_field_coeffs, amplitude, wavenumber,  amplitude_change=False)
+  new_field_energy = ce.calc_field_energy(proposed_field_coeffs, amplitude, wavenumber,  radius, n=n,
+                                          alpha=alpha, C=C, u=u, amplitude_change=False)
   #print(new_field_energy, field_energy)
   diff = new_field_energy - field_energy
   if diff <= 0 or (temp!=0 and random.uniform(0, 1) <= math.exp(-diff / temp)):
@@ -31,8 +32,10 @@ def step_amplitude(temp, wavenumber, kappa):
   global surface_energy
   global amplitude
   proposed_amplitude = amplitude + amplitude_max_stepsize*random.uniform(-1,1)
-  new_field_energy = ce.calc_field_energy(field_coeffs, proposed_amplitude, wavenumber=wavenumber)
-  new_surface_energy=ce.calc_surface_energy(proposed_amplitude, wavenumber=wavenumber, kappa=kappa,amplitude_change=False)
+  new_field_energy = ce.calc_field_energy(field_coeffs, proposed_amplitude,wavenumber=wavenumber, radius=radius, n=n,
+                                          alpha=alpha, C=C, u=u)
+  new_surface_energy=ce.calc_surface_energy(proposed_amplitude, wavenumber=wavenumber, radius=radius,
+                                            kappa=kappa, gamma=gamma, amplitude_change=False)
   diff = (new_field_energy + new_surface_energy) - (field_energy + surface_energy)
   if diff <= 0 or (temp!=0 and random.uniform(0, 1) <= math.exp(-diff / temp)):
       # accept change
@@ -57,7 +60,7 @@ def run(temp, initial_field_coeffs, wavenumber, kappa, initial_amplitude=0, amp_
   field_coeffs = initial_field_coeffs
   amplitude = initial_amplitude
   field_energy = ce.calc_field_energy(field_coeffs, initial_amplitude, wavenumber, kappa)
-  surface_energy = ce.calc_surface_energy(initial_amplitude, wavenumber, kappa, amplitude_change=False, )
+  surface_energy = ce.calc_surface_energy(initial_amplitude, wavenumber, kappa, amplitude_change=False )
   for i in range(amp_steps):
     if abs(amplitude) > 1: break
     for j in range(fieldsteps_per_ampstep):
@@ -75,8 +78,10 @@ def run_amp_converge(temp, initial_field_coeffs, wavenumber, kappa, initial_ampl
   global amplitude
   field_coeffs = initial_field_coeffs
   amplitude = initial_amplitude
-  field_energy = ce.calc_field_energy(field_coeffs, initial_amplitude, wavenumber, kappa)
-  surface_energy = ce.calc_surface_energy(initial_amplitude, wavenumber, kappa, amplitude_change=False, )
+  field_energy = ce.calc_field_energy(field_coeffs, initial_amplitude, wavenumber, n=n,
+                                     radius=radius, alpha=alpha, C=C, u=u)
+  surface_energy = ce.calc_surface_energy(initial_amplitude, wavenumber, radius,
+                                          kappa=kappa, gamma=gamma, amplitude_change=False, )
   converged_count=0
   past_values = [amplitude]
   for i in range(amp_steps):
@@ -98,7 +103,8 @@ def run_amp_converge(temp, initial_field_coeffs, wavenumber, kappa, initial_ampl
       past_values.pop(0)
   return i, abs(sum(past_values)/len(past_values))
 
-def loop_wavenumber_kappa(temp, wavenumber_range, kappa_range, amp_steps=1000, fieldsteps_per_ampstep=100, amp_converge=True):
+def loop_wavenumber_kappa(temp, wavenumber_range, kappa_range, amp_steps, fieldsteps_per_ampstep, amp_converge=True):
+  # TODO: energy, not amplitude criterion for convergence
   converge_times = []
   results =[]
   for wavenumber in wavenumber_range:
@@ -148,7 +154,19 @@ def record_amplitude_vs_time(temp, kappa, wavenumber, amp_steps=1000, fieldsteps
     amplitudes.append(amplitude)
   return amplitudes
 
+def run_experiment(type, range1, range2, amp_steps, converge_stop, fieldsteps_per_ampstep, temp, plot=True):
+  # TODO: lookup from type, decide on loop function
+  converge_time, results =  loop_wavenumber_kappa(temp=temp, wavenumber_range=range1, kappa_range=range2, amp_steps=amp_steps
+                        , fieldsteps_per_ampstep=fieldsteps_per_ampstep, amp_converge=converge_stop)
+  if plot:
+    title = "wavenumber_kappa_alpha0u0c0_tmp"
+    plot_save(wavenumber_range=range1, kappa_range=range2, results=results, title=title)
+    plot_save(wavenumber_range=range1, kappa_range=range2, results=converge_time,
+              title=title + "_convergence_time_")
+
+
 if __name__ == "__main__":
+  # set system variables here
   global alpha
   global C
   global u
@@ -166,20 +184,14 @@ if __name__ == "__main__":
   num_field_coeffs = 3
   amplitude_max_stepsize =.05
   field_max_stepsize =.05
-
-  wavenumber_range = np.arange(0.005, 1.2, .05)
-  kappa_range = np.arange(0,1, .05)
   temp=0.001
-  converge_time, results = loop_wavenumber_kappa(temp=temp, wavenumber_range=wavenumber_range, kappa_range=kappa_range)
-  print(results)
-  #wavenumber = .1
-  #kappa=.3
-  #amplitudes = record_amplitude_vs_time(temp, wavenumber=wavenumber, kappa=kappa)
-  title="wavenumber_kappa_alpha0u0c0_tmp"
-  plot_save(wavenumber_range=wavenumber_range, kappa_range=kappa_range, results=results, title=title)
-  plot_save(wavenumber_range=wavenumber_range, kappa_range=kappa_range, results=converge_time, title=title+"_convergence_time_")
-  #plot_save(wavenumber_range, kappa_range, results, title)
-  #plt.scatter(range(len(amplitudes)), amplitudes, marker='x')
-  #plt.xlabel="steps"
-  #plt.ylabel("a")
-  #plt.savefig(title+".png")
+
+  #specify type, range of plot; title of experiment
+  loop_type = ("wavenumber", "kappa")
+  experiment_title =  loop_type[0]+"_"+loop_type[1]
+  range1 = np.arange(0.005, 1.2, .05)
+  range2 = np.arange(0,1, .05)
+  amp_steps = 500
+  converge_stop = True
+  fieldsteps_per_ampstep=10
+  run_experiment(loop_type, range1, range2, amp_steps, converge_stop, fieldsteps_per_ampstep, temp=temp)
