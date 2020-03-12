@@ -139,12 +139,12 @@ def metropolis_decision(temp, old_energy, proposed_energy):
     return False
   else:
     probability = math.exp(- 1 * diff / temp)
-  assert probability >= 0
-  assert probability <= 1
-  if random.uniform(0, 1) <= probability:
-    return True
-  else:
-    return False
+    assert probability >= 0
+    assert probability <= 1
+    if random.uniform(0, 1) <= probability:
+      return True
+    else:
+      return False
 
 
 def run(field_coeffs, wavenumber, kappa, amplitude,
@@ -249,7 +249,7 @@ def record_amplitude_vs_time(kappa, wavenumber, n_steps, method = "simultaneous"
   :return:
   """
   field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-  amplitude = .6   # TODO : pass in initial amplitude, field optionally
+  amplitude = .6
   amplitudes = [amplitude]
   se = ce.System_Energy()  # object stores A,B,D integral values -> less recalculate
   field_energy = se.calc_field_energy(field_coeffs, amplitude, radius=radius, n=n, alpha=alpha, C=C, u=u,
