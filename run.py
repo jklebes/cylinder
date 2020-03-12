@@ -133,19 +133,12 @@ def metropolis_decision(temp, old_energy, proposed_energy):
   :return: True to accept value, False to reject
   """
   diff = proposed_energy - old_energy
-  if temp == 0:
-    if diff <= 0:
-      return True  # choice was made that 0 difference -> accept change
-    else:
-      return False
-  else:
-    try:
-      probability = min(math.exp(- 1 * diff / temp), 1)
-    except OverflowError:
-      if -1 * diff / temp > 0:
-        probability = 1
-      else:
-        raise (OverflowError)
+  if diff <= 0:
+    return True  # choice was made that 0 difference -> accept change
+  elif diff > 0 and temp == 0:
+    return False
+  else
+    probability = math.exp(- 1 * diff / temp)
   assert probability >= 0
   assert probability <= 1
   if random.uniform(0, 1) <= probability:
@@ -256,7 +249,7 @@ def record_amplitude_vs_time(kappa, wavenumber, n_steps, method = "simultaneous"
   :return:
   """
   field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-  amplitude = .6
+  amplitude = .6   # TODO : pass in initial amplitude, field optionally
   amplitudes = [amplitude]
   se = ce.System_Energy()  # object stores A,B,D integral values -> less recalculate
   field_energy = se.calc_field_energy(field_coeffs, amplitude, radius=radius, n=n, alpha=alpha, C=C, u=u,
