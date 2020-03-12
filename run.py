@@ -137,7 +137,7 @@ def metropolis_decision(temp, old_energy, proposed_energy):
     return True  # choice was made that 0 difference -> accept change
   elif diff > 0 and temp == 0:
     return False
-  else
+  else:
     probability = math.exp(- 1 * diff / temp)
   assert probability >= 0
   assert probability <= 1
