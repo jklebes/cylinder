@@ -249,7 +249,7 @@ def record_amplitude_vs_time(kappa, wavenumber, n_steps, method = "simultaneous"
   :return:
   """
   field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-  amplitude = .6
+  amplitude = .6 # TODO: optionally pass in initial amplitude, field
   amplitudes = [amplitude]
   se = ce.System_Energy()  # object stores A,B,D integral values -> less recalculate
   field_energy = se.calc_field_energy(field_coeffs, amplitude, radius=radius, n=n, alpha=alpha, C=C, u=u,
