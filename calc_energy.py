@@ -162,6 +162,38 @@ class System_Energy():
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
 
+  def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, wavenumber, radius, n, alpha, C, u, amplitude_change=True):
+    # some memoization: use previously calculated A integrals (=D integrals) and B integrals
+    # reevaluate only on  amplitude change
+    if (not self.A_integrals) or amplitude_change:
+      self.evaluate_A_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius)
+    if (not self.B_integrals) or amplitude_change:
+      self.evaluate_B_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius, n=n)
+
+    A_complex_energy = 0 + 0j
+    for i in field_coeffs:
+      for j in field_coeffs:
+        A_complex_energy += (field_coeffs[i] * field_coeffs[j].conjugate() * self.A_integrals[i-j])
+    assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
+
+    B_complex_energy = 0 + 0j
+    for i in field_coeffs:
+      for j in field_coeffs:
+        B_complex_energy += (field_coeffs[i] * field_coeffs[j].conjugate() * self.B_integrals[(i, j)])
+    assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
+
+    # same reduce / list comprehension as loops this time because there are 4 variables
+    D_complex_energy = 0 + 0j  # identity of complex sum
+    for i1 in field_coeffs:
+      for i2 in field_coeffs:
+        for j1 in field_coeffs:
+          for j2 in field_coeffs:
+            D_complex_energy += (field_coeffs[i1] * field_coeffs[i2] *
+                                 field_coeffs[j1].conjugate() * field_coeffs[j2].conjugate() *
+                                 self.A_integrals[(i1 + i2 - j1 - j2)])
+    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
+    return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
+
   def calc_bending_energy(self, amplitude, wavenumber, radius):
     if amplitude == 0:
       Kthth_integral, error = integrate.quad(lambda z: 1.0 / radius ** 2,

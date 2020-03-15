@@ -49,14 +49,14 @@ def step_fieldcoeff(field_coeff_index, wavenumber,
   :param system_energy:
   :return:
   """
-  proposed_field_coeffs = copy.copy(field_coeffs)
-  proposed_field_coeffs[field_coeff_index] += complex(sampling_dist(field_sampling_width), sampling_dist(field_sampling_width))
-  new_field_energy = system_energy.calc_field_energy(proposed_field_coeffs, amplitude, radius=radius, n=n, alpha=alpha,
+  proposed_field_coeff = field_coeffs[field_coeff_index] + rand_complex(field_sampling_width)
+  new_field_energy = system_energy.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs,
+                                                          amplitude, radius=radius, n=n, alpha=alpha,
                                                      C=C, u=u,
                                                      wavenumber=wavenumber)
   if metropolis_decision(temp, field_energy + surface_energy, new_field_energy + surface_energy):
     field_energy = new_field_energy
-    field_coeffs = proposed_field_coeffs
+    field_coeffs[field_coeff_index] = proposed_field_coeff
   return field_coeffs, field_energy
 
 
@@ -108,7 +108,7 @@ def step_all(wavenumber, kappa, amplitude, field_coeffs, surface_energy, field_e
   proposed_amplitude = amplitude + sampling_dist(amplitude_sampling_width )
   proposed_field_coeffs = copy.copy(field_coeffs)
   for index in field_coeffs:
-    proposed_field_coeffs[index] += sampling_dist(field_sampling_width)
+    proposed_field_coeffs[index] += rand_complex(field_sampling_width)
   if abs(proposed_amplitude) >= 1:
     return amplitude, field_coeffs, surface_energy, field_energy
   new_field_energy = system_energy.calc_field_energy(proposed_field_coeffs, proposed_amplitude, radius=radius, n=n, alpha=alpha,
@@ -229,13 +229,14 @@ def plot_save(wavenumber_range, kappa_range, results, title):
   plt.savefig(title + ".png")
   plt.close()
 
-def rand_complex():
+def rand_complex(maxamplitude=1):
   """
-  random complex number in/on unit circle
-  distribution not uniform wrt area in unit circle
+  random complex number in/on unit (or other) circle
+  default amplitude : 1
+  distribution not uniform wrt area of circle
   :return:
   """
-  amplitude = random.uniform(0,1)
+  amplitude = random.uniform(0,maxamplitude)
   phase = random.uniform(0, 2*math.pi)
   return cmath.rect(amplitude, phase)
 
