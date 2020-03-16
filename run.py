@@ -53,7 +53,7 @@ def step_fieldcoeff(field_coeff_index, wavenumber,
   new_field_energy = system_energy.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs,
                                                           amplitude, radius=radius, n=n, alpha=alpha,
                                                      C=C, u=u,
-                                                     wavenumber=wavenumber)
+                                                     wavenumber=wavenumber, amplitude_change=False)
   if metropolis_decision(temp, field_energy + surface_energy, new_field_energy + surface_energy):
     field_energy = new_field_energy
     field_coeffs[field_coeff_index] = proposed_field_coeff
@@ -104,7 +104,7 @@ def step_all(wavenumber, kappa, amplitude, field_coeffs, surface_energy, field_e
   :param system_energy:
   :return:
   """
-  # TODO: record acceptance rate, aim for 20-50 %
+  # TODO: record acceptance rate, aim for 20-60 %
   proposed_amplitude = amplitude + sampling_dist(amplitude_sampling_width )
   proposed_field_coeffs = copy.copy(field_coeffs)
   for index in field_coeffs:
@@ -113,7 +113,7 @@ def step_all(wavenumber, kappa, amplitude, field_coeffs, surface_energy, field_e
     return amplitude, field_coeffs, surface_energy, field_energy
   new_field_energy = system_energy.calc_field_energy(proposed_field_coeffs, proposed_amplitude, radius=radius, n=n, alpha=alpha,
                                                      C=C, u=u,
-                                                     wavenumber=wavenumber)
+                                                     wavenumber=wavenumber, amplitude_change=True)
   new_surface_energy = system_energy.calc_surface_energy(proposed_amplitude, wavenumber=wavenumber, radius=radius,
                                                          gamma=gamma,
                                                          kappa=kappa, amplitude_change=False)
@@ -338,7 +338,7 @@ if __name__ == "__main__":
 
   assert (alpha <= 0)
 
-  record_amplitude_vs_time(kappa, wavenumber, n_steps, method="simultaneous")
+  record_amplitude_vs_time(kappa, wavenumber, n_steps, method="sequential")
 
   # run_experiment(loop_type, experiment_title,
   # range1, range2, amp_steps, converge_stop, fieldsteps_per_ampstep)
