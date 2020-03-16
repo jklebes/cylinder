@@ -325,7 +325,7 @@ num_field_coeffs = 3
 #user-define jump distribution
 #sampling_dist = lambda width :  random.uniform(-1*x, x)
 sampling_dist = lambda width : random.gauss(0, width)
-amplitude_sampling_width = .025
+amplitude_sampling_width = .025 #
 field_sampling_width = .025
 
 if __name__ == "__main__":

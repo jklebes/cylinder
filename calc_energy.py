@@ -161,37 +161,35 @@ class System_Energy():
     if amplitude_change or (not self.B_integrals) :
       self.evaluate_B_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius, n=n)
 
-    old_field_coeff = old_field_coeffs[index]
-
+    diff = new_field_coeff - old_field_coeffs[index]
     A_complex_energy = 0 + 0j
     B_complex_energy = 0 + 0j
     for i in old_field_coeffs:
-      A_complex_energy += (new_field_coeff-old_field_coeff) * old_field_coeffs[i].conjugate() * self.A_integrals[index - i]
-      A_complex_energy += old_field_coeffs[i] * (new_field_coeff.conjugate() - old_field_coeff.conjugate()) * self.A_integrals[i - index]
-      B_complex_energy += (new_field_coeff - old_field_coeff) * old_field_coeffs[i].conjugate() * self.B_integrals[
-        index, i]
-      B_complex_energy += old_field_coeffs[i] * (new_field_coeff.conjugate() - old_field_coeff.conjugate()) * \
-                          self.B_integrals[i, index]
-    A_complex_energy -= (new_field_coeff*new_field_coeff.conjugate() - old_field_coeff*old_field_coeff.conjugate()) * self.A_integrals[0] #undoing the one we did twice
-    B_complex_energy -= (new_field_coeff * new_field_coeff.conjugate() - old_field_coeff * old_field_coeff.conjugate()) * \
-                        self.B_integrals[
-                          index, index]
+      A_complex_energy += diff * old_field_coeffs[i].conjugate() * self.A_integrals[index - i]
+      A_complex_energy += old_field_coeffs[i] * diff.conjugate() * self.A_integrals[i - index]
+      B_complex_energy += diff * old_field_coeffs[i].conjugate() * self.B_integrals[ index, i]
+      B_complex_energy += old_field_coeffs[i] * diff.conjugate() * self.B_integrals[i, index]
+    # undoing the change we did (with partially old value) where i=index above ,
+    # + changing the point (index, i=index) correctly works out to this addition
+    A_complex_energy += diff*diff.conjugate()*self.A_integrals[0]
+    B_complex_energy += diff*diff.conjugate()*self.B_integrals[index, index]
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
 
     # todo: problem with this logic
     D_complex_energy = 0 + 0j  # identity of complex sum
     for i in old_field_coeffs:
       for j in old_field_coeffs:
+        D_complex_energy -=4* self.A_integrals[i+index-j-index]
         for k in old_field_coeffs:
-          D_complex_energy += 2* (new_field_coeff-old_field_coeff) * old_field_coeffs[i] * old_field_coeffs[j].conjugate() *old_field_coeffs[k].conjugate() * self.A_integrals[index + i - j - k]
-          D_complex_energy += 2 *old_field_coeffs[i] * old_field_coeffs[j] * (
-                                new_field_coeff.conjugate() - old_field_coeff.conjugate()
-                                ) *old_field_coeffs[k].conjugate() * self.A_integrals[i + j -index - k]
-        D_complex_energy += (new_field_coeff-old_field_coeff)**2 * old_field_coeffs[i].conjugate() *old_field_coeffs[j].conjugate() * self.A_integrals[index + index - i - j]
-        D_complex_energy -= 2* (new_field_coeff-old_field_coeff) * old_field_coeffs[i] * (
-                                new_field_coeff.conjugate() - old_field_coeff.conjugate()
-                                ) *old_field_coeffs[j].conjugate() * self.A_integrals[index + i - index - k]
-
+          D_complex_energy += 2* old_field_coeffs[i]*old_field_coeffs[j]*\
+                              old_field_coeffs[k].conjugate()*diff.conjugate()* self.A_integrals[i+j-k-index]
+          D_complex_energy += 2*old_field_coeffs[i]*diff*\
+                              old_field_coeffs[j].conjugate()*old_field_coeffs[j].conjugate()* self.A_integrals[i +index- j - k]
+        D_complex_energy -= self.A_integrals[i + j - index - index]
+        D_complex_energy -= self.A_integrals[index + index - i - j]
+      D_complex_energy +=2* self.A_integrals[i + index - index - index]
+      D_complex_energy +=2* self.A_integrals[index + index - i - index] 
+    D_complex_energy -= 3*self.A_integrals[0]
 
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
