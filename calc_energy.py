@@ -179,17 +179,16 @@ class System_Energy():
     D_complex_energy = 0 + 0j  # identity of complex sum
     for i in old_field_coeffs:
       for j in old_field_coeffs:
-        D_complex_energy -=4* self.A_integrals[i+index-j-index]
         for k in old_field_coeffs:
-          D_complex_energy += 2* old_field_coeffs[i]*old_field_coeffs[j]*\
-                              old_field_coeffs[k].conjugate()*diff.conjugate()* self.A_integrals[i+j-k-index]
-          D_complex_energy += 2*old_field_coeffs[i]*diff*\
-                              old_field_coeffs[j].conjugate()*old_field_coeffs[j].conjugate()* self.A_integrals[i +index- j - k]
-        D_complex_energy -= self.A_integrals[i + j - index - index]
-        D_complex_energy -= self.A_integrals[index + index - i - j]
-      D_complex_energy +=2* self.A_integrals[i + index - index - index]
-      D_complex_energy +=2* self.A_integrals[index + index - i - index] 
-    D_complex_energy -= 3*self.A_integrals[0]
+          D_complex_energy+=2* A_integrals[index+i-j-k]*diff * old_field_coeffs[i] * old_field_coeffs[j].conjugate() * old_field_coeffs[k].conjugate 
+          #3-variable sums with i,j, k in varyng roles
+          D_complex_energy+= 2* A_integrals[i+j-index-k]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()* old_field_coeffs[k].conjugate()
+        D_complex_energy += 4* A_integrals[i+index-j-index] *old_field_coeffs[i]*old_field_coeffs[j].conjugate()* diff* diff.conjugate()
+        #2-variable correction to previous and addition, condensed
+        D_complex_energy+= A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j].conjugate()*diff*diff
+        D_complex_energy+= A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()*diff.conjugate()
+      #1-variable sum parts
+      D_complex_energy += 
 
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
