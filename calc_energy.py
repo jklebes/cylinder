@@ -160,8 +160,8 @@ class System_Energy():
       self.evaluate_A_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius)
     if amplitude_change or (not self.B_integrals) :
       self.evaluate_B_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius, n=n)
-
-    diff = new_field_coeff - old_field_coeffs[index]
+    old_field_coeff=old_field_coeffs[index]
+    diff = new_field_coeff - old_field_coeff
     A_complex_energy = 0 + 0j
     B_complex_energy = 0 + 0j
     for i in old_field_coeffs:
@@ -188,8 +188,11 @@ class System_Energy():
         D_complex_energy+= A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j].conjugate()*diff*diff
         D_complex_energy+= A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()*diff.conjugate()
       #1-variable sum parts
-      D_complex_energy += 
-
+      D_complex_energy += A_integrals[index+index-index-i]*old_field_coeffs[i].conjugate()*(new_field_coeff*new_field_coeff.conjugate()*(2*new_field_coeff-4*old_field_coeff)+old_field_coeff.conjugate()*(4*old_field_coeff*old_field_coeff-2*new_field_coeff*new_field_coeff))
+      D_complex_energy+= A_integral[index+i-index-index]*old_field_coeffs[i]*(new_field_coeff*new_field_coeff.conjugate()*(2*new_field_coff.conjugate()-4*old_field_coeff.conjugate())+new_field_coeff(4*old_field_coeff.conjugate()*old_field_coeff.conjugate()-2*new_field_coeff.conjugate()*new_field_coeff.conjugate()))
+    #the point (index,index,index,index) 
+    #corrected from previous + the all-updated point
+    D_complex_energy+=A_integrals[0]*(3*old_field_coeff**2*old_field_coeff.conjugate()**2 + new_field_coeff*new_field_coeff.conjugate()*(-2*new_field_coeff.conjugate()*old_field_coeff -2* new_field_coeff*old_field_coeff.conjugate()+ new_field_coeff*new_field_coeff.conjugate()))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
 
