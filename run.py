@@ -6,41 +6,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import calc_energy as ce
-import metropolis_engine as me
-
-def run(field_coeffs, wavenumber, kappa, amplitude,
-        amp_steps, fieldsteps_per_ampstep, field_max_stepsize):  # constants for this run
-  """
-  TODO : name this function better
-  A single run with a given set of system constants and a given starting point
-  :param field_coeffs:
-  :param wavenumber:
-  :param kappa:
-  :param amplitude:
-  :param amp_steps:
-  :param fieldsteps_per_ampstep:
-  :param field_max_stepsize:
-  :return:
-  """
-  se = ce.System_Energy() # this object exists to store results of numerical integration between steps
-  field_energy = se.calc_field_energy(field_coeffs, amplitude, radius=radius, n=n, alpha=alpha, C=C, u=u,
-                                      wavenumber=wavenumber)
-  surface_energy = se.calc_surface_energy(amplitude, wavenumber, kappa=kappa, radius=radius, gamma=gamma,
-                                          amplitude_change=False)
-  # TODO : don't have different unmbers amp and field steps.  this was done from mistaken POV of emulating dynamics
-  for i in range(amp_steps):
-    for j in range(fieldsteps_per_ampstep):
-      field_coeffs, field_energy = step_fieldcoeffs_sequential(wavenumber=wavenumber,
-                                                               amplitude=amplitude,
-                                                               field_coeffs=field_coeffs, field_energy=field_energy,
-                                                               surface_energy=surface_energy,
-                                                               field_max_stepsize=field_max_stepsize, 
-                                                               system_energy = se)
-    amplitude, field_energy, surface_energy = step_amplitude(wavenumber=wavenumber, kappa=kappa,
-                                                             amplitude=amplitude, field_coeffs=field_coeffs,
-                                                             field_energy=field_energy, surface_energy=surface_energy, system_energy=se)
-  return field_coeffs, abs(amplitude)
-
+import metropolis_engine
 
 def loop_wavenumber_kappa(wavenumber_range, kappa_range, amp_steps, converge_stop,
                           fieldsteps_per_ampstep):
@@ -100,23 +66,55 @@ def rand_complex(maxamplitude=1):
   phase = random.uniform(0, 2*math.pi)
   return cmath.rect(amplitude, phase)
 
-def record_amplitude_vs_time(kappa, wavenumber, n_steps, method = "simultaneous"):
+
+def run_experiment(type, experiment_title, range1, range2, n_steps, plot=True):
+  """
+  Launches a set of runs exploring the stability on a grid of 2 parameters.
+  :param type:
+  :param experiment_title:
+  :param range1:
+  :param range2:
+  :param amp_steps:
+  :param converge_stop:
+  :param fieldsteps_per_ampstep:
+  :param plot:
+  :return:
+  """
+  # TODO: lookup from type, decide on loop function
+  converge_time, results = loop_wavenumber_kappa(wavenumber_range=range1, kappa_range=range2, n_steps=n_steps)
+  if plot:
+    plot_save(wavenumber_range=range1, kappa_range=range2, results=results, title=experiment_title)
+    plot_save(wavenumber_range=range1, kappa_range=range2, results=converge_time,
+              title=experiment_title + "_convergence_time_")
+  # TODO: save data
+  print(converge_time, results)
+
+
+def single_run(experiment_variable1, experiment_variable2, n_steps, method = "simultaneous"):
   """
   for examining a single run over time.
+  with all the data recording
   :param kappa:
   :param wavenumber:
   :param amp_steps:
   :param fieldsteps_per_ampstep:
   :return:
   """
+  ########### initial values ##############
   field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-  amplitude = .6 # TODO: optionally pass in initial amplitude, field
-  amplitudes = [amplitude]
+  amplitude = 0 # TODO: optionally pass in initial amplitude, field
+  
+  ########### setup #############
   se = ce.System_Energy()  # object stores A,B,D integral values -> less recalculate
+  me = metropolis_engine.MetropolisEngine(method, num_field_coeffs, sampling_dist, initial_sampling_widths) 
   field_energy = se.calc_field_energy(field_coeffs, amplitude, radius=radius, n=n, alpha=alpha, C=C, u=u,
                                       wavenumber=wavenumber)
   surface_energy = se.calc_surface_energy(amplitude, wavenumber, kappa=kappa, radius=radius, gamma=gamma,
                                           amplitude_change=False)
+  
+  ########### start of data collection ############
+  amplitudes = [amplitude]
+  
   if method == "sequential":
     for i in range(n_steps):
       field_coeffs, field_energy = step_fieldcoeffs_sequential(wavenumber=wavenumber,
@@ -142,30 +140,6 @@ def record_amplitude_vs_time(kappa, wavenumber, n_steps, method = "simultaneous"
   plt.savefig("amplitudes_vs_time.png")
   return amplitudes
 
-
-def run_experiment(type, experiment_title, range1, range2, n_steps, plot=True):
-  """
-  Launches a set of runs exploring the stability on a grid of 2 parameters.
-  :param type:
-  :param experiment_title:
-  :param range1:
-  :param range2:
-  :param amp_steps:
-  :param converge_stop:
-  :param fieldsteps_per_ampstep:
-  :param plot:
-  :return:
-  """
-  # TODO: lookup from type, decide on loop function
-  converge_time, results = loop_wavenumber_kappa(wavenumber_range=range1, kappa_range=range2, n_steps=n_steps)
-  if plot:
-    plot_save(wavenumber_range=range1, kappa_range=range2, results=results, title=experiment_title)
-    plot_save(wavenumber_range=range1, kappa_range=range2, results=converge_time,
-              title=experiment_title + "_convergence_time_")
-  # TODO: save data
-  print(converge_time, results)
-
-
 # TODO: where to set system variables?
 # coefficients
 alpha = -1
@@ -185,8 +159,7 @@ num_field_coeffs = 3
 #user-define jump distribution
 #sampling_dist = lambda width :  random.uniform(-1*x, x)
 sampling_dist = lambda width : random.gauss(0, width)
-amplitude_sampling_width = .025 #
-field_sampling_width = .025
+initial_sampling_width = .025
 
 if __name__ == "__main__":
   # specify type, range of plot; title of experiment
@@ -198,7 +171,7 @@ if __name__ == "__main__":
 
   assert (alpha <= 0)
 
-  record_amplitude_vs_time(kappa, wavenumber, n_steps, method="sequential")
+  single_run(kappa, wavenumber, n_steps, method="sequential")
 
   # run_experiment(loop_type, experiment_title,
   # range1, range2, amp_steps, converge_stop, fieldsteps_per_ampstep)
