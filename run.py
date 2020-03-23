@@ -193,7 +193,6 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, amp_steps, converge_sto
   :return:
   """
   # TODO: maybe convergence check
-  converge_times = []
   results = []
   for wavenumber in wavenumber_range:
     results_line = []
@@ -210,8 +209,7 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, amp_steps, converge_sto
       results_line.append(amplitude)
       print(kappa, wavenumber, amplitude)
     results.append(results_line)
-    converge_times.append(times_line)
-  return (np.array(converge_times), np.array(results))
+  return  np.array(results)
 
 
 def plot_save(wavenumber_range, kappa_range, results, title):
