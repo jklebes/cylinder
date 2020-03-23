@@ -173,10 +173,11 @@ def run(field_coeffs, wavenumber, kappa, amplitude,
                                                                amplitude=amplitude,
                                                                field_coeffs=field_coeffs, field_energy=field_energy,
                                                                surface_energy=surface_energy,
-                                                               field_max_stepsize=field_max_stepsize)
+                                                               field_max_stepsize=field_max_stepsize, 
+                                                               system_energy = se)
     amplitude, field_energy, surface_energy = step_amplitude(wavenumber=wavenumber, kappa=kappa,
                                                              amplitude=amplitude, field_coeffs=field_coeffs,
-                                                             field_energy=field_energy, surface_energy=surface_energy)
+                                                             field_energy=field_energy, surface_energy=surface_energy, system_energy=se)
   return field_coeffs, abs(amplitude)
 
 

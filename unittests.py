@@ -14,51 +14,54 @@ class TestRun(unittest.TestCase):
   def tearDown(self):
     # self.widget.dispose()
     pass
-  """
+  
   def test_loop_wavenumber_kappa_dims(self):
+    """
+
+    """
     range1 = np.arange(0.005, .5, .3)
     range2 = np.arange(0, .2, .3)
     amp_steps = 1
     converge_stop = True
     fieldsteps_per_ampstep = 1
     converge_time, amplitude_results = run.loop_wavenumber_kappa(wavenumber_range=range1, kappa_range=range2,
-                                                   amp_steps=amp_steps
-                                                   , fieldsteps_per_ampstep=fieldsteps_per_ampstep,converge_stop=converge_stop,
+                                                   amp_steps=amp_steps, 
+                                                   fieldsteps_per_ampstep=fieldsteps_per_ampstep,converge_stop=converge_stop,
                                                   )
     #self.assertEqual(converge_time.shape, (len(range1), len(range2)), "dimensions of convergetime output")
     self.assertEqual(amplitude_results.shape, (len(range1), len(range2)), "dimensions of amplitude output")
-  """
-  def test_decide_change1(self):
+  
+  def test_metropolis_decision_1(self):
     old_energy = 12.45
     new_energy = -1451.0
     temp= .001
     self.assertTrue(run.metropolis_decision(temp, old_energy, new_energy), "note: very rarely True by chance")
 
-  def test_decide_change2(self):
+  def test_metropolis_decision_2(self):
     old_energy = -145.4
     new_energy = -145.3
     temp = 0
     self.assertFalse(run.metropolis_decision(temp, old_energy, new_energy))
 
-  def test_decide_change2b(self):
+  def test_metropolis_decision_2b(self):
     old_energy = -145.4
     new_energy = -145.5
     temp = 0
     self.assertTrue(run.metropolis_decision(temp, old_energy, new_energy))
 
-  def test_decide_change3(self):
+  def test_metropolis_decision_3(self):
     old_energy = 0
     new_energy = 0
     temp= 0
     self.assertTrue(run.metropolis_decision(temp, old_energy, new_energy), "equal energies defined as accepted")
 
-  def test_decide_change4(self):
+  def test_metropolis_decision_4(self):
     old_energy = 14.3
     new_energy = 14.3
     temp=1.5
     self.assertTrue(run.metropolis_decision(temp, old_energy, new_energy), "equal energies defined as accepted")
 
-class TestCalcEnergy(unittest.TestCase):
+class TestIntegranfFactors(unittest.TestCase):
 
   def setUp(self):
     #self.system_energy = ce.System_Energy()
@@ -128,7 +131,9 @@ class TestCalcEnergy(unittest.TestCase):
       self.assertEqual(img, 0)
       self.assertEqual(real, 1) # surface area per unit area? without factor of 2pi
 
-  def test_evaluate_A_integrals_zerofield(self):
+class Test_Calc_Energy(unittest.TestCase):
+
+  def test_evaluate_A_integrals_zerofield_zeroamplitude(self):
     system_energy = ce.System_Energy()
     num_field_coeffs=1
     amplitude= 0
@@ -137,20 +142,41 @@ class TestCalcEnergy(unittest.TestCase):
     field_coeffs=dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     self.assertDictEqual(system_energy.A_integrals, dict([])) #an empty dict before using anything
     system_energy.evaluate_A_integrals(amplitude, wavenumber, field_coeffs, radius)
+    #not an empty dict anymore
     self.assertNotEqual(system_energy.A_integrals, dict([]))
-    self.assertEqual(system_energy.A_integrals[0], complex(2*math.pi, 0))
+    # surface area (A_integrals[0]) is as expected
+    self.assertEqual(system_energy.A_integrals[0], complex(2*math.pi/wavenumber, 0))
+    # complex parts of A_1 are 0 
     self.assertAlmostEqual(system_energy.A_integrals[1], complex(0, 0))
     self.assertAlmostEqual(system_energy.A_integrals[-1], complex(0, 0))
+
+  def test_evaluate_A_integrals_zerofield_amplitude_change(self):
+    system_energy = ce.System_Energy()
+    num_field_coeffs = 1
+    nonzero_amplitude = 0.32
+    radius = 1
+    wavenumber = 1
+    field_coeffs=dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     #evaluate at new ammpitude
-    system_energy.evaluate_A_integrals(0.3, wavenumber, field_coeffs, radius)
+    system_energy.evaluate_A_integrals(nonzero_amplitude, wavenumber, field_coeffs, radius)
     #pertrubed  - should change value to different surface area
-    self.assertNotEqual(system_energy.A_integrals[0].real, complex(2 * math.pi, 0).real)
+    self.assertNotEqual(system_energy.A_integrals[0].real, complex(2 * math.pi/wavenumber, 0).real)
+
+  def test_evaluate_A_integrals_zerofield_wavenumber_change(self):
+    system_energy = ce.System_Energy()
+    num_field_coeffs=1
+    nonzero_amplitude = -.232
+    field_coeffs=dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
+    radius = 1
+    unit_wavenumber = 1
+    low_wavenumber = .8
+    high_wavenumber = 1.2
     #low wavenumber - greater surface area
-    system_energy.evaluate_A_integrals(0.3, 0.5, field_coeffs, radius)
+    system_energy.evaluate_A_integrals(nonzero_amplitude, low_wavenumber, field_coeffs, radius)
     self.assertGreater(system_energy.A_integrals[0].real, complex(2 * math.pi, 0).real)
     self.assertAlmostEqual(system_energy.A_integrals[0].imag, complex(2 * math.pi, 0).imag)
     #high wavenumber - less surface area
-    system_energy.evaluate_A_integrals(0.3, 1.5, field_coeffs, radius)
+    system_energy.evaluate_A_integrals(nonzero_amplitude, high_wavenumber, field_coeffs, radius)
     self.assertLess(system_energy.A_integrals[0].real, complex(2 * math.pi, 0).real)
     self.assertAlmostEqual(system_energy.A_integrals[0].imag, complex(2 * math.pi, 0).imag)
 
@@ -476,6 +502,9 @@ class TestCalcEnergy(unittest.TestCase):
     energy_C = system_energy.calc_field_energy(field_coeffs, amplitude, wavenumber, radius, n, alpha, 1, u,
                                               amplitude_change=True)
     self.assertGreater(energy_C, energy_0C)
+
+class Test_Energy_Diff(unittest.TestCase):
+  pass
 
 if __name__ == '__main__':
     unittest.main()

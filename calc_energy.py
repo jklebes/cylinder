@@ -1,7 +1,7 @@
 import math
 import scipy.integrate as integrate
 
-
+# TODO : rename class
 class System_Energy():
 
   def __init__(self):
@@ -175,28 +175,31 @@ class System_Energy():
     B_complex_energy += diff*diff.conjugate()*self.B_integrals[index, index]
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
 
-    # todo: problem with this logic
+    # todo: test this logic
     D_complex_energy = 0 + 0j  # identity of complex sum
     for i in old_field_coeffs:
       for j in old_field_coeffs:
         for k in old_field_coeffs:
-          D_complex_energy+=2* A_integrals[index+i-j-k]*diff * old_field_coeffs[i] * old_field_coeffs[j].conjugate() * old_field_coeffs[k].conjugate 
+          D_complex_energy+=2* self.A_integrals[index+i-j-k]*diff * old_field_coeffs[i] * old_field_coeffs[j].conjugate() * old_field_coeffs[k].conjugate()
           #3-variable sums with i,j, k in varyng roles
-          D_complex_energy+= 2* A_integrals[i+j-index-k]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()* old_field_coeffs[k].conjugate()
-        D_complex_energy += 4* A_integrals[i+index-j-index] *old_field_coeffs[i]*old_field_coeffs[j].conjugate()* diff* diff.conjugate()
+          D_complex_energy+= 2* self.A_integrals[i+j-index-k]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()* old_field_coeffs[k].conjugate()
+        D_complex_energy += 4* self.A_integrals[i+index-j-index] *old_field_coeffs[i]*old_field_coeffs[j].conjugate()* diff* diff.conjugate()
         #2-variable correction to previous and addition, condensed
-        D_complex_energy+= A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j].conjugate()*diff*diff
-        D_complex_energy+= A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()*diff.conjugate()
+        D_complex_energy+= self.A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j].conjugate()*diff*diff
+        D_complex_energy+= self.A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()*diff.conjugate()
       #1-variable sum parts
-      D_complex_energy += A_integrals[index+index-index-i]*old_field_coeffs[i].conjugate()*(new_field_coeff*new_field_coeff.conjugate()*(2*new_field_coeff-4*old_field_coeff)+old_field_coeff.conjugate()*(4*old_field_coeff*old_field_coeff-2*new_field_coeff*new_field_coeff))
-      D_complex_energy+= A_integral[index+i-index-index]*old_field_coeffs[i]*(new_field_coeff*new_field_coeff.conjugate()*(2*new_field_coff.conjugate()-4*old_field_coeff.conjugate())+new_field_coeff(4*old_field_coeff.conjugate()*old_field_coeff.conjugate()-2*new_field_coeff.conjugate()*new_field_coeff.conjugate()))
+      D_complex_energy += self.A_integrals[index+index-index-i]*old_field_coeffs[i].conjugate()*(new_field_coeff*new_field_coeff.conjugate()*(2*new_field_coeff-4*old_field_coeff)+old_field_coeff.conjugate()*(4*old_field_coeff*old_field_coeff-2*new_field_coeff*new_field_coeff))
+      D_complex_energy+= self.A_integrals[index+i-index-index]*old_field_coeffs[i]*(new_field_coeff*new_field_coeff.conjugate()*(3*new_field_coeff.conjugate()-4*old_field_coeff.conjugate())+new_field_coeff*(4*old_field_coeff.conjugate()*old_field_coeff.conjugate()-2*new_field_coeff.conjugate()*new_field_coeff.conjugate()))
     #the point (index,index,index,index) 
     #corrected from previous + the all-updated point
-    D_complex_energy+=A_integrals[0]*(3*old_field_coeff**2*old_field_coeff.conjugate()**2 + new_field_coeff*new_field_coeff.conjugate()*(-2*new_field_coeff.conjugate()*old_field_coeff -2* new_field_coeff*old_field_coeff.conjugate()+ new_field_coeff*new_field_coeff.conjugate()))
+    D_complex_energy+=self.A_integrals[0]*(3*old_field_coeff**2*old_field_coeff.conjugate()**2 + new_field_coeff*new_field_coeff.conjugate()*(-2*new_field_coeff.conjugate()*old_field_coeff -2* new_field_coeff*old_field_coeff.conjugate()+ new_field_coeff*new_field_coeff.conjugate()))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
 
   def calc_bending_energy(self, amplitude, wavenumber, radius):
+    """
+    calculate bending as (K_i^i)**2.  Gaussian curvature and cross term 2 K_th^th K_z^z are omitted due to gauss-bonnet theorem.
+    """
     if amplitude == 0:
       Kthth_integral, error = integrate.quad(lambda z: 1.0 / radius ** 2,
                                              0, 2 * math.pi / wavenumber)
@@ -210,6 +213,10 @@ class System_Energy():
       return (Kzz_integral + Kthth_integral)
 
   def calc_surface_energy(self, amplitude, wavenumber, radius, gamma, kappa, amplitude_change=True):
+    """
+    energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
+    """
     if (not self.A_integrals) or amplitude_change:
       self.evaluate_A_integral_0(amplitude)
+    #A_integrals[0] is just surface area
     return gamma * self.A_integrals[0].real + kappa * self.calc_bending_energy(amplitude, wavenumber, radius)
