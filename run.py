@@ -5,18 +5,14 @@ import random
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import calc_energy as ce
+import system as ce #TODO: refactor name
 import metropolis_engine
 
-def loop_wavenumber_kappa(wavenumber_range, kappa_range, amp_steps, converge_stop,
-                          fieldsteps_per_ampstep):
+def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps):
   """
   A set of runs looping over a grid of wavenumber, bending rigdity values
   :param wavenumber_range:
   :param kappa_range:
-  :param amp_steps:
-  :param converge_stop:
-  :param fieldsteps_per_ampstep:
   :return:
   """
   # TODO: maybe convergence check
@@ -29,10 +25,8 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, amp_steps, converge_sto
       amplitude = 0
       initial_field_coeffs = dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
       # run
-      field_coeffs, amplitude = run(field_coeffs=initial_field_coeffs,
-                                    wavenumber=wavenumber, field_max_stepsize=field_sampling_width,
-                                    kappa=kappa, amplitude=amplitude,
-                                    amp_steps=amp_steps, fieldsteps_per_ampstep=fieldsteps_per_ampstep)
+      field_coeffs, amplitude = single_run(field_coeffs=initial_field_coeffs, amplitude=amplitude,
+                                    n_steps=n_steps)
       results_line.append(amplitude)
       print(kappa, wavenumber, amplitude)
     results.append(results_line)
@@ -90,7 +84,7 @@ def run_experiment(type, experiment_title, range1, range2, n_steps, plot=True):
   print(converge_time, results)
 
 
-def single_run(experiment_variable1, experiment_variable2, n_steps, method = "simultaneous"):
+def single_run( n_steps, method = "simultaneous", field_coeffs=None, amplitude=None):
   """
   for examining a single run over time.
   with all the data recording
@@ -101,16 +95,16 @@ def single_run(experiment_variable1, experiment_variable2, n_steps, method = "si
   :return:
   """
   ########### initial values ##############
-  field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-  amplitude = 0 # TODO: optionally pass in initial amplitude, field
+  if field_coeffs is None:
+    field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
+  if amplitude is None:
+    amplitude = 0
   
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
-  me = metropolis_engine.MetropolisEngine(method, num_field_coeffs, sampling_dist, initial_sampling_width) 
-  field_energy = se.calc_field_energy(field_coeffs, amplitude, radius=radius, n=n, alpha=alpha, C=C, u=u,
-                                      wavenumber=wavenumber)
-  surface_energy = se.calc_surface_energy(amplitude, wavenumber, kappa=kappa, radius=radius, gamma=gamma,
-                                          amplitude_change=False)
+  me = metropolis_engine.MetropolisEngine(method, num_field_coeffs, sampling_dist, initial_sampling_width, temp=temp) 
+  field_energy = se.calc_field_energy(field_coeffs, amplitude)
+  surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
   
   ########### start of data collection ############
   amplitudes = [amplitude]

@@ -76,7 +76,7 @@ class System():
   def B_integrand_real_part(self, i, j, amplitude, z):
     if amplitude == 0:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
-                radius)                                                               # sqrt(g_theta theta) = radius
+                self.radius)                                                               # sqrt(g_theta theta) = radius
                                                                                       # and 1/sqrt(g_zz) =1
       return (z_part)
     else:
@@ -121,27 +121,25 @@ class System():
                                       0, 2 * math.pi / self.wavenumber)
     self.A_integrals[0] = complex(real_part, img_part)
 
-  def evaluate_B_integrals(self, amplitude, wavenumber, field_coeffs, radius, n):
+  def evaluate_B_integrals(self, amplitude, field_coeffs): 
     for i in field_coeffs:
       for j in field_coeffs:
-        img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, amplitude, z, wavenumber=wavenumber,
-                                                                             radius=radius),
-                                         0, 2 * math.pi / wavenumber)
-        real_part, error = integrate.quad(
-          lambda z: self.B_integrand_real_part(i, j, amplitude, z, wavenumber=wavenumber,
-                                               radius=radius, n=n),
-          0, 2 * math.pi / wavenumber)  # throws integrationwarning for amplitude >.9
+        img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, amplitude, z),
+                                          0, 2 * math.pi / self.wavenumber)
+        real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, amplitude, z) ,
+          0, 2 * math.pi / self.wavenumber) 
         self.B_integrals[(i, j)] = complex(real_part, img_part)
 
   ############# calc energy ################
 
-  def calc_field_energy(self, field_coeffs, amplitude, wavenumber, radius, n, alpha, C, u, amplitude_change=True):
+  def calc_field_energy(self, field_coeffs, amplitude, amplitude_change=True):
     # some memoization: use previously calculated A integrals (=D integrals) and B integrals
     # reevaluate only on  amplitude change
+    # TODO : initialize on System object creation, instead of checking if empty every time
     if amplitude_change or (not self.A_integrals) :
-      self.evaluate_A_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius)
+      self.evaluate_A_integrals(amplitude, field_coeffs=field_coeffs)
     if amplitude_change or (not self.B_integrals) :
-      self.evaluate_B_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius, n=n)
+      self.evaluate_B_integrals(amplitude, field_coeffs=field_coeffs)
 
     A_complex_energy = 0 + 0j
     B_complex_energy = 0 + 0j
@@ -158,13 +156,13 @@ class System():
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
-    return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
+    return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
   def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, amplitude_change=False):
     if amplitude_change or (not self.A_integrals) :
-      self.evaluate_A_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius)
+      self.evaluate_A_integrals(amplitude, field_coeffs=field_coeffs)
     if amplitude_change or (not self.B_integrals) :
-      self.evaluate_B_integrals(amplitude, wavenumber=wavenumber, field_coeffs=field_coeffs, radius=radius, n=n)
+      self.evaluate_B_integrals(amplitude, field_coeffs=field_coeffs)
     old_field_coeff=old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
     A_complex_energy = 0 + 0j
@@ -204,29 +202,28 @@ class System():
     except AssertionError:
       print(D_complex_energy.imag)
       raise(AssertionError)
-    return alpha * A_complex_energy.real + C * B_complex_energy.real + 0.5 * u * D_complex_energy.real
+    return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
-  def calc_bending_energy(self, amplitude, wavenumber, radius):
+  def calc_bending_energy(self, amplitude):
     """
     calculate bending as (K_i^i)**2.  Gaussian curvature and cross term 2 K_th^th K_z^z are omitted due to gauss-bonnet theorem.
     """
     if amplitude == 0:
-      Kthth_integral, error = integrate.quad(lambda z: 1.0 / radius ** 2,
-                                             0, 2 * math.pi / wavenumber)
+      Kthth_integral, error = integrate.quad(lambda z: 1.0 / self.radius ** 2,
+                                             0, 2 * math.pi / self.wavenumber)
       return Kthth_integral
     else:
-      Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z, wavenumber=wavenumber, radius=radius),
-                                           0, 2 * math.pi / wavenumber)
-      Kthth_integral, error = integrate.quad(
-        lambda z: self.Kthth_integrand(amplitude, z, wavenumber=wavenumber, radius=radius),
-        0, 2 * math.pi / wavenumber)
+      Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z),
+                                           0, 2 * math.pi / self.wavenumber)
+      Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),
+        0, 2 * math.pi / self.wavenumber)
       return (Kzz_integral + Kthth_integral)
 
-  def calc_surface_energy(self, amplitude, wavenumber, radius, gamma, kappa, amplitude_change=True):
+  def calc_surface_energy(self, amplitude, amplitude_change=True):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
     if (not self.A_integrals) or amplitude_change:
       self.evaluate_A_integral_0(amplitude)
     #A_integrals[0] is just surface area
-    return gamma * self.A_integrals[0].real + kappa * self.calc_bending_energy(amplitude, wavenumber, radius)
+    return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)

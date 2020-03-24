@@ -5,10 +5,10 @@ import random
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import calc_energy as ce
+import system as ce
 
 class MetropolisEngine():
-  def __init__(self, method, num_field_coeffs, sampling_dist, sampling_widths):
+  def __init__(self, method, num_field_coeffs, sampling_dist, sampling_widths, temp):
     self.method = method
     self.sampling_dist = sampling_dist
     self.num_field_coeffs = num_field_coeffs
@@ -18,9 +18,10 @@ class MetropolisEngine():
     else:
       self.sampling_width_amplitude = sampling_widths[0]
       self.sampling_width_coeffs = sampling_widths[1]
-    self.acceptance_rate = None
+    self.temp=temp
 
-
+    self.acceptance_rate = None # to be calculated
+  
   def step_fieldcoeffs_sequential(self, wavenumber, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
     """
@@ -124,17 +125,16 @@ class MetropolisEngine():
       return amplitude, field_coeffs, surface_energy, field_energy
     new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, 
                                                        amplitude_change=True)
-    new_surface_energy = system.calc_surface_energy(proposed_amplitude, wavenumber=wavenumber, radius=radius,
-                                                           gamma=gamma,
-                                                           kappa=kappa, amplitude_change=False)
-    if metropolis_decision(temp, (field_energy + surface_energy), (new_field_energy + new_surface_energy)):
+    new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
+
+    if self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy)):
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
       field_coeffs = proposed_field_coeffs
     return amplitude, field_coeffs, surface_energy, field_energy
 
-  def metropolis_decision(temp, old_energy, proposed_energy):
+  def metropolis_decision(self, old_energy, proposed_energy):
     """
     Considering energy difference and temperature, return decision to accept or reject step
     :param temp: system temperature
@@ -145,10 +145,10 @@ class MetropolisEngine():
     diff = proposed_energy - old_energy
     if diff <= 0:
       return True  # choice was made that 0 difference -> accept change
-    elif diff > 0 and temp == 0:
+    elif diff > 0 and self.temp == 0:
       return False
     else:
-      probability = math.exp(- 1 * diff / temp)
+      probability = math.exp(- 1 * diff / self.temp)
       assert probability >= 0
       assert probability <= 1
       if random.uniform(0, 1) <= probability:
@@ -160,4 +160,6 @@ class MetropolisEngine():
     amplitude = random.gauss(0, sigma)
     phase = random.uniform(0, 2*math.pi)
     return cmath.rect(amplitude, phase)
-
+  
+  def set_temperature(self, new_temp):
+    self.temp=new_temp
