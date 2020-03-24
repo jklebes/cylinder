@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 import system as ce
 
 class MetropolisEngine():
-  def __init__(self, method, num_field_coeffs, sampling_dist, sampling_widths, temp):
-    self.method = method
+  def __init__(self, num_field_coeffs, sampling_dist=random.gauss, sampling_widths=0.1, temp=0):
     self.sampling_dist = sampling_dist
     self.num_field_coeffs = num_field_coeffs
     if isinstance(sampling_widths, float) or isinstance(sampling_widths, int):
@@ -22,7 +21,7 @@ class MetropolisEngine():
 
     self.acceptance_rate = None # to be calculated
   
-  def step_fieldcoeffs_sequential(self, wavenumber, amplitude, field_coeffs, field_energy, surface_energy, 
+  def step_fieldcoeffs_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
     """
     Try stepping each field coefficient c_i once, in a random order
@@ -30,12 +29,10 @@ class MetropolisEngine():
     I chose sequential for greater acceptance rates
     Disadvantage: 2n+1 recalculations, of the products and sums in system_energy.calc_field_energy
      (not of numerical integration)
-    :param wavenumber:
     :param field_coeffs:
     :param field_energy:
     :param surface_energy:
     :param amplitude:
-    :param field_max_stepsize:
     :param system:
     :return:
     """
@@ -43,31 +40,26 @@ class MetropolisEngine():
     # TODO : find out whether randomizing the order is helpful
     random.shuffle(indices_randomized)
     for index in indices_randomized:
-      field_coeffs, field_energy = self.step_fieldcoeff(index, wavenumber,
-                                                   field_coeffs, field_energy, surface_energy, amplitude,
-                                                   system)
+      field_coeffs, field_energy = self.step_fieldcoeff(index, field_coeffs, field_energy, surface_energy, amplitude, system)
     print(field_energy, field_coeffs)
     return field_coeffs, field_energy
 
 
-  def step_fieldcoeff(self, field_coeff_index, wavenumber,
-                      field_coeffs, field_energy, surface_energy, amplitude, system):
+  def step_fieldcoeff(self, field_coeff_index, field_coeffs, field_energy, surface_energy, amplitude, system):
     """
     Stepping a single field coefficient c_i: generate a random complex value.  Accept or reject.
     :param field_coeff_index:
-    :param wavenumber:
     :param field_coeffs:
     :param field_energy:
     :param surface_energy:
     :param amplitude:
-    :param field_max_stepsize:
     :param system_energy:
     :return:
     """
     proposed_field_coeff = field_coeffs[field_coeff_index] + self.gaussian_complex(self.sampling_width_coeffs[field_coeff_index])
     new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs,
                                                             amplitude,  amplitude_change=False)
-    if metropolis_decision(temp, field_energy + surface_energy, new_field_energy + surface_energy):
+    if self.metropolis_decision(field_energy + surface_energy, new_field_energy + surface_energy):
       field_energy = new_field_energy
       field_coeffs[field_coeff_index] = proposed_field_coeff
     return field_coeffs, field_energy
@@ -75,13 +67,11 @@ class MetropolisEngine():
   def step_amplitude(self, amplitude, field_coeffs, surface_energy, field_energy, system):
     """
     Stepping amplitude by metropolis algorithm.
-    :param wavenumber:
-    :param kappa:
     :param amplitude:
     :param field_coeffs:
     :param surface_energy:
     :param field_energy:
-    :param system_energy:
+    :param system:
     :return:
     """
     proposed_amplitude = amplitude + self.sampling_dist(amplitude_sampling_width )
@@ -162,4 +152,5 @@ class MetropolisEngine():
     return cmath.rect(amplitude, phase)
   
   def set_temperature(self, new_temp):
+    assert(new_temp >= 0)
     self.temp=new_temp

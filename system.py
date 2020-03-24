@@ -4,6 +4,8 @@ import scipy.integrate as integrate
 class System():
 
   def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma):
+    assert(all(map(lambda x: x>=0, [wavenumber, radius, C, u, kappa, gamma] )))
+    assert(alpha <=0)
     self.wavenumber = wavenumber
     self.radius = radius
     self.alpha = alpha
@@ -160,9 +162,9 @@ class System():
 
   def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, amplitude_change=False):
     if amplitude_change or (not self.A_integrals) :
-      self.evaluate_A_integrals(amplitude, field_coeffs=field_coeffs)
+      self.evaluate_A_integrals(amplitude, field_coeffs=old_field_coeffs)
     if amplitude_change or (not self.B_integrals) :
-      self.evaluate_B_integrals(amplitude, field_coeffs=field_coeffs)
+      self.evaluate_B_integrals(amplitude, field_coeffs=old_field_coeffs)
     old_field_coeff=old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
     A_complex_energy = 0 + 0j
