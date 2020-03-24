@@ -105,8 +105,8 @@ def single_run(experiment_variable1, experiment_variable2, n_steps, method = "si
   amplitude = 0 # TODO: optionally pass in initial amplitude, field
   
   ########### setup #############
-  se = ce.System_Energy()  # object stores A,B,D integral values -> less recalculate
-  me = metropolis_engine.MetropolisEngine(method, num_field_coeffs, sampling_dist, initial_sampling_widths) 
+  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
+  me = metropolis_engine.MetropolisEngine(method, num_field_coeffs, sampling_dist, initial_sampling_width) 
   field_energy = se.calc_field_energy(field_coeffs, amplitude, radius=radius, n=n, alpha=alpha, C=C, u=u,
                                       wavenumber=wavenumber)
   surface_energy = se.calc_surface_energy(amplitude, wavenumber, kappa=kappa, radius=radius, gamma=gamma,
@@ -117,23 +117,20 @@ def single_run(experiment_variable1, experiment_variable2, n_steps, method = "si
   
   if method == "sequential":
     for i in range(n_steps):
-      field_coeffs, field_energy = step_fieldcoeffs_sequential(wavenumber=wavenumber,
-                                                               amplitude=amplitude,
+      field_coeffs, field_energy = me.step_fieldcoeffs_sequential(amplitude=amplitude,
                                                                field_coeffs=field_coeffs, field_energy=field_energy,
                                                                surface_energy=surface_energy,
-                                                               field_max_stepsize=field_sampling_width,
-                                                               system_energy=se)
-      amplitude, field_energy, surface_energy = step_amplitude(wavenumber=wavenumber, kappa=kappa,
-                                                             amplitude=amplitude, field_coeffs=field_coeffs,
+                                                               system=se)
+      amplitude, field_energy, surface_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs,
                                                              field_energy=field_energy, surface_energy=surface_energy,
-                                                             system_energy=se)
+                                                             system=se)
       amplitudes.append(amplitude)
   elif method == "simultaneous":
     for i in range(n_steps):
-      amplitude, field_coeffs, field_energy, surface_energy = step_all(wavenumber=wavenumber, kappa=kappa,
-                                                             amplitude=amplitude, field_coeffs=field_coeffs,
+      amplitude, field_coeffs, field_energy, surface_energy = me.step_all(amplitude=amplitude,
+                                                             field_coeffs=field_coeffs,
                                                              field_energy=field_energy, surface_energy=surface_energy,
-                                                             system_energy=se)
+                                                             system=se)
       amplitudes.append(amplitude)
       print(amplitude, field_coeffs)
   plt.scatter(range(len(amplitudes)), amplitudes)
@@ -171,7 +168,7 @@ if __name__ == "__main__":
 
   assert (alpha <= 0)
 
-  single_run(kappa, wavenumber, n_steps, method="sequential")
+  single_run(kappa, wavenumber, n_steps, method="simultaneous")
 
   # run_experiment(loop_type, experiment_title,
   # range1, range2, amp_steps, converge_stop, fieldsteps_per_ampstep)

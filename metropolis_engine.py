@@ -12,14 +12,17 @@ class MetropolisEngine():
     self.method = method
     self.sampling_dist = sampling_dist
     self.num_field_coeffs = num_field_coeffs
-    self.num_params = 2*self.num_field_coeffs + 2
-    # TODO: detect list (check length) or single value
-    self.sampling_widths = initial_sampling_widths
+    if isinstance(sampling_widths, float) or isinstance(sampling_widths, int):
+      self.sampling_width_amplitude = sampling_widths
+      self.sampling_width_coeffs = dict([(i, sampling_widths) for i in range(-num_field_coeffs, num_field_coeffs+1)])
+    else:
+      self.sampling_width_amplitude = sampling_widths[0]
+      self.sampling_width_coeffs = sampling_widths[1]
     self.acceptance_rate = None
 
 
-  def step_fieldcoeffs_sequential(wavenumber, field_coeffs, field_energy, surface_energy, amplitude, field_max_stepsize,
-                                  system_energy):
+  def step_fieldcoeffs_sequential(self, wavenumber, amplitude, field_coeffs, field_energy, surface_energy, 
+                                  system):
     """
     Try stepping each field coefficient c_i once, in a random order
     -> this is Gibbs sampling
@@ -32,22 +35,22 @@ class MetropolisEngine():
     :param surface_energy:
     :param amplitude:
     :param field_max_stepsize:
-    :param system_energy:
+    :param system:
     :return:
     """
     indices_randomized = [*field_coeffs]  # unpack iterable into list - like list() but faster
     # TODO : find out whether randomizing the order is helpful
     random.shuffle(indices_randomized)
     for index in indices_randomized:
-      field_coeffs, field_energy = step_fieldcoeff(index, wavenumber,
+      field_coeffs, field_energy = self.step_fieldcoeff(index, wavenumber,
                                                    field_coeffs, field_energy, surface_energy, amplitude,
-                                                   field_max_stepsize, system_energy)
+                                                   system)
     print(field_energy, field_coeffs)
     return field_coeffs, field_energy
 
 
-  def step_fieldcoeff(field_coeff_index, wavenumber,
-                      field_coeffs, field_energy, surface_energy, amplitude, field_max_stepsize, system_energy):
+  def step_fieldcoeff(self, field_coeff_index, wavenumber,
+                      field_coeffs, field_energy, surface_energy, amplitude, system):
     """
     Stepping a single field coefficient c_i: generate a random complex value.  Accept or reject.
     :param field_coeff_index:
@@ -60,17 +63,15 @@ class MetropolisEngine():
     :param system_energy:
     :return:
     """
-    proposed_field_coeff = field_coeffs[field_coeff_index] + gaussian_complex(field_sampling_width)
-    new_field_energy = system_energy.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs,
-                                                            amplitude, radius=radius, n=n, alpha=alpha,
-                                                       C=C, u=u,
-                                                       wavenumber=wavenumber, amplitude_change=False)
+    proposed_field_coeff = field_coeffs[field_coeff_index] + self.gaussian_complex(self.sampling_width_coeffs[field_coeff_index])
+    new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs,
+                                                            amplitude,  amplitude_change=False)
     if metropolis_decision(temp, field_energy + surface_energy, new_field_energy + surface_energy):
       field_energy = new_field_energy
       field_coeffs[field_coeff_index] = proposed_field_coeff
     return field_coeffs, field_energy
 
-  def step_amplitude(wavenumber, kappa, amplitude, field_coeffs, surface_energy, field_energy, system_energy):
+  def step_amplitude(self, amplitude, field_coeffs, surface_energy, field_energy, system):
     """
     Stepping amplitude by metropolis algorithm.
     :param wavenumber:
@@ -82,7 +83,7 @@ class MetropolisEngine():
     :param system_energy:
     :return:
     """
-    proposed_amplitude = amplitude + sampling_dist(amplitude_sampling_width )
+    proposed_amplitude = amplitude + self.sampling_dist(amplitude_sampling_width )
     if abs(proposed_amplitude) >= 1:
       # don't accept.
       # like an infinite energy barrier to self-intersection.
@@ -101,7 +102,7 @@ class MetropolisEngine():
       amplitude = proposed_amplitude
     return amplitude, surface_energy, field_energy
 
-  def step_all(wavenumber, kappa, amplitude, field_coeffs, surface_energy, field_energy, system_energy):
+  def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
     """
     Step all parameters (amplitude, field coeffs) simultaneously.  True metropolis algorithm.
     Much faster than sequential (Gibbs) sampling but low acceptance rate at low temp.
@@ -115,16 +116,15 @@ class MetropolisEngine():
     :return:
     """
     # TODO: record acceptance rate, aim for 20-60 %
-    proposed_amplitude = amplitude + sampling_dist(amplitude_sampling_width )
+    proposed_amplitude = amplitude + self.sampling_dist(self.sampling_width_amplitude)
     proposed_field_coeffs = copy.copy(field_coeffs)
     for index in field_coeffs:
-      proposed_field_coeffs[index] += rand_complex(field_sampling_width)
+      proposed_field_coeffs[index] += self.gaussian_complex(self.sampling_width_coeffs[index])
     if abs(proposed_amplitude) >= 1:
       return amplitude, field_coeffs, surface_energy, field_energy
-    new_field_energy = system_energy.calc_field_energy(proposed_field_coeffs, proposed_amplitude, radius=radius, n=n, alpha=alpha,
-                                                       C=C, u=u,
-                                                       wavenumber=wavenumber, amplitude_change=True)
-    new_surface_energy = system_energy.calc_surface_energy(proposed_amplitude, wavenumber=wavenumber, radius=radius,
+    new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, 
+                                                       amplitude_change=True)
+    new_surface_energy = system.calc_surface_energy(proposed_amplitude, wavenumber=wavenumber, radius=radius,
                                                            gamma=gamma,
                                                            kappa=kappa, amplitude_change=False)
     if metropolis_decision(temp, (field_energy + surface_energy), (new_field_energy + new_surface_energy)):
@@ -156,7 +156,7 @@ class MetropolisEngine():
       else:
         return False
 
-  def gaussian_complex(sigma):
+  def gaussian_complex(self, sigma):
     amplitude = random.gauss(0, sigma)
     phase = random.uniform(0, 2*math.pi)
     return cmath.rect(amplitude, phase)
