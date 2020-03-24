@@ -203,7 +203,7 @@ class Test_Calc_Energy(unittest.TestCase):
     :return:
     """
     num_field_coeffs = 3
-    field_coeffs = dict([(i, complex(random.uniform(-1, 1), random.uniform(-1, 1))) for i in
+    field_coeffs = dict([(i, run.rand_complex()) for i in
                            range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     amplitude = 0.1
     sys_zeroC = system.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=0, u=1, n=1)
@@ -212,7 +212,30 @@ class Test_Calc_Energy(unittest.TestCase):
     self.assertGreater(energy_C, energy_0C)
 
 class Test_Energy_Diff(unittest.TestCase):
-  pass
+  def setUp(self):
+    self.sys_basic = system.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+
+  def test_calc_energy_diff_singlecoefftozero(self):
+    num_field_coeffs =0
+    field_coeffs = dict([(i, run.rand_complex()) for i in
+                           range(-1 * num_field_coeffs, num_field_coeffs + 1)])
+    amplitude = 0 
+    energy_before = self.sys_basic.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
+    index = 0
+    #new field coeffs with one value (c_1) changed to a different random complex value
+    new_field_coeffs = copy.copy(field_coeffs)
+    new_field_coeff = 0+0j
+    new_field_coeffs[index] = new_field_coeff
+    assert(field_coeffs[index]!=new_field_coeffs[index])
+    energy_after_diff =  self.sys_basic.calc_field_energy_diff(index, new_field_coeff, field_coeffs, amplitude)
+    energy_after =  self.sys_basic.calc_field_energy(new_field_coeffs, amplitude, amplitude_change=False)
+    self.assertEqual(energy_after, 0)
+    self.assertEqual(energy_after_diff, 0)
+
+  def test_calc_energy_diff(self):
+    num_field_coeffs =1
+    field_coeffs = dict([(i, complex(random.uniform(-1, 1), random.uniform(-1, 1))) for i in
+                           range(-1 * num_field_coeffs, num_field_coeffs + 1)])
 
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()

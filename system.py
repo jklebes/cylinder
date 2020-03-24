@@ -193,14 +193,13 @@ class System():
         D_complex_energy+= self.A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j].conjugate()*diff*diff
         D_complex_energy+= self.A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()*diff.conjugate()
       #1-variable sum parts
-      D_complex_energy += self.A_integrals[index+index-index-i]*old_field_coeffs[i].conjugate()*(new_field_coeff*new_field_coeff.conjugate()*(2*new_field_coeff-4*old_field_coeff)+old_field_coeff.conjugate()*(4*old_field_coeff*old_field_coeff-2*new_field_coeff*new_field_coeff))
-      D_complex_energy+= self.A_integrals[index+i-index-index]*old_field_coeffs[i]*(new_field_coeff*new_field_coeff.conjugate()*(3*new_field_coeff.conjugate()-4*old_field_coeff.conjugate())+new_field_coeff*(4*old_field_coeff.conjugate()*old_field_coeff.conjugate()-2*new_field_coeff.conjugate()*new_field_coeff.conjugate()))
+      D_complex_energy += self.A_integrals[i+index-index-index] * old_field_coeffs[i] *(2*new_field_coeff.conjugate()**2*diff + (old_field_coeff*old_field_coeff.conjugate() - 4* new_field_coeff * old_field_coeff.conjugate())*diff.conjugate())
+      D_complex_energy += self.A_integrals[index+index-i-index] * old_field_coeffs[i].conjugate() *(2*new_field_coeff**2*diff + (old_field_coeff*old_field_coeff.conjugate() - 4* new_field_coeff.conjugate() * old_field_coeff)*diff)
     #the point (index,index,index,index) 
     #corrected from previous + the all-updated point
-    D_complex_energy+=self.A_integrals[0]*(3*old_field_coeff**2*old_field_coeff.conjugate()**2 + new_field_coeff*new_field_coeff.conjugate()*(-2*new_field_coeff.conjugate()*old_field_coeff -2* new_field_coeff*old_field_coeff.conjugate()+ new_field_coeff*new_field_coeff.conjugate()))
+    D_complex_energy+=self.A_integrals[0]*(5*old_field_coeff**2*old_field_coeff.conjugate()**2 + new_field_coeff**2*new_field_coeff.conjugate()**2 -2*new_field_coeff*new_field_coeff.conjugate()*(old_field_coeff*diff.conjugate()+ old_field_coeff.conjugate()*diff)+old_field_coeff.conjugate()**2 * new_field_coeff*(new_field_coeff-4*old_field_coeff)+old_field_coeff**2 * new_field_coeff.conjugate()*(new_field_coeff.conjugate()-4*old_field_coeff.conjugate()))
     try:
-      
-      assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
+      assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-5))
     except AssertionError:
       print(D_complex_energy.imag)
       raise(AssertionError)

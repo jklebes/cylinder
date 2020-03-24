@@ -13,7 +13,7 @@ class TestMetropolisSteps(unittest.TestCase):
     self.me = metropolis_engine.MetropolisEngine( num_field_coeffs=3)
     self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
 
-def tearDown(self):
+  def tearDown(self):
     pass
   
   def test_init_sampling_widths_float(self):
