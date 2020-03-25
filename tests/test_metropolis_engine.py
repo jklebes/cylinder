@@ -42,7 +42,7 @@ class TestMetropolisSteps(unittest.TestCase):
     surface_energy = 12.5 #some constant value
     amplitude = .012
     system = self.sys_basic
-    new_field_coeffs, new_field_energy = self.me.step_fieldcoeff(index, field_coeffs, field_energy, surface_energy, amplitude, system)
+    new_field_coeffs, new_field_energy = self.me.step_fieldcoeff(index, field_coeffs, field_energy, surface_energy, amplitude, system, amplitude_change=True)
     #new_field_coeffs[index] changed
     self.assertNotEqual(new_field_coeffs[index], complex(0,0))
     # new energy decreased (certain with temp=0 and unrealistically high old energy value)

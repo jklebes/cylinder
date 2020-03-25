@@ -21,6 +21,16 @@ class MetropolisEngine():
 
     self.acceptance_rate = None # to be calculated
   
+  def update_sampling_widths(self):     
+    # TODO
+    self.sampling_width_amplitude += 0
+    for key in self.sampling_width_coeffs:
+      self.sampling_width_coeffs[key]+=0
+    #it's not moving and therefore not evenly sampling E at both 
+    # sigma =0 for gaussian distribution and max=0 for uniform distribution
+    assert(self.sampling_width_amplitude > 0)  
+    assert(all([self.sampling_width_coeffs[key] > 0 for key in self.sampling_width_coeffs]))
+
   def step_fieldcoeffs_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
     """
@@ -45,7 +55,7 @@ class MetropolisEngine():
     return field_coeffs, field_energy
 
 
-  def step_fieldcoeff(self, field_coeff_index, field_coeffs, field_energy, surface_energy, amplitude, system):
+  def step_fieldcoeff(self, field_coeff_index, field_coeffs, field_energy, surface_energy, amplitude, system, amplitude_change=False):
     """
     Stepping a single field coefficient c_i: generate a random complex value.  Accept or reject.
     :param field_coeff_index:
@@ -54,10 +64,11 @@ class MetropolisEngine():
     :param surface_energy:
     :param amplitude:
     :param system_energy:
+    :param amplitude_change: this parameter is here isolated use of fct in unit testing.  default False should be enough for real use.
     :return:
     """
     proposed_field_coeff = field_coeffs[field_coeff_index] + self.gaussian_complex(self.sampling_width_coeffs[field_coeff_index])
-    new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs, amplitude)
+    new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs, amplitude, amplitude_change)
     if self.metropolis_decision(field_energy + surface_energy, new_field_energy + surface_energy):
       field_energy = new_field_energy
       field_coeffs[field_coeff_index] = proposed_field_coeff

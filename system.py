@@ -14,10 +14,9 @@ class System():
     self.n = n
     self.kappa= kappa
     self.gamma = gamma
-    #memoization of integration results:
-    #empty dicts before first calculation
-    self.A_integrals = dict()
-    self.B_integrals = dict()
+    #memoization of integration results
+    self.A_integrals = {}
+    self.B_integrals = {} 
 
   ######## common terms in integrals ###########
 
@@ -106,9 +105,8 @@ class System():
             1 / self.sqrt_g_z(amplitude, z) *  # part of K_th^th^2*sqrt_g_zz
             self.sqrt_g_theta(amplitude, z))  # one radius in sqrt_g_theta and -2 in Kthth
 
-  def evaluate_A_integrals(self, amplitude, field_coeffs):
-    num_field_coeffs = max(field_coeffs)
-    for diff in range(-4 * num_field_coeffs, 4 * num_field_coeffs + 1):
+  def evaluate_A_integrals(self, amplitude, num_field_coeffs):
+    for diff in range(-4*num_field_coeffs, 4*num_field_coeffs+1):
       img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(diff, amplitude, z),
                                        0, 2 * math.pi / self.wavenumber)
       real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(diff, amplitude, z),
@@ -123,9 +121,9 @@ class System():
                                       0, 2 * math.pi / self.wavenumber)
     self.A_integrals[0] = complex(real_part, img_part)
 
-  def evaluate_B_integrals(self, amplitude, field_coeffs): 
-    for i in field_coeffs:
-      for j in field_coeffs:
+  def evaluate_B_integrals(self, amplitude, num_field_coeffs): 
+    for i in range(-num_field_coeffs, num_field_coeffs+1):
+      for j in range(-num_field_coeffs, num_field_coeffs+1):
         img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, amplitude, z),
                                           0, 2 * math.pi / self.wavenumber)
         real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, amplitude, z) ,
@@ -134,14 +132,17 @@ class System():
 
   ############# calc energy ################
 
-  def calc_field_energy(self, field_coeffs, amplitude, amplitude_change=True):
+  def calc_field_energy(self, field_coeffs, amplitude, amplitude_change=False):
+    """
+    :param amplitude_change: True by default as this function is often called in simultaneous update of field and amplitude
+    """
     # some memoization: use previously calculated A integrals (=D integrals) and B integrals
     # reevaluate only on  amplitude change
     # TODO : initialize on System object creation, instead of checking if empty every time
-    if amplitude_change or (not self.A_integrals) :
-      self.evaluate_A_integrals(amplitude, field_coeffs=field_coeffs)
-    if amplitude_change or (not self.B_integrals) :
-      self.evaluate_B_integrals(amplitude, field_coeffs=field_coeffs)
+    if amplitude_change:
+      num_field_coeffs = max(field_coeffs)
+      self.evaluate_A_integrals(amplitude, num_field_coeffs)
+      self.evaluate_B_integrals(amplitude, num_field_coeffs)
 
     A_complex_energy = 0 + 0j
     B_complex_energy = 0 + 0j
@@ -165,108 +166,63 @@ class System():
   def calc_field_energy_diff_ABpart(self, index, new_field_coeff, old_field_coeffs):
     old_field_coeff=old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
-    A_complex_energy = 0 + 0j
-    B_complex_energy = 0 + 0j
+    A_complex_energy_diff = 0 + 0j
+    B_complex_energy_diff = 0 + 0j
     for i in old_field_coeffs:
-      A_complex_energy += diff * old_field_coeffs[i].conjugate() * self.A_integrals[index - i]
-      A_complex_energy += old_field_coeffs[i] * diff.conjugate() * self.A_integrals[i - index]
-      B_complex_energy += diff * old_field_coeffs[i].conjugate() * self.B_integrals[ index, i]
-      B_complex_energy += old_field_coeffs[i] * diff.conjugate() * self.B_integrals[i, index]
+      A_complex_energy_diff += diff * old_field_coeffs[i].conjugate() * self.A_integrals[index - i]
+      A_complex_energy_diff += old_field_coeffs[i] * diff.conjugate() * self.A_integrals[i - index]
+      B_complex_energy_diff += diff * old_field_coeffs[i].conjugate() * self.B_integrals[ index, i]
+      B_complex_energy_diff += old_field_coeffs[i] * diff.conjugate() * self.B_integrals[i, index]
     # undoing the change we did (with partially old value) where i=index above ,
     # + changing the point (index, i=index) correctly works out to this addition
-    A_complex_energy += diff*diff.conjugate()*self.A_integrals[0]
-    B_complex_energy += diff*diff.conjugate()*self.B_integrals[index, index]
-    assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
+    A_complex_energy_diff += diff*diff.conjugate()*self.A_integrals[0]
+    B_complex_energy_diff += diff*diff.conjugate()*self.B_integrals[index, index]
+    assert (math.isclose(B_complex_energy_diff.imag, 0, abs_tol=1e-7))
     print("diff A B parts")
-    print("A:", A_complex_energy.real, "B:", B_complex_energy.real)
-    return A_complex_energy.real, B_complex_energy.real
+    print("A:", A_complex_energy_diff.real, "B:", B_complex_energy_diff.real)
+    return A_complex_energy_diff.real, B_complex_energy_diff.real
 
 
   def calc_field_energy_diff_Dpart(self, index, new_field_coeff, old_field_coeffs):
     old_field_coeff=old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
-    # TODO : rename: this is an energy diff
-    D_complex_energy = 0 + 0j
+    D_complex_energy_diff = 0 + 0j
     for i in old_field_coeffs:
       #replace where 3 factors have changed
       if i != index:
-        D_complex_energy += 2*self.A_integrals[index+index-index-i]*old_field_coeffs[i].conjugate()*(new_field_coeff**2*new_field_coeff.conjugate()-old_field_coeff**2*old_field_coeff.conjugate())
-        D_complex_energy += 2*self.A_integrals[i+index-index-index]*old_field_coeffs[i]*(new_field_coeff*new_field_coeff.conjugate()**2-old_field_coeff*old_field_coeff.conjugate()**2)
+        D_complex_energy_diff += 2*self.A_integrals[index+index-index-i]*old_field_coeffs[i].conjugate()*(new_field_coeff**2*new_field_coeff.conjugate()-old_field_coeff**2*old_field_coeff.conjugate())
+        D_complex_energy_diff += 2*self.A_integrals[i+index-index-index]*old_field_coeffs[i]*(new_field_coeff*new_field_coeff.conjugate()**2-old_field_coeff*old_field_coeff.conjugate()**2)
 
         #replace where 2 variables changed
         for j in old_field_coeffs:
           if j!= index:
-            D_complex_energy += 4*self.A_integrals[index+i-index-j]*old_field_coeffs[i]*old_field_coeffs[j].conjugate()*(new_field_coeff*new_field_coeff.conjugate()-old_field_coeff*old_field_coeff.conjugate())
-            D_complex_energy += self.A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j]*(new_field_coeff**2-old_field_coeff**2)
-            D_complex_energy += self.A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*(new_field_coeff.conjugate()**2-old_field_coeff.conjugate()**2)
+            D_complex_energy_diff += 4*self.A_integrals[index+i-index-j]*old_field_coeffs[i]*old_field_coeffs[j].conjugate()*(new_field_coeff*new_field_coeff.conjugate()-old_field_coeff*old_field_coeff.conjugate())
+            D_complex_energy_diff += self.A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j]*(new_field_coeff**2-old_field_coeff**2)
+            D_complex_energy_diff += self.A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*(new_field_coeff.conjugate()**2-old_field_coeff.conjugate()**2)
   
             #replace where one variable has changed
             for k in old_field_coeffs:
               if k!=index:
-                D_complex_energy += 2*self.A_integrals[index+i-j-k]*diff*old_field_coeffs[i]*old_field_coeffs[j].conjugate()*old_field_coeffs[k].conjugate()
-                D_complex_energy += 2*self.A_integrals[i+j-index-k]*old_field_coeffs[i]*old_field_coeffs[j]*old_field_coeffs[k].conjugate()*diff.conjugate()
+                D_complex_energy_diff += 2*self.A_integrals[index+i-j-k]*diff*old_field_coeffs[i]*old_field_coeffs[j].conjugate()*old_field_coeffs[k].conjugate()
+                D_complex_energy_diff += 2*self.A_integrals[i+j-index-k]*old_field_coeffs[i]*old_field_coeffs[j]*old_field_coeffs[k].conjugate()*diff.conjugate()
     
     #replace the point (index, index,index, index)
-    D_complex_energy += self.A_integrals[0] * (new_field_coeff**2*new_field_coeff.conjugate()**2 - old_field_coeff**2*old_field_coeff.conjugate()**2)
+    D_complex_energy_diff += self.A_integrals[0] * (new_field_coeff**2*new_field_coeff.conjugate()**2 - old_field_coeff**2*old_field_coeff.conjugate()**2)
 
-    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-5))
+    assert (math.isclose(D_complex_energy_diff.imag, 0, abs_tol=1e-5))
     print("diff d part")
-    print("D:" , D_complex_energy.real)
-    return D_complex_energy.real
-  
+    print("D:" , D_complex_energy_diff.real)
+    return D_complex_energy_diff.real
+
+
   def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, amplitude_change=False):
-    if amplitude_change or (not self.A_integrals) :
-      self.evaluate_A_integrals(amplitude, field_coeffs=old_field_coeffs)
-    if amplitude_change or (not self.B_integrals) :
-      self.evaluate_B_integrals(amplitude, field_coeffs=old_field_coeffs)
+    if amplitude_change:
+      num_field_coeffs = max(old_field_coeffs)
+      self.evaluate_A_integrals(amplitude, num_field_coeffs)
+      self.evaluate_B_integrals(amplitude, num_field_coeffs)
     A_energy_diff, B_energy_diff = self.calc_field_energy_diff_ABpart(index, new_field_coeff, old_field_coeffs)
     D_energy_diff = self.calc_field_energy_diff_Dpart(index, new_field_coeff, old_field_coeffs)
-    print("energy diff")
-    print("A:", A_energy_diff, "B:", B_energy_diff, "D:" , D_energy_diff)
-    return self.alpha * A_energy_diff + self.C * B_energy_diff + 0.5 * self.u * D_energy_diff
-  def calc_field_energy_diff_Dpart_alt(self, index, new_field_coeff, old_field_coeffs):
-    """
-    could correct for places in the loop where i,j,k = index by subtraccting them off later
-    but it's too complicated...
-    """
-    old_field_coeff=old_field_coeffs[index]
-    diff = new_field_coeff - old_field_coeff
-    D_complex_energy = 0 + 0j  
-    t=2
-    for i in old_field_coeffs:
-      for j in old_field_coeffs:
-        for k in old_field_coeffs:
-          D_complex_energy+=2* self.A_integrals[index+i-j-k]*diff * old_field_coeffs[i] * old_field_coeffs[j].conjugate() * old_field_coeffs[k].conjugate()
-          #3-variable sums with i,j, k in varyng roles
-          D_complex_energy+= 2* self.A_integrals[i+j-index-k]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()* old_field_coeffs[k].conjugate()
-        D_complex_energy += 4* self.A_integrals[i+index-j-index] *old_field_coeffs[i]*old_field_coeffs[j].conjugate()* diff* diff.conjugate()
-        #2-variable correction to previous and addition, condensed
-        D_complex_energy+= self.A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j].conjugate()*diff*diff
-        D_complex_energy+= self.A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*diff.conjugate()*diff.conjugate()
-        assert(4*-1*t*-1*t*t**2 + (-1*t*-1*t)*t**2 + (-1*t*-1*t)*t**2 == -4*-1*t*t**3 -4*-1*t*t**3 -2*-1*t*t**3 -2*-1*t*t**3 + 4*-1*t**2*t**2 -1*t**2*t**2 -1*t**2*t**2)
-      #1-variable sum parts
-      D_complex_energy += self.A_integrals[i+index-index-index] * old_field_coeffs[i] *(2*new_field_coeff.conjugate()**2*diff + (old_field_coeff*old_field_coeff.conjugate() - 4* new_field_coeff * old_field_coeff.conjugate())*diff.conjugate())
-      D_complex_energy += self.A_integrals[index+index-i-index] * old_field_coeffs[i].conjugate() *(2*new_field_coeff**2*diff + (old_field_coeff*old_field_coeff.conjugate() - 4* new_field_coeff.conjugate() * old_field_coeff)*diff)
-      assert(-4*-1*t**2*t**2 - 2*-1*t**2*t**2 +4 *-1*t*t**3 + -1*t*t**3 + 2 *-1 *t**3*t == 2*-1*t*0*t**3 + (1-4*0)*-1*t*t**3)
-    #the point (index,index,index,index) 
-    #corrected from previous + the all-updated point
-    D_complex_energy+=self.A_integrals[0]*(5*old_field_coeff**2*old_field_coeff.conjugate()**2 + new_field_coeff**2*new_field_coeff.conjugate()**2 -2*new_field_coeff*new_field_coeff.conjugate()*(old_field_coeff*diff.conjugate()+ old_field_coeff.conjugate()*diff)+old_field_coeff.conjugate()**2 * new_field_coeff*(new_field_coeff-4*old_field_coeff)+old_field_coeff**2 * new_field_coeff.conjugate()*(new_field_coeff.conjugate()-4*old_field_coeff.conjugate()))
-    assert(-2*-1*t**3*t - 2 *-1*t**3*t - 4*-1*t*t**3 -4 *-1*t*t**3 + 4*-1*t**2*t**2 -1*t**2*t**2 -1*t**2*t**2 -1*t**4 == 5*t**4 +1*0 -2*0 + 0+0)
-    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-5))
-    print("diff d part")
-    print("D:" , D_complex_energy.real)
-    return D_complex_energy.real
-  
-  def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, amplitude_change=False):
-    if amplitude_change or (not self.A_integrals) :
-      self.evaluate_A_integrals(amplitude, field_coeffs=old_field_coeffs)
-    if amplitude_change or (not self.B_integrals) :
-      self.evaluate_B_integrals(amplitude, field_coeffs=old_field_coeffs)
-    A_energy_diff, B_energy_diff = self.calc_field_energy_diff_ABpart(index, new_field_coeff, old_field_coeffs)
-    D_energy_diff = self.calc_field_energy_diff_Dpart(index, new_field_coeff, old_field_coeffs)
-    print("energy diff")
-    print("A:", A_energy_diff, "B:", B_energy_diff, "D:" , D_energy_diff)
-    return self.alpha * A_energy_diff + self.C * B_energy_diff + 0.5 * self.u * D_energy_diff
+    return self.alpha*A_energy_diff + self.C*B_energy_diff + 0.5 *self.u*D_energy_diff
 
   def calc_bending_energy(self, amplitude):
     """
@@ -287,7 +243,7 @@ class System():
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
-    if (not self.A_integrals) or amplitude_change:
+    if amplitude_change:
       self.evaluate_A_integral_0(amplitude)
     #A_integrals[0] is just surface area
     return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)

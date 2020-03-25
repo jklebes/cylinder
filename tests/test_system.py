@@ -83,7 +83,7 @@ class Test_Calc_Energy(unittest.TestCase):
     wavenumber =self.sys_basic.wavenumber
     field_coeffs=dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     self.assertDictEqual(self.sys_basic.A_integrals, dict([])) #an empty dict before using anything
-    self.sys_basic.evaluate_A_integrals(amplitude, field_coeffs)
+    self.sys_basic.evaluate_A_integrals(amplitude, num_field_coeffs)
     #not an empty dict anymore
     self.assertNotEqual(self.sys_basic.A_integrals, dict([]))
     # surface area (A_integrals[0]) is as expected
@@ -98,7 +98,7 @@ class Test_Calc_Energy(unittest.TestCase):
     num_field_coeffs=1
     field_coeffs=dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     #evaluate at new ammpitude
-    self.sys_basic.evaluate_A_integrals(nonzero_amplitude, field_coeffs)
+    self.sys_basic.evaluate_A_integrals(nonzero_amplitude, num_field_coeffs)
     #pertrubed  - should change value to different surface area
     self.assertNotEqual(self.sys_basic.A_integrals[0].real, complex(2 * math.pi/wavenumber, 0).real)
 
@@ -107,11 +107,11 @@ class Test_Calc_Energy(unittest.TestCase):
     nonzero_amplitude = -.232
     field_coeffs=dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     #low wavenumber - greater surface area
-    self.sys_low_wvn.evaluate_A_integrals(nonzero_amplitude, field_coeffs)
+    self.sys_low_wvn.evaluate_A_integrals(nonzero_amplitude, num_field_coeffs)
     self.assertGreater(self.sys_low_wvn.A_integrals[0].real, complex(2 * math.pi, 0).real)
     self.assertAlmostEqual(self.sys_low_wvn.A_integrals[0].imag, complex(2 * math.pi, 0).imag)
     #high wavenumber - less surface area
-    self.sys_high_wvn.evaluate_A_integrals(nonzero_amplitude, field_coeffs)
+    self.sys_high_wvn.evaluate_A_integrals(nonzero_amplitude, num_field_coeffs)
     self.assertLess(self.sys_high_wvn.A_integrals[0].real, complex(2 * math.pi, 0).real)
     self.assertAlmostEqual(self.sys_high_wvn.A_integrals[0].imag, complex(2 * math.pi, 0).imag)
 
@@ -131,7 +131,7 @@ class Test_Calc_Energy(unittest.TestCase):
     field_coeffs = dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     # TODO : change this to fill on initialize?
     self.assertDictEqual(self.sys_basic.B_integrals, dict([]))  # an empty dict before using anything
-    self.sys_basic.evaluate_B_integrals(amplitude=0, field_coeffs=field_coeffs)
+    self.sys_basic.evaluate_B_integrals(amplitude=0, num_field_coeffs=num_field_coeffs)
     self.assertNotEqual(self.sys_basic.B_integrals, dict([])) #not an empty dict
     #expected values at a=0, c_i=0
     self.assertEqual(self.sys_basic.B_integrals[(0,0)], complex(0, 0))
@@ -145,7 +145,7 @@ class Test_Calc_Energy(unittest.TestCase):
     new_amplitude=.243
     new_amplitude2 = .352
     field_coeffs = dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-    self.sys_basic.evaluate_B_integrals(new_amplitude,field_coeffs)
+    self.sys_basic.evaluate_B_integrals(new_amplitude, num_field_coeffs)
     # pertrubed  - should change value to greater
     # TODO : ?
     self.assertNotEqual(self.sys_basic.B_integrals[(0,0)].real, complex(0, 0).real)
@@ -157,7 +157,7 @@ class Test_Calc_Energy(unittest.TestCase):
     radius = self.sys_basic.radius
     field_coeffs = dict([(i, run.rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     self.assertDictEqual(self.sys_basic.B_integrals, dict([]))  # an empty dict before using anything
-    self.sys_basic.evaluate_B_integrals(amplitude, field_coeffs)
+    self.sys_basic.evaluate_B_integrals(amplitude, num_field_coeffs)
     self.assertNotEqual(self.sys_basic.B_integrals, dict([])) #not an empty dict
     #expected values at a=0
     self.assertEqual(self.sys_basic.B_integrals[(0,0)], complex(0, 0))
@@ -171,7 +171,7 @@ class Test_Calc_Energy(unittest.TestCase):
     num_field_coeffs = 1
     new_amplitude= -.243
     field_coeffs = dict([(i, run.rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-    self.sys_basic.evaluate_B_integrals(new_amplitude, field_coeffs)
+    self.sys_basic.evaluate_B_integrals(new_amplitude, num_field_coeffs)
     # pertrubed  - should change value to greater
     self.assertNotEqual(self.sys_basic.B_integrals[(0,0)].real, complex(0, 0).real)
 
@@ -216,7 +216,7 @@ class Test_Energy_Diff(unittest.TestCase):
     self.sys_basic = system.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
 
   def test_calc_energy_diff_Dpart(self):
-    energy_before = self.sys_basic.calc_field_energy({0:1+0j}, 0)
+    energy_before = self.sys_basic.calc_field_energy({0:1+0j}, 0, amplitude_change=True)
     #to fill A integrals
     
     index=0
@@ -243,7 +243,7 @@ class Test_Energy_Diff(unittest.TestCase):
     energy_after =  self.sys_basic.calc_field_energy(new_field_coeffs, amplitude, amplitude_change=False)
     energy_after_from_diff = energy_before + energy_diff
     self.assertEqual(energy_after, 0)
-    self.assertEqual(energy_after_from_diff, 0)
+    self.assertAlmostEqual(energy_after_from_diff, 0)
 
   def test_calc_energy_diff(self):
     num_field_coeffs =1
