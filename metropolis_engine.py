@@ -57,8 +57,7 @@ class MetropolisEngine():
     :return:
     """
     proposed_field_coeff = field_coeffs[field_coeff_index] + self.gaussian_complex(self.sampling_width_coeffs[field_coeff_index])
-    new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs,
-                                                            amplitude,  amplitude_change=False)
+    new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs, amplitude)
     if self.metropolis_decision(field_energy + surface_energy, new_field_energy + surface_energy):
       field_energy = new_field_energy
       field_coeffs[field_coeff_index] = proposed_field_coeff

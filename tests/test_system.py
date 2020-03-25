@@ -215,22 +215,35 @@ class Test_Energy_Diff(unittest.TestCase):
   def setUp(self):
     self.sys_basic = system.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
 
+  def test_calc_energy_diff_Dpart(self):
+    energy_before = self.sys_basic.calc_field_energy({0:1+0j}, 0)
+    #to fill A integrals
+    
+    index=0
+    old_field_coeffs = {0: 1+0j}
+    new_field_coeff = 0+0j
+    diff = self.sys_basic.calc_field_energy_diff_Dpart(index, new_field_coeff, old_field_coeffs)
+    print(diff)
+    self.assertEqual(diff, -self.sys_basic.A_integrals[0].real)
+
   def test_calc_energy_diff_singlecoefftozero(self):
     num_field_coeffs =0
     field_coeffs = dict([(i, run.rand_complex()) for i in
                            range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     amplitude = 0 
     energy_before = self.sys_basic.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
+    print("before", energy_before)
     index = 0
     #new field coeffs with one value (c_1) changed to a different random complex value
     new_field_coeffs = copy.copy(field_coeffs)
     new_field_coeff = 0+0j
     new_field_coeffs[index] = new_field_coeff
     assert(field_coeffs[index]!=new_field_coeffs[index])
-    energy_after_diff =  self.sys_basic.calc_field_energy_diff(index, new_field_coeff, field_coeffs, amplitude)
+    energy_diff =  self.sys_basic.calc_field_energy_diff(index, new_field_coeff, field_coeffs, amplitude, amplitude_change=False)
     energy_after =  self.sys_basic.calc_field_energy(new_field_coeffs, amplitude, amplitude_change=False)
+    energy_after_from_diff = energy_before + energy_diff
     self.assertEqual(energy_after, 0)
-    self.assertEqual(energy_after_diff, 0)
+    self.assertEqual(energy_after_from_diff, 0)
 
   def test_calc_energy_diff(self):
     num_field_coeffs =1
