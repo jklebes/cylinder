@@ -8,13 +8,16 @@ import matplotlib.pyplot as plt
 import system as ce
 
 class MetropolisEngine():
-  def __init__(self, num_field_coeffs, initial_sampling_widths=0.1, initial_covariance_matrix=None, temp=0):
+  def __init__(self, initial_field_coeffs, initial_amplitude, initial_sampling_widths=0.1, initial_covariance_matrix=None, temp=0):
+    num_field_coeffs = max(initial_field_coeffs)
     self.sampling_dist = sampling_dist
     self.num_field_coeffs = num_field_coeffs
     self.temp=temp
 
     self.step_counter =0
-    self.param_space_dims = 2*num_field_coeffs+2
+    self.param_space_dims = num_field_coeffs+1
+    self.state=[initial_amplitude]
+    self.state.extend([intial_field_coeffs[key] for ])
 
     #adaptive scheme
     self.initial_sampling_width = initial_sampling_width
