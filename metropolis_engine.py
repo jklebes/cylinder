@@ -2,19 +2,21 @@ import cmath
 import copy
 import math
 import random
-import pandas as pd
+
 import numpy as np
-import matplotlib.pyplot as plt
-import system as ce
+
 
 class MetropolisEngine():
-  def __init__(self, num_field_coeffs, initial_sampling_widths=0.1, initial_covariance_matrix=None, temp=0):
-    self.sampling_dist = sampling_dist
-    self.num_field_coeffs = num_field_coeffs
+  def __init__(self, initial_amplitude, initial_field_coeffs, initial_sampling_width=0.1, initial_covariance_matrix=None, temp=0):
+    num_field_coeffs = max(initial_field_coeffs)
     self.temp=temp
 
     self.step_counter =0
-    self.param_space_dims = 2*num_field_coeffs+2
+    self.param_space_dims = 1*len(initial_field_coeffs)+1
+    self.state=[initial_amplitude]
+    self.state.extend([abs(initial_field_coeffs[key]) for key in range(-num_field_coeffs, num_field_coeffs+1)])
+    self.state.extend([cmath.phase(initial_field_coeffs[key]) for key in range(-num_field_coeffs, num_field_coeffs + 1)])
+    self.mean=self.state
 
     #adaptive scheme
     self.initial_sampling_width = initial_sampling_width
@@ -33,8 +35,7 @@ class MetropolisEngine():
 
 # TODO: how to handle not using new covariance matrix for the first n steps
 
-
-  def update_proposal_distribution(self, state):     
+  def update_proposal_distribution(self, state):
     """
     adaptie Metropoplis scheme after Haario, Saksman & Tamminen  2001
     """
@@ -43,14 +44,15 @@ class MetropolisEngine():
     sd = 2.4**2/self.param_space_dims
     #update mean
     old_mean = copy.copy(self.mean)
-    mean *= (self.step_counter -1 / step_counter)
-    mean += state /step_counter
+    self.mean *= (self.step_counter -1 / self.step_counter)
+    self.mean += state /self.step_counter
     # eq (3) [Haario2001]
     self.covariance_matrix *= (self.step_counter-1/self.step_counter) # TODO: make sure this is the right kind of division
     #@: matrix multiply
     #state mean, oldmean needs to be np.matrix (for transpose to have an effect)
-    assert(len(np.shape(state))==2 and len(np.shape(mean)==2))
-    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*mean.transpose()@mean + state.transpose()@state() + small_number*np.identity(self.param_space_dims))
+    assert(len(np.shape(state))==2 and len(np.shape(self.mean)==2))
+    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*self.mean.transpose()@self.mean
+                                                      + state.transpose()@state() + small_number*np.identity(self.param_space_dims))
 
   def step_fieldcoeffs_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
