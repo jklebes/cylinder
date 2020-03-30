@@ -99,16 +99,13 @@ def single_run( n_steps, method = "simultaneous", field_coeffs=None, amplitude=N
     field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
   if amplitude is None:
     amplitude = 0
-  
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
   me = metropolis_engine.MetropolisEngine(num_field_coeffs, sampling_dist, initial_sampling_width, temp=temp) 
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
-  
   ########### start of data collection ############
   amplitudes = [amplitude]
-  
   if method == "sequential":
     for i in range(n_steps):
       amplitude, field_energy, surface_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs,

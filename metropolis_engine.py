@@ -8,28 +8,49 @@ import matplotlib.pyplot as plt
 import system as ce
 
 class MetropolisEngine():
-  def __init__(self, num_field_coeffs, sampling_dist=random.gauss, sampling_widths=0.1, temp=0):
+  def __init__(self, num_field_coeffs, initial_sampling_widths=0.1, initial_covariance_matrix=None, temp=0):
     self.sampling_dist = sampling_dist
     self.num_field_coeffs = num_field_coeffs
-    if isinstance(sampling_widths, float) or isinstance(sampling_widths, int):
-      self.sampling_width_amplitude = sampling_widths
-      self.sampling_width_coeffs = dict([(i, sampling_widths) for i in range(-num_field_coeffs, num_field_coeffs+1)])
-    else:
-      self.sampling_width_amplitude = sampling_widths[0]
-      self.sampling_width_coeffs = sampling_widths[1]
     self.temp=temp
 
-    self.acceptance_rate = None # to be calculated
-  
-  def update_sampling_widths(self):     
-    # TODO
-    self.sampling_width_amplitude += 0
-    for key in self.sampling_width_coeffs:
-      self.sampling_width_coeffs[key]+=0
-    #it's not moving and therefore not evenly sampling E at both 
-    # sigma =0 for gaussian distribution and max=0 for uniform distribution
-    assert(self.sampling_width_amplitude > 0)  
-    assert(all([self.sampling_width_coeffs[key] > 0 for key in self.sampling_width_coeffs]))
+    self.step_counter =0
+    self.param_space_dims = 2*num_field_coeffs+2
+
+    #adaptive scheme
+    self.initial_sampling_width = initial_sampling_width
+    self.sampling_width = initial_sampling_width
+    if initial_covariance_matrix is None:
+      #initialize plausible 
+      #identity matrix
+      self.initial_covariance_matrix = np.identity(self.param_space_dims)
+    else:
+      self.initial_covariance_matrix=initial_covariance_matrix
+    #dimensions match dimensions of paramter space
+    assert(self.initial_covariance_matrix.shape()==(self.param_space_dims, self.param_space_dims))
+    #self.covariance_matrix will be constantly updated
+    #while self.initial_convariance_matrix is a static version for gathering data in the first n steps
+    self.covariance_matrix = initial_covariance_matrix
+
+# TODO: how to handle not using new covariance matrix for the first n steps
+
+
+  def update_proposal_distribution(self, state):     
+    """
+    adaptie Metropoplis scheme after Haario, Saksman & Tamminen  2001
+    """
+    #add to covariance matrix calculation 
+    small_number =0
+    sd = 2.4**2/self.param_space_dims
+    #update mean
+    old_mean = copy.copy(self.mean)
+    mean *= (self.step_counter -1 / step_counter)
+    mean += state /step_counter
+    # eq (3) [Haario2001]
+    self.covariance_matrix *= (self.step_counter-1/self.step_counter) # TODO: make sure this is the right kind of division
+    #@: matrix multiply
+    #state mean, oldmean needs to be np.matrix (for transpose to have an effect)
+    assert(len(np.shape(state))==2 and len(np.shape(mean)==2))
+    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*mean.transpose()@mean + state.transpose()@state() + small_number*np.identity(self.param_space_dims))
 
   def step_fieldcoeffs_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
@@ -126,12 +147,16 @@ class MetropolisEngine():
     new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, 
                                                        amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
-
     if self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy)):
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
       field_coeffs = proposed_field_coeffs
+    # TODO: keep as list all long eveywhere
+    state = [amplitude]
+    state.extend([field_coeffs[key] for key in range(-1*num_field_coeffs, num_field_coeffs+1)])
+    self.update_proposal_distribution([amplitude])
+    self.step_counter += 1
     return amplitude, field_coeffs, surface_energy, field_energy
 
   def metropolis_decision(self, old_energy, proposed_energy):
