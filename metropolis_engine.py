@@ -9,7 +9,7 @@ import system as ce
 
 class MetropolisEngine():
   def __init__(self, initial_field_coeffs, initial_amplitude, initial_sampling_width=0.1, initial_covariance_matrix=None, temp=0):
-    num_field_coeffs = max(initial_field_coeffs)
+    self.num_field_coeffs = max(initial_field_coeffs)
     self.temp=temp
 
     self.step_counter =0
@@ -17,7 +17,7 @@ class MetropolisEngine():
     self.state=[initial_amplitude]
     self.state.extend([initial_field_coeffs[key].real for key in initial_field_coeffs])
     self.state.extend([initial_field_coeffs[key].imag for key in initial_field_coeffs])
-
+    self.state = np.array(self.state)
     #adaptive scheme
     self.initial_sampling_width = initial_sampling_width
     self.sampling_width = initial_sampling_width
@@ -31,10 +31,11 @@ class MetropolisEngine():
     #assert(self.initial_covariance_matrix.shape()==(self.param_space_dims, self.param_space_dims))
     #self.covariance_matrix will be constantly updated
     #while self.initial_convariance_matrix is a static version for gathering data in the first n steps
-    self.covariance_matrix = initial_covariance_matrix
+    self.covariance_matrix = self.initial_covariance_matrix
+    self.mean = self.state
+    print("state initialized ", self.state)
 
 # TODO: how to handle not using new covariance matrix for the first n steps
-
 
   def update_proposal_distribution(self, state):     
     """
@@ -45,14 +46,14 @@ class MetropolisEngine():
     sd = 2.4**2/self.param_space_dims
     #update mean
     old_mean = copy.copy(self.mean)
-    mean *= (self.step_counter -1 / step_counter)
-    mean += state /step_counter
+    self.mean *= (self.step_counter -1 / self.step_counter)
+    self.mean += state /self.step_counter
     # eq (3) [Haario2001]
     self.covariance_matrix *= (self.step_counter-1/self.step_counter) # TODO: make sure this is the right kind of division
     #@: matrix multiply
     #state mean, oldmean needs to be np.matrix (for transpose to have an effect)
-    assert(len(np.shape(state))==2 and len(np.shape(mean)==2))
-    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*mean.transpose()@mean + state.transpose()@state() + small_number*np.identity(self.param_space_dims))
+    #assert(len(np.shape(state))==2 and len(np.shape(mean)==2))
+    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*self.mean.transpose()@self.mean + state.transpose()@state + small_number*np.identity(self.param_space_dims))
 
   def step_fieldcoeffs_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
@@ -139,13 +140,13 @@ class MetropolisEngine():
     :param system_energy:
     :return:
     """
-    proposed_state = state + np.random.multivariate_normal(self.covariance_matrix)
+    self.step_counter+=1
+    proposed_state =  np.random.multivariate_normal(self.state, self.covariance_matrix)
     proposed_amplitude = proposed_state[0]
     if abs(proposed_amplitude) >= 1:
       return amplitude, field_coeffs, surface_energy, field_energy
-    proposed_field_coeffs = None
-    new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, 
-                                                       amplitude_change=True)
+    proposed_field_coeffs = dict([(key, complex(re,im)) for (key,(re,im)) in zip(range(-self.num_field_coeffs, self.num_field_coeffs+1), zip((proposed_state[1:1+self.num_field_coeffs+1]),(proposed_state[self.num_field_coeffs+2:])))])
+    new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
     if self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy)):
       field_energy = new_field_energy
@@ -154,9 +155,10 @@ class MetropolisEngine():
       field_coeffs = proposed_field_coeffs
     # TODO: keep as list all long eveywhere
     state = [amplitude]
-    state.extend([field_coeffs[key] for key in range(-1*num_field_coeffs, num_field_coeffs+1)])
-    self.update_proposal_distribution([amplitude])
-    self.step_counter += 1
+    state.extend([field_coeffs[key].real for key in field_coeffs])
+    state.extend([field_coeffs[key].imag for key in field_coeffs])
+    state = np.array(state)
+    self.update_proposal_distribution(state)
     return amplitude, field_coeffs, surface_energy, field_energy
 
   def metropolis_decision(self, old_energy, proposed_energy):

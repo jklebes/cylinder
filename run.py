@@ -84,7 +84,7 @@ def run_experiment(type, experiment_title, range1, range2, n_steps, plot=True):
   print(converge_time, results)
 
 
-def single_run( n_steps, method = "simultaneous", field_coeffs=None, amplitude=None):
+def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=None, amplitude=None):
   """
   for examining a single run over time.
   with all the data recording
@@ -101,7 +101,7 @@ def single_run( n_steps, method = "simultaneous", field_coeffs=None, amplitude=N
     amplitude = 0
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
-  me = metropolis_engine.MetropolisEngine(num_field_coeffs, sampling_dist, initial_sampling_width, temp=temp) 
+  me = metropolis_engine.MetropolisEngine(field_coeffs, amplitude, initial_sampling_width, temp=temp) 
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
