@@ -8,16 +8,15 @@ import matplotlib.pyplot as plt
 import system as ce
 
 class MetropolisEngine():
-  def __init__(self, initial_field_coeffs, initial_amplitude, initial_sampling_widths=0.1, initial_covariance_matrix=None, temp=0):
+  def __init__(self, initial_field_coeffs, initial_amplitude, initial_sampling_width=0.1, initial_covariance_matrix=None, temp=0):
     num_field_coeffs = max(initial_field_coeffs)
-    self.sampling_dist = sampling_dist
-    self.num_field_coeffs = num_field_coeffs
     self.temp=temp
 
     self.step_counter =0
-    self.param_space_dims = num_field_coeffs+1
+    self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
     self.state=[initial_amplitude]
-    self.state.extend([intial_field_coeffs[key] for ])
+    self.state.extend([initial_field_coeffs[key].real for key in initial_field_coeffs])
+    self.state.extend([initial_field_coeffs[key].imag for key in initial_field_coeffs])
 
     #adaptive scheme
     self.initial_sampling_width = initial_sampling_width
@@ -29,7 +28,7 @@ class MetropolisEngine():
     else:
       self.initial_covariance_matrix=initial_covariance_matrix
     #dimensions match dimensions of paramter space
-    assert(self.initial_covariance_matrix.shape()==(self.param_space_dims, self.param_space_dims))
+    #assert(self.initial_covariance_matrix.shape()==(self.param_space_dims, self.param_space_dims))
     #self.covariance_matrix will be constantly updated
     #while self.initial_convariance_matrix is a static version for gathering data in the first n steps
     self.covariance_matrix = initial_covariance_matrix
@@ -140,13 +139,11 @@ class MetropolisEngine():
     :param system_energy:
     :return:
     """
-    # TODO: record acceptance rate, aim for 20-60 %
-    proposed_amplitude = amplitude + self.sampling_dist(self.sampling_width_amplitude)
-    proposed_field_coeffs = copy.copy(field_coeffs)
-    for index in field_coeffs:
-      proposed_field_coeffs[index] += self.gaussian_complex(self.sampling_width_coeffs[index])
+    proposed_state = state + np.random.multivariate_normal(self.covariance_matrix)
+    proposed_amplitude = proposed_state[0]
     if abs(proposed_amplitude) >= 1:
       return amplitude, field_coeffs, surface_energy, field_energy
+    proposed_field_coeffs = None
     new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, 
                                                        amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
