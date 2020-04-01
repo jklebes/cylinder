@@ -8,52 +8,21 @@ import matplotlib.pyplot as plt
 import system as ce
 
 class MetropolisEngine():
-  def __init__(self, initial_field_coeffs, initial_amplitude, initial_sampling_width=0.1, initial_covariance_matrix=None, temp=0):
-    self.num_field_coeffs = max(initial_field_coeffs)
+  """
+  base version: separate fixed proposal distribution widths for amplitude of fluctuation, magnitude of field coeffs
+  draws steps from n separate gaussian (or other) distributions.
+  Any constant (in run time), global (in parameter space) proposal distribution definitely makes sampling ergodic.
+  """
+  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0):
     self.temp=temp
-
-    self.step_counter =0
-    self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
-    self.state=[initial_amplitude]
-    self.state.extend([initial_field_coeffs[key].real for key in initial_field_coeffs])
-    self.state.extend([initial_field_coeffs[key].imag for key in initial_field_coeffs])
-    self.state = np.array(self.state)
-    #adaptive scheme
-    self.initial_sampling_width = initial_sampling_width
-    self.sampling_width = initial_sampling_width
-    if initial_covariance_matrix is None:
-      #initialize plausible 
-      #identity matrix
-      self.initial_covariance_matrix = np.identity(self.param_space_dims)
+    if isinstance(sampling_width, float) or isinstance(sampling_width, int):
+      self.sampling_width_amplitude = sampling_width
+      self.sampling_width_field_coeffs = dict([(i, sampling_width) for i in range(-num_field_coeffs, num_field_coeffs+1)])
+    elif isinstance(sampling_width, tuple) or isinstance(sampling_width, list):
+      self.sampling_width_amplitude = sampling_width[0]
+      self.sampling_width_field_coeffs = sampling_width[1]
     else:
-      self.initial_covariance_matrix=initial_covariance_matrix
-    #dimensions match dimensions of paramter space
-    #assert(self.initial_covariance_matrix.shape()==(self.param_space_dims, self.param_space_dims))
-    #self.covariance_matrix will be constantly updated
-    #while self.initial_convariance_matrix is a static version for gathering data in the first n steps
-    self.covariance_matrix = self.initial_covariance_matrix
-    self.mean = self.state
-    print("state initialized ", self.state)
-
-# TODO: how to handle not using new covariance matrix for the first n steps
-
-  def update_proposal_distribution(self, state):     
-    """
-    adaptie Metropoplis scheme after Haario, Saksman & Tamminen  2001
-    """
-    #add to covariance matrix calculation 
-    small_number =0
-    sd = 2.4**2/self.param_space_dims
-    #update mean
-    old_mean = copy.copy(self.mean)
-    self.mean *= (self.step_counter -1 / self.step_counter)
-    self.mean += state /self.step_counter
-    # eq (3) [Haario2001]
-    self.covariance_matrix *= (self.step_counter-1/self.step_counter) # TODO: make sure this is the right kind of division
-    #@: matrix multiply
-    #state mean, oldmean needs to be np.matrix (for transpose to have an effect)
-    #assert(len(np.shape(state))==2 and len(np.shape(mean)==2))
-    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*self.mean.transpose()@self.mean + state.transpose()@state + small_number*np.identity(self.param_space_dims))
+      print("couldnt interpret sampling width argument of type ", type(sampling_width))
 
   def step_fieldcoeffs_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
@@ -91,7 +60,7 @@ class MetropolisEngine():
     :param amplitude_change: this parameter is here isolated use of fct in unit testing.  default False should be enough for real use.
     :return:
     """
-    proposed_field_coeff = field_coeffs[field_coeff_index] + self.gaussian_complex(self.sampling_width_coeffs[field_coeff_index])
+    proposed_field_coeff = field_coeffs[field_coeff_index] + self.gaussian_complex(self.sampling_width_field_coeffs[field_coeff_index])
     new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs, amplitude, amplitude_change)
     if self.metropolis_decision(field_energy + surface_energy, new_field_energy + surface_energy):
       field_energy = new_field_energy
@@ -140,12 +109,13 @@ class MetropolisEngine():
     :param system_energy:
     :return:
     """
-    self.step_counter+=1
-    proposed_state =  np.random.multivariate_normal(self.state, self.covariance_matrix)
-    proposed_amplitude = proposed_state[0]
+    proposed_amplitude = amplitude + random.gauss(0, self.sampling_width_amplitude)
     if abs(proposed_amplitude) >= 1:
       return amplitude, field_coeffs, surface_energy, field_energy
-    proposed_field_coeffs = dict([(key, complex(re,im)) for (key,(re,im)) in zip(range(-self.num_field_coeffs, self.num_field_coeffs+1), zip((proposed_state[1:1+self.num_field_coeffs+1]),(proposed_state[self.num_field_coeffs+2:])))])
+    proposed_field_coeffs = copy.copy(field_coeffs)
+    for key in proposed_field_coeffs:
+      proposed_field_coeffs[key] += self.gaussian_complex(self.sampling_width_field_coeffs[key])
+    #calculate energy of poprosed state 
     new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
     if self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy)):
@@ -153,12 +123,7 @@ class MetropolisEngine():
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
       field_coeffs = proposed_field_coeffs
-    # TODO: keep as list all long eveywhere
-    state = [amplitude]
-    state.extend([field_coeffs[key].real for key in field_coeffs])
-    state.extend([field_coeffs[key].imag for key in field_coeffs])
-    state = np.array(state)
-    self.update_proposal_distribution(state)
+    #output system properties, energy
     return amplitude, field_coeffs, surface_energy, field_energy
 
   def metropolis_decision(self, old_energy, proposed_energy):
@@ -191,3 +156,93 @@ class MetropolisEngine():
   def set_temperature(self, new_temp):
     assert(new_temp >= 0)
     self.temp=new_temp
+
+class MetropolisEngineAdaptive(MetropolisEngine):
+  def __init__(self, initial_field_coeffs, initial_amplitude, initial_sampling_width=0.1, initial_covariance_matrix=None, temp=0):
+    self.num_field_coeffs = max(initial_field_coeffs)
+    self.temp=temp
+
+    self.initial_sampling_width = initial_sampling_width
+    self.sampling_width = initial_sampling_width
+    
+    #adaptive scheme
+    # amplitude (float) and field_coeffs (dict of complex numbers) rearranged to list 'state' for covariance matrix calculation
+    self.step_counter =0
+    self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
+    state=[initial_amplitude]
+    state.extend([initial_field_coeffs[key].real for key in initial_field_coeffs])
+    state.extend([initial_field_coeffs[key].imag for key in initial_field_coeffs])
+    self.state = np.array(state)
+    self.mean = state
+
+    if initial_covariance_matrix is None:
+      #initialize plausible 
+      #identity matrix
+      self.initial_covariance_matrix = initial_sampling_width*np.identity(self.param_space_dims)
+    else:
+      self.initial_covariance_matrix=initial_covariance_matrix
+    #dimensions match dimensions of paramter space
+    #assert(self.initial_covariance_matrix.shape()==(self.param_space_dims, self.param_space_dims))
+    #self.covariance_matrix will be constantly updated
+    #while self.initial_convariance_matrix is a static version for gathering data in the first n steps
+    self.covariance_matrix = self.initial_covariance_matrix
+
+# TODO: how to handle not using new covariance matrix for the first n steps
+
+  def update_covariance_matrix(self):     
+    """
+    adaptie Metropoplis scheme after Haario, Saksman & Tamminen  2001
+    """
+    #add to covariance matrix calculation 
+    small_number =0
+    sd = 2.4**2/self.param_space_dims
+    #update mean
+    old_mean = copy.copy(self.mean)
+    self.mean *= (self.step_counter -1 / self.step_counter) #TODO: check stepcounter value
+    self.mean += self.state /self.step_counter
+    # eq (3) [Haario2001]
+    self.covariance_matrix *= (self.step_counter-1/self.step_counter) # TODO: make sure this is the right kind of division
+    #@: matrix multiply
+    #state mean, oldmean needs to be np.matrix (for transpose to have an effect)
+    #assert(len(np.shape(state))==2 and len(np.shape(mean)==2))
+    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*self.mean.transpose()@self.mean + self.state.transpose()@self.state + small_number*np.identity(self.param_space_dims))
+
+  def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
+    """
+    Step all parameters (amplitude, field coeffs) simultaneously.  True metropolis algorithm.
+    Much faster than sequential (Gibbs) sampling but low acceptance rate at low temp.
+    :param wavenumber:
+    :param kappa:
+    :param amplitude:
+    :param field_coeffs:
+    :param surface_energy:
+    :param field_energy:
+    :param system_energy:
+    :return:
+    """
+    self.step_counter+=1
+    #rearrange system state arguemtns to list
+    state = [amplitude]
+    state.extend([field_coeffs[key].real for key in field_coeffs])
+    state.extend([field_coeffs[key].imag for key in field_coeffs])
+    state = np.array(state)
+    #draw from proposal dist: multivariate gaussian with runningly updated covariance matrix of system
+    proposed_state =  np.random.multivariate_normal(state, self.covariance_matrix)
+    #rearrange state to amplitude, field_coeffs dict for energy calculation
+    proposed_amplitude = proposed_state[0]
+    if abs(proposed_amplitude) >= 1:
+      return amplitude, field_coeffs, surface_energy, field_energy
+    proposed_field_coeffs = dict([(key, complex(re,im)) for (key,(re,im)) in zip(range(-self.num_field_coeffs, self.num_field_coeffs+1), zip((proposed_state[1:1+2*self.num_field_coeffs+1]),(proposed_state[2*self.num_field_coeffs+2:])))])
+    #calculate energy of poposed state 
+    new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, amplitude_change=True)
+    new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
+    if self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy)):
+      field_energy = new_field_energy
+      surface_energy = new_surface_energy
+      amplitude = proposed_amplitude
+      field_coeffs = proposed_field_coeffs
+      state=proposed_state
+    #update covariance matrix with new (bzw same) state
+    self.update_covariance_matrix(state)
+    #output system properties, energy
+    return amplitude, field_coeffs, surface_energy, field_energy

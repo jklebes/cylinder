@@ -25,7 +25,7 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps):
       amplitude = 0
       initial_field_coeffs = dict([(i, 0 + 0j) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
       # run
-      field_coeffs, amplitude = single_run(field_coeffs=initial_field_coeffs, amplitude=amplitude,
+      field_coeffs, amplitude = single_run(kappa=kappa, wavenumber=wavenumber, field_coeffs=initial_field_coeffs, amplitude=amplitude,
                                     n_steps=n_steps)
       results_line.append(amplitude)
       print(kappa, wavenumber, amplitude)
@@ -101,7 +101,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     amplitude = 0
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
-  me = metropolis_engine.MetropolisEngine(field_coeffs, amplitude, initial_sampling_width, temp=temp) 
+  me = metropolis_engine.MetropolisEngine(num_field_coeffs, initial_sampling_width, temp=temp) 
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
