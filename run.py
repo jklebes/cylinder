@@ -101,7 +101,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     amplitude = 0
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
-  me = metropolis_engine.AdaptiveMetropolisEngine(field_coeffs, amplitude, temp=temp) 
+  me = metropolis_engine.ComplexAdaptiveMetropolisEngine(field_coeffs, amplitude, temp=temp)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
