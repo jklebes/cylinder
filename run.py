@@ -101,7 +101,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     amplitude = 0
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
-  me = metropolis_engine.MetropolisEngine(num_field_coeffs, initial_sampling_width, temp=temp) 
+  me = metropolis_engine.AdaptiveMetropolisEngine(field_coeffs, amplitude, temp=temp) 
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
@@ -123,7 +123,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
                                                              field_energy=field_energy, surface_energy=surface_energy,
                                                              system=se)
       amplitudes.append(amplitude)
-      print(amplitude, field_coeffs)
+      #print(amplitude, field_coeffs)
   plt.scatter(range(len(amplitudes)), amplitudes)
   plt.savefig("amplitudes_vs_time.png")
   return amplitudes

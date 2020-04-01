@@ -157,28 +157,25 @@ class MetropolisEngine():
     assert(new_temp >= 0)
     self.temp=new_temp
 
-class MetropolisEngineAdaptive(MetropolisEngine):
-  def __init__(self, initial_field_coeffs, initial_amplitude, initial_sampling_width=0.1, initial_covariance_matrix=None, temp=0):
+class AdaptiveMetropolisEngine(MetropolisEngine):
+  def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None, temp=0):
     self.num_field_coeffs = max(initial_field_coeffs)
     self.temp=temp
-
-    self.initial_sampling_width = initial_sampling_width
-    self.sampling_width = initial_sampling_width
     
     #adaptive scheme
     # amplitude (float) and field_coeffs (dict of complex numbers) rearranged to list 'state' for covariance matrix calculation
-    self.step_counter =0
+    self.step_counter =1
     self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
     state=[initial_amplitude]
     state.extend([initial_field_coeffs[key].real for key in initial_field_coeffs])
     state.extend([initial_field_coeffs[key].imag for key in initial_field_coeffs])
     self.state = np.array(state)
-    self.mean = state
+    self.mean = self.state
 
     if initial_covariance_matrix is None:
       #initialize plausible 
       #identity matrix
-      self.initial_covariance_matrix = initial_sampling_width*np.identity(self.param_space_dims)
+      self.initial_covariance_matrix = np.identity(self.param_space_dims)
     else:
       self.initial_covariance_matrix=initial_covariance_matrix
     #dimensions match dimensions of paramter space
@@ -196,16 +193,21 @@ class MetropolisEngineAdaptive(MetropolisEngine):
     #add to covariance matrix calculation 
     small_number =0
     sd = 2.4**2/self.param_space_dims
+
+    t=self.step_counter
     #update mean
     old_mean = copy.copy(self.mean)
-    self.mean *= (self.step_counter -1 / self.step_counter) #TODO: check stepcounter value
-    self.mean += self.state /self.step_counter
+    self.mean *= (t-1) /t 
+    self.mean += self.state/t
+    print("updated mean", self.mean)
     # eq (3) [Haario2001]
-    self.covariance_matrix *= (self.step_counter-1/self.step_counter) # TODO: make sure this is the right kind of division
+    self.covariance_matrix *= ((t-1)/t)
     #@: matrix multiply
     #state mean, oldmean needs to be np.matrix (for transpose to have an effect)
     #assert(len(np.shape(state))==2 and len(np.shape(mean)==2))
-    self.covariance_matrix += sd /self.step_counter *(old_mean.transpose() @ old_mean + (self.step_counter+1)*self.mean.transpose()@self.mean + self.state.transpose()@self.state + small_number*np.identity(self.param_space_dims))
+    self.covariance_matrix += sd /(self.step_counter+1) *(t*old_mean.transpose() @ old_mean - (t+1)*self.mean.transpose()@self.mean + self.state.transpose()@self.state + small_number*np.identity(self.param_space_dims))
+    print("cov")
+    print(self.covariance_matrix)
 
   def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
     """
@@ -220,14 +222,9 @@ class MetropolisEngineAdaptive(MetropolisEngine):
     :param system_energy:
     :return:
     """
-    self.step_counter+=1
-    #rearrange system state arguemtns to list
-    state = [amplitude]
-    state.extend([field_coeffs[key].real for key in field_coeffs])
-    state.extend([field_coeffs[key].imag for key in field_coeffs])
-    state = np.array(state)
     #draw from proposal dist: multivariate gaussian with runningly updated covariance matrix of system
-    proposed_state =  np.random.multivariate_normal(state, self.covariance_matrix)
+    assert(amplitude == self.state[0])
+    proposed_state =  np.random.multivariate_normal(self.state, self.covariance_matrix) #use self.state instead of taking in outside information
     #rearrange state to amplitude, field_coeffs dict for energy calculation
     proposed_amplitude = proposed_state[0]
     if abs(proposed_amplitude) >= 1:
@@ -241,8 +238,9 @@ class MetropolisEngineAdaptive(MetropolisEngine):
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
       field_coeffs = proposed_field_coeffs
-      state=proposed_state
+      self.state=proposed_state
     #update covariance matrix with new (bzw same) state
-    self.update_covariance_matrix(state)
+    self.step_counter+=1
+    self.update_covariance_matrix()
     #output system properties, energy
     return amplitude, field_coeffs, surface_energy, field_energy
