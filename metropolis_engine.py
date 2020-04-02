@@ -3,6 +3,7 @@ import copy
 import math
 import random
 import numpy as np
+import scipy
 
 class MetropolisEngine():
   """
@@ -10,7 +11,7 @@ class MetropolisEngine():
   draws steps from n separate gaussian (or other) distributions.
   Any constant (in run time), global (in parameter space) proposal distribution definitely makes sampling ergodic.
   """
-  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0, method = "simultaneous"):
+  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0, method = "simultaneous", covariance_matrix=None):
     self.temp=temp
     if method == "sequential":
       if isinstance(sampling_width, float) or isinstance(sampling_width, int):
@@ -28,6 +29,13 @@ class MetropolisEngine():
       self.step = self.step_all
       self.accepted_counter =0
     self.step_counter =0
+    self.mean = np.zeros(self.param_space_dims)
+    if covariance_matrix == None:
+      self.covariance_matrix = np.identity(self.param_space_dims)
+    else:
+      self.covariance_matrix = covariance_matrix
+    self.target_acceptance = .3
+    self.param_space_dims = len(initial_field_coeffs)+1 #in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
 
   def step_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
@@ -135,18 +143,26 @@ class MetropolisEngine():
     return amplitude, field_coeffs, surface_energy, field_energy
 
   def draw_field_coeffs_from_proposal_distribution(field_coeffs):
+    # TODO : generalize to multivariate gaussian
     proposed_field_coeffs = copy.copy(field_coeffs)
     for key in proposed_field_coeffs:
       proposed_field_coeffs[key] += self.gaussian_complex(self.sampling_width_field_coeffs[key])
     return proposed_field_coeffs
 
   def draw_amplitude_from_proposal_distriution(amplitude):
+    # TODO : genrealize to multivariate gaussian
     proposed_amplitude = amplitude + random.gauss(0, self.sampling_width_amplitude)
     return proposed_amplitude
 
   #put different distributions in subclasses
   def draw_all_from_proposal_distribution(amplitude, field_coeffs):
-    return draw_amplitude_from_proposal_distribution(ampltiude), draw_field_coeffs_from_proposal_distribution(field_coeffs)
+    # draw from multivariate gaussian distribution with covariance matrix : sampling_width * identity matrix
+    # would be exactly equivlent to drawing from n independent gaussian distributions
+    state = [amplitude]
+    state.extend([abs(field_coeffs[key]) for key in field_coeffs])
+    proposed_state = np.random.multivariate_gaussian(state, self.sampling_width*self.covariance_matrix)
+    proposed_field_coeffs = dict([(key, self.random_complex(r)) for (key, r) in zip(field_coeffs.keys, proposed_state[1:])])
+    return proposed_state[0], proposed_field_coeffs
   
   #no change in base class.  override in subclasses
   def update_proposal_distribution(self, accept):
@@ -174,6 +190,10 @@ class MetropolisEngine():
       else:
         return False
 
+  def random_complex(self, r):
+    phi = random.uniform(-math.pi, math.pi)
+    return cmath.rect(r, phi)
+
   def gaussian_complex(self, sigma):
     amplitude = random.gauss(0, sigma)
     phase = random.uniform(0, 2*math.pi)
@@ -182,23 +202,56 @@ class MetropolisEngine():
   def set_temperature(self, new_temp):
     assert(new_temp >= 0)
     self.temp=new_temp
-class RobbinsMonroAdaptiveMetropolisEngine(MetropolisEngine):
-  def __init__():
-    # TODO 
-    pass
-  
-  def update_proposal_distribution(self):
-    """ Reasoning and algorithm from 
-    Garthwaite, Fan, & Sisson 2010: arxiv.org/abs/1006.3690v1
-    """
-    #TODO
-    pass
+
+
+class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
+  """ Reasoning and algorithm from 
+  Garthwaite, Fan, & Sisson 2010: arxiv.org/abs/1006.3690v1
+  without updating covariance matrix - assuming covariance is approximately identity matrix
+  """
+
+  def __init__(num_field_coeffs, sampling_width=0.05, temp=0, method = "simultaneous", covariance_matrix = None)
+    super().__init__(num_field_coeffs, sampling_width, temp, method, covariance_matrix)
+    
+    # alpha (a constant used later) := -phi^(-1)(target acceptance /2) 
+    # ,where  phi is the cumulative density function of the standard normal distribution
+    # norm.ppf ('percent point function') is the inverse of the cumulative density function of standard normal distribution
+    alpha = -1*scipy.stats.norm.ppf(self.target_acceptance/2)
+
+  def update_proposal_distribution(self, accept, update_covariance=False):
+    step_number_factor = self.step_counter/m
+    steplength_c = self.sampling_width * ((1-(1/m)) * math.sqrt(2*math.pi) * exp(alpha**2/2) / 2*alpha + 1/(m*self.target_acceptance*(1-self.target_acceptance)))
+    if accept:
+      self.sampling_width += steplength_c * (1-self.target_acceptance)/step_number_factor
+    else:
+      self.sampling_width -= steplength_c * self.target_acceptance / step_number_factor
+  # TODO: test for convergence of sampling_width, c->0
+
+class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEngine):
+  """ Reasoning and algorithm from 
+  Garthwaite, Fan, & Sisson 2010: arxiv.org/abs/1006.3690v1
+  without updating covariance matrix - assuming covariance is approximately identity matrix
+  """
+
+  def __init__(num_field_coeffs, sampling_width=0.05, temp=0, method = "simultaneous", covariance_matrix = None)
+    super().__init__(num_field_coeffs, sampling_width, temp, method, covariance_matrix)
+    self.mean 
+
+  def update_proposal_distribution(self, accept, update_covariance=False):
+    step_number_factor = max(200, self.step_counter/m)
+    steplength_c = self.sampling_width * ((1-(1/m)) * math.sqrt(2*math.pi) * exp(alpha**2/2) / 2*alpha + 1/(m*self.target_acceptance*(1-self.target_acceptance)))
+    if accept:
+      self.sampling_width += steplength_c * (1-self.target_acceptance)/step_number_factor
+    else:
+      self.sampling_width -= steplength_c * self.target_acceptance / step_number_factor
+    # TODO: updating covariance matrix divorced from scaling covariance matrix
+
+  # TODO: test for convergence of sampling_width, c->0
 
 class FiniteAdaptiveMetropolisEngine(MetropolisEngine):
   def __init__(self,  num_field_coeffs, sampling_width=0.05, temp=0):
     # init superclass 
     self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
-    self.target_acceptance = 2.4**2/self.param_space_dims
     self.adaption_size = 1
 
   #how to handle running first n steps differently?
@@ -215,7 +268,7 @@ class FiniteAdaptiveMetropolisEngine(MetropolisEngine):
     else:
       pass
 
-class AdaptiveMetropolisEngine(MetropolisEngine):
+class RealImgAdaptiveMetropolisEngine(MetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None, initial_sampling_width=.0001, temp=0):
     self.num_field_coeffs = max(initial_field_coeffs)
     self.temp=temp
@@ -252,7 +305,7 @@ class AdaptiveMetropolisEngine(MetropolisEngine):
     """
     #add to covariance matrix calculation 
     small_number =0.001
-    sd = 2.4**2/self.param_space_dims
+    sd = (2.4**2)/self.param_space_dims
 
     t=self.step_counter
     #update mean
@@ -314,7 +367,7 @@ class AdaptiveMetropolisEngine(MetropolisEngine):
     return amplitude, field_coeffs, surface_energy, field_energy
 
 
-class AmplitudeAdaptiveMetropolisEngine(AdaptiveMetropolisEngine):
+class AmplitudePhaseAdaptiveMetropolisEngine(AdaptiveMetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None,
                initial_sampling_width=.0001, temp=0):
     self.num_field_coeffs = max(initial_field_coeffs)
