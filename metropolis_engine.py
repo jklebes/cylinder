@@ -10,19 +10,26 @@ class MetropolisEngine():
   draws steps from n separate gaussian (or other) distributions.
   Any constant (in run time), global (in parameter space) proposal distribution definitely makes sampling ergodic.
   """
-  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0):
+  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0, method = "simultaneous"):
     self.temp=temp
-    if isinstance(sampling_width, float) or isinstance(sampling_width, int):
-      self.sampling_width_amplitude = sampling_width
-      self.sampling_width_field_coeffs = dict([(i, sampling_width) for i in range(-num_field_coeffs, num_field_coeffs+1)])
-    elif isinstance(sampling_width, tuple) or isinstance(sampling_width, list):
-      self.sampling_width_amplitude = sampling_width[0]
-      self.sampling_width_field_coeffs = sampling_width[1]
-    else:
-      print("couldnt interpret sampling width argument of type ", type(sampling_width))
-    self.accepted_counter =0
+    if method == "sequential":
+      if isinstance(sampling_width, float) or isinstance(sampling_width, int):
+        self.sampling_width_amplitude = sampling_width
+        self.sampling_width_field_coeffs = dict([(i, sampling_width) for i in range(-num_field_coeffs, num_field_coeffs+1)])
+      elif isinstance(sampling_width, tuple) or isinstance(sampling_width, list):
+        self.sampling_width_amplitude = sampling_width[0]
+        self.sampling_width_field_coeffs = sampling_width[1]
+      else:
+        print("couldnt interpret sampling width argument of type ", type(sampling_width))
+      self.step = self.step_sequential
+      self.accepted_counter = (0,  dict([(i, 0) for i in range(-num_field_coeffs, num_field_coeffs+1)]))
+    elif method == "simultaneous":
+      self.sampling_width = sampling_width
+      self.step = self.step_all
+      self.accepted_counter =0
+    self.step_counter =0
 
-  def step_fieldcoeffs_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
+  def step_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
     """
     Try stepping each field coefficient c_i once, in a random order
@@ -37,13 +44,14 @@ class MetropolisEngine():
     :param system:
     :return:
     """
+    amplitude = self.step_amplitude()
     indices_randomized = [*field_coeffs]  # unpack iterable into list - like list() but faster
     # TODO : find out whether randomizing the order is helpful
     random.shuffle(indices_randomized)
     for index in indices_randomized:
       field_coeffs, field_energy = self.step_fieldcoeff(index, field_coeffs, field_energy, surface_energy, amplitude, system)
     print(field_energy, field_coeffs)
-    return field_coeffs, field_energy
+    return amplitude, field_coeffs, surface_energy, field_energy
 
 
   def step_fieldcoeff(self, field_coeff_index, field_coeffs, field_energy, surface_energy, amplitude, system, amplitude_change=False):
@@ -75,7 +83,7 @@ class MetropolisEngine():
     :param system:
     :return:
     """
-    proposed_amplitude = amplitude + self.sampling_dist(amplitude_sampling_width )
+    proposed_amplitude = draw_amplitude_from_proposal_distriution(amplitude)
     if abs(proposed_amplitude) >= 1:
       # don't accept.
       # like an infinite energy barrier to self-intersection.
@@ -92,12 +100,14 @@ class MetropolisEngine():
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
+      # TODO: how to handle separate acceptance rates?
     return amplitude, surface_energy, field_energy
 
   def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
     """
     Step all parameters (amplitude, field coeffs) simultaneously.  True metropolis algorithm.
     Much faster than sequential (Gibbs) sampling but low acceptance rate at low temp.
+    Generic to any proposal distribution and adaptive algorithm
     :param wavenumber:
     :param kappa:
     :param amplitude:
@@ -107,23 +117,41 @@ class MetropolisEngine():
     :param system_energy:
     :return:
     """
-    proposed_amplitude = amplitude + random.gauss(0, self.sampling_width_amplitude)
+    proposed_amplitude, proposed_field_coeffs = draw_all_from_proposal_dsitribution(amplitude, field_coeffs)
     if abs(proposed_amplitude) >= 1:
       return amplitude, field_coeffs, surface_energy, field_energy
-    proposed_field_coeffs = copy.copy(field_coeffs)
-    for key in proposed_field_coeffs:
-      proposed_field_coeffs[key] += self.gaussian_complex(self.sampling_width_field_coeffs[key])
-    #calculate energy of poprosed state 
     new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
-    if self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy)):
+    accept = self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy))
+    if accept:
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
       field_coeffs = proposed_field_coeffs
+      self.accepted_counter +=1
+    self.step_counter += 1
+    self.update_proposal_distribution(accept)
     #output system properties, energy
     return amplitude, field_coeffs, surface_energy, field_energy
 
+  def draw_field_coeffs_from_proposal_distribution(field_coeffs):
+    proposed_field_coeffs = copy.copy(field_coeffs)
+    for key in proposed_field_coeffs:
+      proposed_field_coeffs[key] += self.gaussian_complex(self.sampling_width_field_coeffs[key])
+    return proposed_field_coeffs
+
+  def draw_amplitude_from_proposal_distriution(amplitude):
+    proposed_amplitude = amplitude + random.gauss(0, self.sampling_width_amplitude)
+    return proposed_amplitude
+
+  #put different distributions in subclasses
+  def draw_all_from_proposal_distribution(amplitude, field_coeffs):
+    return draw_amplitude_from_proposal_distribution(ampltiude), draw_field_coeffs_from_proposal_distribution(field_coeffs)
+  
+  #no change in base class.  override in subclasses
+  def update_proposal_distribution(self, accept):
+    pass
+  
   def metropolis_decision(self, old_energy, proposed_energy):
     """
     Considering energy difference and temperature, return decision to accept or reject step
@@ -154,6 +182,38 @@ class MetropolisEngine():
   def set_temperature(self, new_temp):
     assert(new_temp >= 0)
     self.temp=new_temp
+class RobbinsMonroAdaptiveMetropolisEngine(MetropolisEngine):
+  def __init__():
+    # TODO 
+    pass
+  
+  def update_proposal_distribution(self):
+    """ Reasoning and algorithm from 
+    Garthwaite, Fan, & Sisson 2010: arxiv.org/abs/1006.3690v1
+    """
+    #TODO
+    pass
+
+class FiniteAdaptiveMetropolisEngine(MetropolisEngine):
+  def __init__(self,  num_field_coeffs, sampling_width=0.05, temp=0):
+    # init superclass 
+    self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
+    self.target_acceptance = 2.4**2/self.param_space_dims
+    self.adaption_size = 1
+
+  #how to handle running first n steps differently?
+  
+  def update_proposal_distribution(self, accept):
+    if step_counter < n:
+      if accept:
+        self.sampling_width_amplitude += 0
+        self.sampling_width_field_coeffs += 0
+      else:
+        pass
+      self.adaption_size *= .08
+    print("acceptance_rate", self.accept_counter / self.step_counter, "target", self.target)
+    else:
+      pass
 
 class AdaptiveMetropolisEngine(MetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None, initial_sampling_width=.0001, temp=0):
@@ -162,7 +222,7 @@ class AdaptiveMetropolisEngine(MetropolisEngine):
     
     #adaptive scheme
     # amplitude (float) and field_coeffs (dict of complex numbers) rearranged to list 'state' for covariance matrix calculation
-    self.step_counter =1
+    self.step_counter =0
     self.accepted_counter =0
     self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
     state=[initial_amplitude]
