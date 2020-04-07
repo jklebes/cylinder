@@ -7,11 +7,11 @@ import random
 import math
 import copy
 
-class TestAdaptiveMetropolis(unittest.TestCase):
+class TestBaseMetropolis(unittest.TestCase):
 
   def setUp(self): 
     self.field_coeffs=dict([(i, 0+0j) for i in range(-3,4)])
-    self.me = metropolis_engine.AdaptiveMetropolisEngine(initial_amplitude =0, initial_field_coeffs=self.field_coeffs )
+    self.me = metropolis_engine.MetropolisEngine(num_field_coeffs=len(self.field_coeffs.keys()) )
     self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
 
   def tearDown(self):
@@ -19,17 +19,9 @@ class TestAdaptiveMetropolis(unittest.TestCase):
   
   def test_init_covariance_matrix_default(self):
     num_field_coeffs=3
-    me = metropolis_engine.AdaptiveMetropolisEngine(initial_amplitude=0, initial_field_coeffs=self.field_coeffs)
+    me = metropolis_engine.MetropolisEngine(num_field_coeffs=num_field_coeffs)
     self.assertEqual(me.covariance_matrix[1][3],0)
     self.assertEqual(me.covariance_matrix[2][2],1)
-
-  
-  def test_init_covariance_matrix(self):
-    num_field_coeffs=3
-    covariance_matrix = [[4.3, 0, 0.2],[2, 2.1, -4.3], [-0.01, 0.2, 0.25]]
-    me = metropolis_engine.AdaptiveMetropolisEngine(initial_amplitude=0, initial_field_coeffs=dict([(i, 0+0j) for i in range(-1,2)]), initial_covariance_matrix=covariance_matrix)
-    self.assertEqual(me.covariance_matrix[1][1],2.1)
-    self.assertEqual(me.covariance_matrix[0][2],0.2)
  
   def test_step_fieldcoeff(self):
     pass
@@ -84,5 +76,19 @@ class TestAdaptiveMetropolis(unittest.TestCase):
     new_energy = 14.3
     self.me.set_temperature(1.5)
     self.assertTrue(self.me.metropolis_decision(old_energy, new_energy), "equal energies defined as accepted")
+
+
+class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
+
+  def setUp(self): 
+    self.field_coeffs=dict([(i, 0+0j) for i in range(-3,4)])
+    self.me_identity = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_amplitude =0, initial_field_coeffs=self.field_coeffs )
+    self.me_correlated = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_amplitude =0, initial_field_coeffs=self.field_coeffs, covariance_matrix=[[1,.3, .2],[-.3, 1, .2], [0, .2, 1]] )
+    self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
+
+  def tearDown(self):
+    pass
+    
+
 if __name__ == '__main__':
   unittest.main()
