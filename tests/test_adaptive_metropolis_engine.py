@@ -82,13 +82,39 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
 
   def setUp(self): 
     self.field_coeffs=dict([(i, 0+0j) for i in range(-3,4)])
-    self.me_identity = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_amplitude =0, initial_field_coeffs=self.field_coeffs )
-    self.me_correlated = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_amplitude =0, initial_field_coeffs=self.field_coeffs, covariance_matrix=[[1,.3, .2],[-.3, 1, .2], [0, .2, 1]] )
+    self.me_identity = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(num_field_coeffs=len(self.field_coeffs ))
+    self.me_correlated = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(num_field_coeffs=len(self.field_coeffs ))
     self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
 
   def tearDown(self):
     pass
-    
+   
+  def test_step_counter(self):
+    counter_initial = self.me_identity.step_counter
+    self.me_identity.step_all(amplitude=-.12, field_coeffs=self.field_coeffs, surface_energy=-21.0, field_energy=34.2, system=self.sys_basic)
+    counter_after = self.me_identity.step_counter
+    self.assertEqual(counter_initial+1, counter_after)
+
+
+  def test_initial_mean(self):
+    amplitude = .5
+    field_coeffs=dict([(i,self.me_identity.random_complex(random.uniform(0,1))) for i in range(-3,4)])
+    me  = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
+    mean_initial=me.mean
+    self.assertEqual(mean_initial[0], amplitude) #initial amplitude
+    self.assertEqual(mean_initial[2], abs(field_coeffs[-2]))
+    self.assertEqual(mean_initial[-1], abs(field_coeffs[3]))
+
+  def test_two_step_mean(self):
+    amplitude = .5
+    field_coeffs = dict([(i, 0+0j) for i in range(-3,4)])
+    me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
+    new_amplitude = 0.8
+    new_field_coeffs = dict([(i, 0-0.6j) for i in range(-3, 4)])
+    me.step_counter +=1
+    me.update_mean(new_amplitude, new_field_coeffs)
+    self.assertEqual(me.mean[0], 0.65)
+    self.assertEqual(me.mean[4], 0.3)
 
 if __name__ == '__main__':
   unittest.main()

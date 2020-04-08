@@ -7,36 +7,35 @@ import scipy.stats
 
 class MetropolisEngine():
   """
-  base version: separate fixed proposal distribution widths for amplitude of fluctuation, magnitude of field coeffs
+  base version: proposal distribution is fixed in width and covariance.
+  By default the covariance matrix of the multivariate proposal distribution is the dientity matrix, equivalent to drawing from n independent gaussian distribution.
+  A different fixed covariance matrix can alo be chosen.
   draws steps from n separate gaussian (or other) distributions.
-  Any constant (in run time), global (in parameter space) proposal distribution definitely makes sampling ergodic.
+  Using just this base class with constant (in run time), global (in parameter space) proposal distribution guarantees ergodic sampling.
+  Subclass StaticCovarianceAdaptiveMetropolisEngine is recommended minimum level of adaptiveness.
   """
-  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0, method = "simultaneous", covariance_matrix=None):
+
+  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0, covariance_matrix=None, target_acceptance=.3):
+    """
+    :param num_field_coeffs: number of field coefficient degrees of freedom.
+    :param sampling_width: float, width of proposal distribution.  A factor scaling covariance matrix in multivariate gaussian proposal distribution.
+    :param temp: system temperature.  Optional, default 0.
+    :param covariance_matrix: initial or constant covariance matrix of multivariate gaussian proposal distribution. Optional, defaults to identity matrix. Should reflect correlations between the parameters if known.  Dimensions should match number of free parameters: in general number of field coefficients + 1.  2*number of field coefficients+1 Where phase/ampltitude or real/imag parts of field coefficients are treated as separate degrees of freedom.  complex entries in subclass ComplexAdaptiveMetropolisEngine.
+    """
     self.temp=temp
     self.num_field_coeffs = num_field_coeffs
-    if method == "sequential":
-      if isinstance(sampling_width, float) or isinstance(sampling_width, int):
-        self.sampling_width_amplitude = sampling_width
-        self.sampling_width_field_coeffs = dict([(i, sampling_width) for i in range(-num_field_coeffs, num_field_coeffs+1)])
-      elif isinstance(sampling_width, tuple) or isinstance(sampling_width, list):
-        self.sampling_width_amplitude = sampling_width[0]
-        self.sampling_width_field_coeffs = sampling_width[1]
-      else:
-        print("couldnt interpret sampling width argument of type ", type(sampling_width))
-      self.step = self.step_sequential
-      self.accepted_counter = (0,  dict([(i, 0) for i in range(-self.num_field_coeffs, self.num_field_coeffs+1)]))
-    elif method == "simultaneous":
-      self.sampling_width = sampling_width
-      self.step = self.step_all
-      self.accepted_counter =0
-    self.step_counter =0
+    max_field_coeffs = num_field_coeffs//2
+    self.keys_ordered = list(range(-max_field_coeffs, max_field_coeffs+1))
+    self.sampling_width = sampling_width
     self.param_space_dims = self.num_field_coeffs+1 #in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
     self.mean = np.zeros(self.param_space_dims)
     if covariance_matrix == None:
       self.covariance_matrix = np.identity(self.param_space_dims)
     else:
       self.covariance_matrix = covariance_matrix
-    self.target_acceptance = .3
+    self.accepted_counter =1
+    self.step_counter =1
+    self.target_acceptance = target_acceptance
 
   def step_sequential(self, amplitude, field_coeffs, field_energy, surface_energy, 
                                   system):
@@ -44,14 +43,7 @@ class MetropolisEngine():
     Try stepping each field coefficient c_i once, in a random order
     -> this is Gibbs sampling
     I chose sequential for greater acceptance rates
-    Disadvantage: 2n+1 recalculations, of the products and sums in system_energy.calc_field_energy
-     (not of numerical integration)
-    :param field_coeffs:
-    :param field_energy:
-    :param surface_energy:
-    :param amplitude:
-    :param system:
-    :return:
+    Not yet implemented.
     """
     amplitude = self.step_amplitude()
     indices_randomized = [*field_coeffs]  # unpack iterable into list - like list() but faster
@@ -75,7 +67,9 @@ class MetropolisEngine():
     :param amplitude_change: this parameter is here isolated use of fct in unit testing.  default False should be enough for real use.
     :return:
     """
-    proposed_field_coeff = field_coeffs[field_coeff_index] + self.gaussian_complex(self.sampling_width_field_coeffs[field_coeff_index])
+    covariance_matrix_entry = self.covariance_matrix[field_coeff_index, field_coeff_index] 
+    field_coeff = field_coeffs[field_coeff_index]
+    proposed_field_coeff = self.modify_phase(abs(field_coeff) + random.gauss(0, self.sampling_width * covariance_matrix_entry), cmath.phase(field_coeff))
     new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs, amplitude, amplitude_change)
     if self.metropolis_decision(field_energy + surface_energy, new_field_energy + surface_energy):
       field_energy = new_field_energy
@@ -115,16 +109,13 @@ class MetropolisEngine():
   def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
     """
     Step all parameters (amplitude, field coeffs) simultaneously.  True metropolis algorithm.
-    Much faster than sequential (Gibbs) sampling but low acceptance rate at low temp.
     Generic to any proposal distribution and adaptive algorithm
-    :param wavenumber:
-    :param kappa:
     :param amplitude:
     :param field_coeffs:
     :param surface_energy:
     :param field_energy:
-    :param system_energy:
-    :return:
+    :param system: object which holds functions for calculating energy.  May store pre-calculated values and shortcuts.
+    :return: new state and energy in the form tuple (ampltiude, field_coeffs (dict), surface_energy, field_energy).  Identical to input parameters if step was rejected.  Also modifies step counter and acceptance rate counter.
     """
     proposed_amplitude, proposed_field_coeffs = self.draw_all_from_proposal_distribution(amplitude, field_coeffs)
     if abs(proposed_amplitude) >= 1:
@@ -139,11 +130,12 @@ class MetropolisEngine():
       field_coeffs = proposed_field_coeffs
       self.accepted_counter +=1
     self.step_counter += 1
-    self.update_proposal_distribution(accept)
+    self.update_proposal_distribution(accept, amplitude, field_coeffs)
     #output system properties, energy
     return amplitude, field_coeffs, surface_energy, field_energy
 
   def draw_field_coeffs_from_proposal_distribution(self,ield_coeffs):
+    """implement later"""
     # TODO : generalize to multivariate gaussian
     proposed_field_coeffs = copy.copy(field_coeffs)
     for key in proposed_field_coeffs:
@@ -151,30 +143,40 @@ class MetropolisEngine():
     return proposed_field_coeffs
 
   def draw_amplitude_from_proposal_distriution(self,amplitude):
+    """ implement later"""
     # TODO : genrealize to multivariate gaussian
     proposed_amplitude = amplitude + random.gauss(0, self.sampling_width_amplitude)
     return proposed_amplitude
 
   def draw_all_from_proposal_distribution(self,amplitude, field_coeffs):
-    # draw from multivariate gaussian distribution with sampling_width * covariance matrix
-    # exactly equivlent to drawing from n independent gaussian distributions when covariance matrix is identity matrix
+    """
+    draw from multivariate gaussian distribution with sampling_width * covariance matrix
+    exactly equivlent to drawing from n independent gaussian distributions when covariance matrix is identity matrix
+    :param amplitude: current amplitude
+    :param field_coeffs: dict of current (complex) field coeff values
+    In this implementation only ampltiude of perturbation and magnitude of field coeffs is modifified by adaptive metropolis algorithm with (possible adapted) step sizes and covariance matrix.  Phases of field coeffs are independently adjusted by fixed-width, uncoupled gaussian distribution around their current state at each step.
+    """
     state = [amplitude]
     state.extend([abs(field_coeffs[key]) for key in field_coeffs])
-    proposed_state = np.random.multivariate_normal(state, self.sampling_width*self.covariance_matrix)
-    proposed_field_coeffs = dict([(key, self.random_complex(r)) for (key, r) in zip(field_coeffs.keys(), proposed_state[1:])])
-    return proposed_state[0], proposed_field_coeffs
+    old_phases = [cmath.phase(field_coeffs[key]) for key in field_coeffs]
+    proposed_addition =  np.random.multivariate_normal([0]*len(state), self.sampling_width*self.covariance_matrix)
+    proposed_amplitude = state[0]+proposed_addition[0]
+    proposed_field_coeffs = dict([(key, self.modify_phase(proposed_amplitude, old_phase)) for (key,(proposed_amplitude, old_phase)) in zip(self.keys_ordered, zip(proposed_addition[1:], old_phases))])
+    return proposed_amplitude, proposed_field_coeffs
   
-  #no change in base class.  override in subclasses
-  def update_proposal_distribution(self, accept):
+  def update_proposal_distribution(self, accept, amplitude, field_coeffs):
+    """
+    no change to sampling width or covariance matrix in base class.  override in subclasses
+    :param accept: True or False outcome of accepting latest step or not
+    """
     pass
   
   def metropolis_decision(self, old_energy, proposed_energy):
     """
     Considering energy difference and temperature, return decision to accept or reject step
-    :param temp: system temperature
     :param old_energy: current system total energy
     :param proposed_energy: system total energy after proposed change
-    :return: True to accept value, False to reject
+    :return: bool True if step will be accepted; False to reject
     """
     diff = proposed_energy - old_energy
     if diff <= 0:
@@ -182,6 +184,7 @@ class MetropolisEngine():
     elif diff > 0 and self.temp == 0:
       return False
     else:
+      print(self.temp)
       probability = math.exp(- 1 * diff / self.temp)
       assert probability >= 0
       assert probability <= 1
@@ -190,16 +193,39 @@ class MetropolisEngine():
       else:
         return False
 
+  def modify_phase(self, amplitude, phase, phase_sigma = .5):
+    """
+    takes a random number and changes phase by gaussian proposal distribution
+    :param phase_sigma: width of gaussian distribution to modify phase by.  Optional, default .5 (pi)
+    """
+    # TODO : pass option to set phase_sigma upwards
+    new_phase = phase + random.gauss(0, phase_sigma)
+    return cmath.rect(amplitude, new_phase)
+
   def random_complex(self, r):
+    """
+    a random complex number with a random (uniform between -pi and pi) phase and exactly the given ampltiude r
+    :param r: magnitude of complex number
+    :return: cmath complex number object in standard real, imaginary represenation
+    """
     phi = random.uniform(-math.pi, math.pi)
     return cmath.rect(r, phi)
 
-  def gaussian_complex(self, sigma):
+  def gaussian_complex(self, sigma=1):
+    """
+    a random complex number with completely random phase and amplitude drawn from a gaussian distribution with given width sigma (default 1)
+    :param sigma: width of gaussian distribution (centered around 0) of possible magnitude of complex number
+    :return: cmath complex number object in standard real, imaginary represenation 
+    """
     amplitude = random.gauss(0, sigma)
     phase = random.uniform(0, 2*math.pi)
     return cmath.rect(amplitude, phase)
   
   def set_temperature(self, new_temp):
+    """
+    change metropolis engine temperature
+    :param new_temp: new temperature value, float >=0 .
+    """
     assert(new_temp >= 0)
     self.temp=new_temp
 
@@ -207,11 +233,11 @@ class MetropolisEngine():
 class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
   """ Reasoning and algorithm from 
   Garthwaite, Fan, & Sisson 2010: arxiv.org/abs/1006.3690v1
-  without updating covariance matrix - assuming covariance is approximately identity matrix
+  here first without updating covariance matrix - assuming covariance is approximately the identity matrix (default) indicating no correlations, or a covariance matrix from known correlations of system parameters is given.
   """
 
-  def __init__(self,num_field_coeffs, sampling_width=0.05, temp=0, method = "simultaneous", covariance_matrix = None):
-    super().__init__(num_field_coeffs, sampling_width, temp, method, covariance_matrix)
+  def __init__(self,num_field_coeffs, sampling_width=0.05, temp=0, covariance_matrix = None):
+    super().__init__(num_field_coeffs, sampling_width, temp, covariance_matrix)
     
     # alpha (a constant used later) := -phi^(-1)(target acceptance /2) 
     # ,where  phi is the cumulative density function of the standard normal distribution
@@ -219,7 +245,7 @@ class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
     self.alpha = -1*scipy.stats.norm.ppf(self.target_acceptance/2)
     self.m = self.param_space_dims
 
-  def update_proposal_distribution(self, accept):
+  def update_proposal_distribution(self, accept, amplitude, field_coeffs):
     step_number_factor = self.step_counter/self.m
     steplength_c = self.sampling_width * ((1-(1/self.m)) * math.sqrt(2*math.pi) * math.exp(self.alpha**2/2) / 2*self.alpha + 1/(self.m*self.target_acceptance*(1-self.target_acceptance)))
     if accept:
@@ -236,13 +262,25 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
 
   def __init__(self, initial_field_coeffs, initial_amplitude=0, sampling_width=0.05, temp=0, method = "simultaneous", covariance_matrix = None):
     self.num_field_coeffs = len(initial_field_coeffs)
-    super().__init__(self.num_field_coeffs, sampling_width, temp, method, covariance_matrix)
-    self.mean=0 
+    super().__init__(self.num_field_coeffs, sampling_width, temp, covariance_matrix)
+    #start collecting data for updating covariance matrix
+    mean=[initial_amplitude]
+    mean.extend([abs(initial_field_coeffs[key]) for key in self.keys_ordered])
+    self.mean = np.array(mean)
+    print(self.mean)
 
-  def update_proposal_distribution(self, accept):
+  def update_proposal_distribution(self, accept, amplitude, field_coeffs):
     #update sampling width
-    super().update_proposal_distribution(accept)
-    # TODO: update covaience matrix
+    super().update_proposal_distribution(accept, amplitude, field_coeffs)
+    # TODO: update covarience matrix
+    self.update_mean(amplitude, field_coeffs)
+
+  def update_mean(self, amplitude, field_coeffs):
+    state = [abs(amplitude)]
+    state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    state=np.array(state)
+    self.mean *= (self.step_counter -1)/self.step_counter
+    self.mean += state/self.step_counter
 
   # TODO: test for convergence of sampling_width, c->0
 
@@ -438,8 +476,8 @@ class AmplitudePhaseAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngin
 
 
 class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
-  def __init__(self, initial_field_coeffs, initial_amplitude =0 , sampling_width=.001, method="simultaneous",initial_covariance_matrix=None, temp=0):
-    super().__init__(initial_field_coeffs, initial_amplitude, sampling_width, temp, method, initial_covariance_matrix)
+  def __init__(self, initial_field_coeffs, initial_amplitude =0 , sampling_width=.001, initial_covariance_matrix=None, temp=0):
+    super().__init__(initial_field_coeffs, sampling_width, temp, initial_covariance_matrix)
 
   def multivariate_normal_complex(self, mean, covariance_matrix):
     pass
