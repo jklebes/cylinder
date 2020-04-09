@@ -132,12 +132,12 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
   def test_initial_covariance(self):
     pass
 
+
   def test_two_step_covariance(self):
     amplitude = 0
     field_coeffs = dict([(i, 0+0j) for i in range(-3,4)])
     me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
     old_mean = copy.copy(me.mean)
-    print(old_mean)
     new_amplitude = -1 #covariance matrix calculation should work with abs(amplitude) due to symmetry a <-> -a
     new_field_coeffs = dict([(i, 0-1j) for i in range(-3, 4)])
     me.step_counter +=1
@@ -152,6 +152,48 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
     self.assertEqual(me.covariance_matrix[0,0], 0.5)
     self.assertEqual(me.covariance_matrix[2,2], 0.5)
     self.assertEqual(me.covariance_matrix[0,3], 0.5) #off-diagonal: ampltiude with a field coeff
+
+
+  def test_two_step_covariance2(self):
+    amplitude = 0
+    field_coeffs = dict([(i, 1+0j) for i in range(-3,4)])
+    me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
+    old_mean = copy.copy(me.mean)
+    new_amplitude = -1 #covariance matrix calculation should work with abs(amplitude) due to symmetry a <-> -a
+    new_field_coeffs = dict([(i, 0+0j) for i in range(-3, 4)])
+    me.step_counter +=1
+    new_state = [abs(new_amplitude)]
+    new_state.extend([abs(new_field_coeffs[key]) for key in range(-3,4)])
+    new_state=np.array(new_state)
+    me.update_mean(new_state)
+    me.update_covariance_matrix(old_mean, new_state)
+    # some anticorrelated: expect + or - 0.5
+    self.assertEqual(me.covariance_matrix[0,0], 0.5)
+    self.assertEqual(me.covariance_matrix[2,2], 0.5)
+    self.assertEqual(me.covariance_matrix[0,3], -0.5)
+
+  def test_100th_step_covariance(self):
+    amplitude = 0
+    field_coeffs = dict([(i, 0+0j) for i in range(-3,4)])
+    me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
+    me.step_counter = 99 #100th step - covariance has been identity until now; start adapting
+    old_mean = copy.copy(me.mean) # assume mean has been all 0s for 100 steps
+    new_amplitude = -1 #covariance matrix calculation should work with abs(amplitude) due to symmetry a <-> -a
+    new_field_coeffs = dict([(i, 1+0j) for i in range(-3, 4)])
+    me.step_counter +=1
+    new_state = [abs(new_amplitude)]
+    new_state.extend([abs(new_field_coeffs[key]) for key in range(-3,4)])
+    new_state=np.array(new_state)
+    me.update_mean(new_state)
+    me.update_covariance_matrix(old_mean, new_state)
+    # covriance matrix_100 = 98/99 identity matrix + [0s]*[0s] - 100/99 [mean 99 0s and 1x 1] + 1/99 [1s]
+    # = .9998989.. on diagonal
+    # 0 -100/99 * .1**2 +0 = 0.010 off diagonal
+    self.assertAlmostEqual(me.covariance_matrix[0,0], 0.99989898989)
+    self.assertAlmostEqual(me.covariance_matrix[2,2], 0.99989898989)
+    self.assertAlmostEqual(me.covariance_matrix[0,3], 0.010)
+    self.assertAlmostEqual(me.covariance_matrix[4,3], .010) # other off diagonal
+
 
 if __name__ == '__main__':
   unittest.main()

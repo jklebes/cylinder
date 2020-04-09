@@ -15,7 +15,7 @@ class MetropolisEngine():
   Subclass StaticCovarianceAdaptiveMetropolisEngine is recommended minimum level of adaptiveness.
   """
 
-  def __init__(self, num_field_coeffs, sampling_width=0.05, temp=0, covariance_matrix=None, target_acceptance=.3):
+  def __init__(self, initial_field_coeffs, initial_amplitude=None, sampling_width=0.05, temp=0, covariance_matrix=None, target_acceptance=.3):
     """
     :param num_field_coeffs: number of field coefficient degrees of freedom.
     :param sampling_width: float, width of proposal distribution.  A factor scaling covariance matrix in multivariate gaussian proposal distribution.
@@ -24,13 +24,13 @@ class MetropolisEngine():
     """
     self.temp=temp
     assert( self.temp is not None)
-    self.num_field_coeffs = num_field_coeffs
-    max_field_coeffs = num_field_coeffs//2
+    self.num_field_coeffs = len(initial_field_coeffs)
+    max_field_coeffs = max(initial_field_coeffs)
     self.keys_ordered = list(range(-max_field_coeffs, max_field_coeffs+1))
     self.sampling_width = sampling_width
     self.param_space_dims = self.num_field_coeffs+1 #in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
     self.mean = np.zeros(self.param_space_dims)
-    if covariance_matrix == None:
+    if covariance_matrix is None:
       self.covariance_matrix = np.identity(self.param_space_dims)
     else:
       self.covariance_matrix = covariance_matrix
@@ -135,6 +135,10 @@ class MetropolisEngine():
     #output system properties, energy
     return amplitude, field_coeffs, surface_energy, field_energy
 
+  def update_proposal_distribution(accept, amplitude, field_coeffs):
+    """ does nothinng in non-adaptive base class """
+    pass
+
   def draw_field_coeffs_from_proposal_distribution(self,ield_coeffs):
     """implement later"""
     # TODO : generalize to multivariate gaussian
@@ -159,8 +163,8 @@ class MetropolisEngine():
     """
     state = self.construct_state(amplitude, field_coeffs)
     old_phases = [cmath.phase(field_coeffs[key]) for key in field_coeffs]
-    proposed_addition =  np.random.multivariate_normal([0]*len(state), self.sampling_width*self.covariance_matrix)
-    proposed_amplitude = amplitude+np.sign(amplitude)*proposed_addition[0]
+    proposed_addition =  np.random.multivariate_normal([0]*len(state), self.sampling_width**2*self.covariance_matrix, check_valid='raise')
+    proposed_amplitude = amplitude+(-1 if amplitude<0 else 1)*proposed_addition[0]
     proposed_field_coeffs = dict([(key, self.modify_phase(proposed_amplitude, old_phase)) for (key,(proposed_amplitude, old_phase)) in zip(self.keys_ordered, zip(proposed_addition[1:], old_phases))])
     return proposed_amplitude, proposed_field_coeffs
   
@@ -192,7 +196,7 @@ class MetropolisEngine():
     By default the parameters we track for correlation matrix, co-adjustemnt of step sizes are [abs(amplitude), {abs(field_coeff_i)}] (in this order)
     override in derived classes where different representation of the parameters is tracked.
     """
-    state = [abs(amplitude)]
+    state = [amplitude] # TODO: abs?
     state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
     return np.array(state)
 
@@ -240,8 +244,8 @@ class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
   here first without updating covariance matrix - assuming covariance is approximately the identity matrix (default) indicating no correlations, or a covariance matrix from known correlations of system parameters is given.
   """
 
-  def __init__(self,num_field_coeffs, sampling_width=0.05, temp=0, covariance_matrix = None):
-    super().__init__(num_field_coeffs, sampling_width, temp, covariance_matrix)
+  def __init__(self,initial_field_coeffs, initial_amplitude=None, sampling_width=0.05, temp=0, covariance_matrix = None):
+    super().__init__(initial_field_coeffs, initial_amplitude, sampling_width, temp, covariance_matrix)
     
     # alpha (a constant used later) := -phi^(-1)(target acceptance /2) 
     # ,where  phi is the cumulative density function of the standard normal distribution
@@ -250,12 +254,13 @@ class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
     self.m = self.param_space_dims
 
   def update_proposal_distribution(self, accept, amplitude, field_coeffs):
-    step_number_factor = self.step_counter/self.m
+    step_number_factor = max((self.step_counter/self.m,200))
     steplength_c = self.sampling_width * ((1-(1/self.m)) * math.sqrt(2*math.pi) * math.exp(self.alpha**2/2) / 2*self.alpha + 1/(self.m*self.target_acceptance*(1-self.target_acceptance)))
     if accept:
       self.sampling_width += steplength_c * (1-self.target_acceptance)/step_number_factor
     else:
       self.sampling_width -= steplength_c * self.target_acceptance / step_number_factor
+    assert(self.sampling_width) > 0
   # TODO: test for convergence of sampling_width, c->0
 
 class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEngine):
@@ -265,8 +270,7 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
   """
 
   def __init__(self, initial_field_coeffs, initial_amplitude=0, sampling_width=0.05, temp=0, method = "simultaneous", covariance_matrix = None):
-    self.num_field_coeffs = len(initial_field_coeffs)
-    super().__init__(self.num_field_coeffs, sampling_width, temp, covariance_matrix)
+    super().__init__(initial_field_coeffs=initial_field_coeffs, initial_amplitude=initial_amplitude, sampling_width=sampling_width, temp=temp, covariance_matrix=covariance_matrix)
     #start collecting data for updating covariance matrix
     self.mean=self.construct_state(initial_amplitude, initial_field_coeffs)
 
@@ -277,7 +281,8 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
     old_mean = self.mean
     assert(isinstance(new_state, np.ndarray))
     self.update_mean(state=new_state)
-    self.update_covariance_matrix(old_mean, new_state)
+    if self.step_counter > 100:
+      self.update_covariance_matrix(old_mean, new_state)
 
   def update_mean(self, state):
     assert(isinstance(state, np.ndarray))
@@ -286,8 +291,10 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
 
   def update_covariance_matrix(self, old_mean, state):
     i = self.step_counter
+    small_number = self.sampling_width**2 / i
     self.covariance_matrix *= (i-2)/(i-1)
-    self.covariance_matrix += np.outer(old_mean,old_mean) - i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1)
+    self.covariance_matrix += np.outer(old_mean,old_mean) - i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1) + small_number*np.identity(self.param_space_dims)
+    
 
   # TODO: test for convergence of sampling_width, c->0
 
@@ -342,7 +349,7 @@ class RealImgAdaptiveMetropolisEngine(MetropolisEngine):
     adaptie Metropoplis scheme after Haario, Saksman & Tamminen  2001
     """
     #add to covariance matrix calculation 
-    small_number =0.001
+    small_number =0.0001
     sd = (2.4**2)/self.param_space_dims
 
     t=self.step_counter
@@ -354,7 +361,7 @@ class RealImgAdaptiveMetropolisEngine(MetropolisEngine):
     # eq (3) [Haario2001]
     self.covariance_matrix *= ((t-1)/t)
     #print("multiplied cov by",  ((t-1)/t))
-    self.covariance_matrix += sd /(self.step_counter+1) *(t*np.outer(old_mean,old_mean) - (t+1)*np.outer(self.mean,self.mean) + np.outer(self.state,self.state) + small_number*np.identity(self.param_space_dims))
+    self.covariance_matrix += sd /(self.step_counter+1) *(t*np.outer(old_mean,old_mean) - (t+1)*np.outer(self.mean,self.mean) + np.outer(self.state,self.state) + small_number*np.identity(self.param_space_dims)) + small_number * np.identity(self.param_sapce_dims)
     #print("added", t*np.outer(old_mean,old_mean)[-1])
     print("cov")
     print(self.covariance_matrix)

@@ -1,3 +1,5 @@
+import pickle
+import os 
 import cmath
 import copy
 import math
@@ -100,12 +102,28 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   if amplitude is None:
     amplitude = 0
   ########### setup #############
-  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma) 
-  me = metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, initial_amplitude=amplitude, temp=temp)
+  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma)
+  #try getting historical parameters from files
+  if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
+    f = open('last_sigma.pickle', 'rb')
+    sampling_width = pickle.load(f)
+  else:
+    sampling_width = .05
+  if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
+    f = open('last_cov.pickle', 'rb')
+    cov = pickle.load(f)
+  else:
+    cov=None
+  me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, sampling_width=sampling_width, covariance_matrix=cov, initial_amplitude=amplitude, temp=temp)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
   amplitudes = [amplitude]
+  c_0s=[abs(field_coeffs[0])]
+  sigmas=[]
+  means=[]
+  amplitude_cov=[]
+  amplitude_c0_cov=[]
   if method == "sequential":
     for i in range(n_steps):
       amplitude, field_energy, surface_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs,
@@ -123,9 +141,35 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
                                                              field_energy=field_energy, surface_energy=surface_energy,
                                                              system=se)
       amplitudes.append(amplitude)
-      #print(amplitude, field_coeffs)
-  plt.scatter(range(len(amplitudes)), amplitudes)
+      sigmas.append(me.sampling_width)
+      c_0s.append(abs(field_coeffs[0]))
+      amplitude_cov.append(me.covariance_matrix[0,0])
+      amplitude_c0_cov.append(me.covariance_matrix[0,4])
+      means.append(me.mean[0])
+  plt.scatter(range(len(amplitudes)), amplitudes, label='amplitude')
+  plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
+  plt.legend()
   plt.savefig("amplitudes_vs_time.png")
+  plt.close()
+  plt.scatter(range(len(sigmas)), sigmas, marker='.', label="sigma")
+  plt.scatter(range(len(sigmas)), amplitude_cov,marker='.', label = "covariance matrix[0,0]")
+  plt.legend()
+  plt.savefig("amplitude_proposal_dist.png")
+  plt.close()
+  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,0]")
+  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,4]")
+  plt.legend()
+  plt.savefig("amplitude_proposal_dist_2.png")
+  plt.close()
+  plt.scatter(range(len(sigmas)), means ,marker='.', label = "amplitude_mean")
+  plt.legend()
+  plt.savefig("mean_amplitude.png")
+  plt.close()
+  #dump in files
+  f = open('last_cov.pickle', 'wb')
+  pickle.dump(me.covariance_matrix, f)
+  f = open('last_sigma.pickle', 'wb')
+  pickle.dump(me.sampling_width, f)
   return amplitudes
 
 # coefficients
@@ -154,7 +198,7 @@ if __name__ == "__main__":
   experiment_title = loop_type[0] + "_" + loop_type[1]
   range1 = np.arange(0.005, 1.2, .05)
   range2 = np.arange(0, 1, .05)
-  n_steps = 1000
+  n_steps = 800
 
   assert (alpha <= 0)
 
