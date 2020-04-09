@@ -10,8 +10,9 @@ import copy
 class TestMetropolisSteps(unittest.TestCase):
 
   def setUp(self):
-    self.me_sim = metropolis_engine.MetropolisEngine(num_field_coeffs=3)
-    self.me_seq = metropolis_engine.MetropolisEngine(num_field_coeffs=3)
+    self.field_coeffs = dict([(i, 0+0j) for i in range(-3,4)])
+    self.me_sim = metropolis_engine.MetropolisEngine(self.field_coeffs)
+    self.me_seq = metropolis_engine.MetropolisEngine(self.field_coeffs)
     self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
 
   def tearDown(self):
@@ -19,7 +20,7 @@ class TestMetropolisSteps(unittest.TestCase):
   
   def test_init_sampling_width_float(self):
     num_field_coeffs=3
-    me = metropolis_engine.MetropolisEngine(num_field_coeffs=num_field_coeffs , sampling_width =.5)
+    me = metropolis_engine.MetropolisEngine(self.field_coeffs , sampling_width =.5)
     self.assertEqual(me.sampling_width,.5)
  
   def test_step_fieldcoeff(self):
@@ -52,7 +53,8 @@ class TestMetropolisSteps(unittest.TestCase):
 class TestMetropolisHelperFunctions(unittest.TestCase):
 
   def setUp(self):
-    self.me = metropolis_engine.MetropolisEngine( num_field_coeffs=3, sampling_width=.05, temp=0)
+    self.field_coeffs=dict([(i, 0+0j) for i in range(-3,4)])
+    self.me = metropolis_engine.MetropolisEngine( self.field_coeffs, sampling_width=.05, temp=0)
 
   def tearDown(self):
     pass
@@ -62,7 +64,7 @@ class TestMetropolisHelperFunctions(unittest.TestCase):
     pass
 
   def test_set_temperature(self):
-    me = metropolis_engine.MetropolisEngine(num_field_coeffs=3, temp=0)
+    me = metropolis_engine.MetropolisEngine(self.field_coeffs, temp=0)
     self.assertEqual(me.temp, 0.0)
     me.set_temperature(0.50)
     self.assertEqual(me.temp, 0.5)

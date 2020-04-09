@@ -11,7 +11,7 @@ class TestBaseMetropolis(unittest.TestCase):
 
   def setUp(self): 
     self.field_coeffs=dict([(i, 0+0j) for i in range(-3,4)])
-    self.me = metropolis_engine.MetropolisEngine(num_field_coeffs=len(self.field_coeffs.keys()) )
+    self.me = metropolis_engine.MetropolisEngine(self.field_coeffs)
     self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
 
   def tearDown(self):
@@ -19,7 +19,7 @@ class TestBaseMetropolis(unittest.TestCase):
   
   def test_init_covariance_matrix_default(self):
     num_field_coeffs=3
-    me = metropolis_engine.MetropolisEngine(num_field_coeffs=num_field_coeffs)
+    me = metropolis_engine.MetropolisEngine(self.field_coeffs)
     self.assertEqual(me.covariance_matrix[1][3],0)
     self.assertEqual(me.covariance_matrix[2][2],1)
  
@@ -40,7 +40,7 @@ class TestBaseMetropolis(unittest.TestCase):
     pass
 
   def test_set_temperature(self):
-    me = metropolis_engine.MetropolisEngine(num_field_coeffs=3, temp=0)
+    me = metropolis_engine.MetropolisEngine(self.field_coeffs, temp=0)
     self.assertEqual(me.temp, 0.0)
     me.set_temperature(0.50)
     self.assertEqual(me.temp, 0.5)
@@ -82,8 +82,8 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
 
   def setUp(self): 
     self.field_coeffs=dict([(i, 0+0j) for i in range(-3,4)])
-    self.me_identity = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(num_field_coeffs=len(self.field_coeffs ))
-    self.me_correlated = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(num_field_coeffs=len(self.field_coeffs ))
+    self.me_identity = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(self.field_coeffs )
+    self.me_correlated = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(self.field_coeffs )
     self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
 
   def tearDown(self):
@@ -159,7 +159,7 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
     field_coeffs = dict([(i, 1+0j) for i in range(-3,4)])
     me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
     old_mean = copy.copy(me.mean)
-    new_amplitude = -1 #covariance matrix calculation should work with abs(amplitude) due to symmetry a <-> -a
+    new_amplitude = 1 
     new_field_coeffs = dict([(i, 0+0j) for i in range(-3, 4)])
     me.step_counter +=1
     new_state = [abs(new_amplitude)]
@@ -170,7 +170,7 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
     # some anticorrelated: expect + or - 0.5
     self.assertEqual(me.covariance_matrix[0,0], 0.5)
     self.assertEqual(me.covariance_matrix[2,2], 0.5)
-    self.assertEqual(me.covariance_matrix[0,3], -0.5)
+    self.assertEqual(me.covariance_matrix[0,3],-0.5)
 
   def test_100th_step_covariance(self):
     amplitude = 0
@@ -178,7 +178,7 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
     me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
     me.step_counter = 99 #100th step - covariance has been identity until now; start adapting
     old_mean = copy.copy(me.mean) # assume mean has been all 0s for 100 steps
-    new_amplitude = -1 #covariance matrix calculation should work with abs(amplitude) due to symmetry a <-> -a
+    new_amplitude = 1
     new_field_coeffs = dict([(i, 1+0j) for i in range(-3, 4)])
     me.step_counter +=1
     new_state = [abs(new_amplitude)]
@@ -193,7 +193,19 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
     self.assertAlmostEqual(me.covariance_matrix[2,2], 0.99989898989)
     self.assertAlmostEqual(me.covariance_matrix[0,3], 0.010)
     self.assertAlmostEqual(me.covariance_matrix[4,3], .010) # other off diagonal
+    self.calc_two_step_covariance()
 
+  def calc_two_step_covariance(self):
+    history = [[0,1,1,1,1,1,1,1], [1,0,0,0,0,0,0,0]]
+    mean = [0.5]*8
+    covariance = 0
+    mean = np.array([1*.01]*8)
+    for vector in history:
+      vector=np.array(vector)
+      covariance += 1/1 *np.outer((vector-mean), (vector - mean))
+    print(history)
+    print(mean)
+    print(covariance)
 
 if __name__ == '__main__':
   unittest.main()

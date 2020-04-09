@@ -103,7 +103,8 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     amplitude = 0
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma)
-  #try getting historical parameters from files
+  
+  #try getting last results from files
   if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
     f = open('last_sigma.pickle', 'rb')
     sampling_width = pickle.load(f)
@@ -114,7 +115,8 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     cov = pickle.load(f)
   else:
     cov=None
-  me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, sampling_width=sampling_width, covariance_matrix=cov, initial_amplitude=amplitude, temp=temp)
+  
+  me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
@@ -124,6 +126,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   means=[]
   amplitude_cov=[]
   amplitude_c0_cov=[]
+  c0_cov=[]
   if method == "sequential":
     for i in range(n_steps):
       amplitude, field_energy, surface_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs,
@@ -145,6 +148,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
       c_0s.append(abs(field_coeffs[0]))
       amplitude_cov.append(me.covariance_matrix[0,0])
       amplitude_c0_cov.append(me.covariance_matrix[0,4])
+      c0_cov.append(me.covariance_matrix[4,4])
       means.append(me.mean[0])
   plt.scatter(range(len(amplitudes)), amplitudes, label='amplitude')
   plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
@@ -153,11 +157,14 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   plt.close()
   plt.scatter(range(len(sigmas)), sigmas, marker='.', label="sigma")
   plt.scatter(range(len(sigmas)), amplitude_cov,marker='.', label = "covariance matrix[0,0]")
+  plt.scatter(range(len(sigmas)), amplitude_c0_cov,marker='.', label = "covariance matrix[0,4]")
+  plt.scatter(range(len(sigmas)), c0_cov,marker='.', label = "covariance matrix[4,4]")
   plt.legend()
   plt.savefig("amplitude_proposal_dist.png")
   plt.close()
   plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,0]")
   plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,4]")
+  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[4,4]")
   plt.legend()
   plt.savefig("amplitude_proposal_dist_2.png")
   plt.close()
@@ -179,7 +186,7 @@ u = 1
 n = 1
 kappa = 1
 gamma = 1
-temp = .1
+temp = 0.1
 
 # system dimensions
 radius = 1

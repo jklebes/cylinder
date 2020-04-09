@@ -160,7 +160,8 @@ class System():
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     #print("total")
-    #print("A:", A_complex_energy.real, "B:", B_complex_energy.real, "D:" , D_complex_energy.real)
+    #print(self.alpha, A_complex_energy.real)
+    #print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
     return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
   def calc_field_energy_diff_ABpart(self, index, new_field_coeff, old_field_coeffs):
