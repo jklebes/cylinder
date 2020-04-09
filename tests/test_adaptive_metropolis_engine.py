@@ -112,9 +112,46 @@ class TestStaticCovarianceAdaptiveMetropolis(unittest.TestCase):
     new_amplitude = 0.8
     new_field_coeffs = dict([(i, 0-0.6j) for i in range(-3, 4)])
     me.step_counter +=1
-    me.update_mean(new_amplitude, new_field_coeffs)
+    new_state = [new_amplitude]
+    new_state.extend([abs(new_field_coeffs[key]) for key in range(-3,4)])
+    new_state=np.array(new_state)
+    me.update_mean(new_state)
     self.assertEqual(me.mean[0], 0.65)
     self.assertEqual(me.mean[4], 0.3)
+
+
+  def test_initial_covariance_default(self):
+    amplitude = .5
+    field_coeffs=dict([(i,self.me_identity.random_complex(random.uniform(0,1))) for i in range(-3,4)])
+    me  = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
+    cov_initial=me.covariance_matrix
+    self.assertEqual(cov_initial[0,0], 1)
+    self.assertEqual(cov_initial[2,2], 1)
+    self.assertEqual(cov_initial[1,0], 0)
+
+  def test_initial_covariance(self):
+    pass
+
+  def test_two_step_covariance(self):
+    amplitude = 0
+    field_coeffs = dict([(i, 0+0j) for i in range(-3,4)])
+    me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(field_coeffs, amplitude)
+    old_mean = copy.copy(me.mean)
+    print(old_mean)
+    new_amplitude = -1 #covariance matrix calculation should work with abs(amplitude) due to symmetry a <-> -a
+    new_field_coeffs = dict([(i, 0-1j) for i in range(-3, 4)])
+    me.step_counter +=1
+    new_state = [abs(new_amplitude)]
+    new_state.extend([abs(new_field_coeffs[key]) for key in range(-3,4)])
+    new_state=np.array(new_state)
+    me.update_mean(new_state)
+    me.update_covariance_matrix(old_mean, new_state)
+    #after this update, should be uniform covariance matrix with positive coefficients everywhere because the whole set of observable is identical at each of the two steps
+    # the value should be 0*identity matrix + old mean**2 -2 new_mean **2 + 1 new_state**2 
+    # 0+0 - 2*.5**2 + 1*1**2 = -1/2 + 1 = 1/2
+    self.assertEqual(me.covariance_matrix[0,0], 0.5)
+    self.assertEqual(me.covariance_matrix[2,2], 0.5)
+    self.assertEqual(me.covariance_matrix[0,3], 0.5) #off-diagonal: ampltiude with a field coeff
 
 if __name__ == '__main__':
   unittest.main()

@@ -23,6 +23,7 @@ class MetropolisEngine():
     :param covariance_matrix: initial or constant covariance matrix of multivariate gaussian proposal distribution. Optional, defaults to identity matrix. Should reflect correlations between the parameters if known.  Dimensions should match number of free parameters: in general number of field coefficients + 1.  2*number of field coefficients+1 Where phase/ampltitude or real/imag parts of field coefficients are treated as separate degrees of freedom.  complex entries in subclass ComplexAdaptiveMetropolisEngine.
     """
     self.temp=temp
+    assert( self.temp is not None)
     self.num_field_coeffs = num_field_coeffs
     max_field_coeffs = num_field_coeffs//2
     self.keys_ordered = list(range(-max_field_coeffs, max_field_coeffs+1))
@@ -156,20 +157,12 @@ class MetropolisEngine():
     :param field_coeffs: dict of current (complex) field coeff values
     In this implementation only ampltiude of perturbation and magnitude of field coeffs is modifified by adaptive metropolis algorithm with (possible adapted) step sizes and covariance matrix.  Phases of field coeffs are independently adjusted by fixed-width, uncoupled gaussian distribution around their current state at each step.
     """
-    state = [amplitude]
-    state.extend([abs(field_coeffs[key]) for key in field_coeffs])
+    state = self.construct_state(amplitude, field_coeffs)
     old_phases = [cmath.phase(field_coeffs[key]) for key in field_coeffs]
     proposed_addition =  np.random.multivariate_normal([0]*len(state), self.sampling_width*self.covariance_matrix)
-    proposed_amplitude = state[0]+proposed_addition[0]
+    proposed_amplitude = amplitude+np.sign(amplitude)*proposed_addition[0]
     proposed_field_coeffs = dict([(key, self.modify_phase(proposed_amplitude, old_phase)) for (key,(proposed_amplitude, old_phase)) in zip(self.keys_ordered, zip(proposed_addition[1:], old_phases))])
     return proposed_amplitude, proposed_field_coeffs
-  
-  def update_proposal_distribution(self, accept, amplitude, field_coeffs):
-    """
-    no change to sampling width or covariance matrix in base class.  override in subclasses
-    :param accept: True or False outcome of accepting latest step or not
-    """
-    pass
   
   def metropolis_decision(self, old_energy, proposed_energy):
     """
@@ -179,12 +172,12 @@ class MetropolisEngine():
     :return: bool True if step will be accepted; False to reject
     """
     diff = proposed_energy - old_energy
+    assert(self.temp is not None)
     if diff <= 0:
       return True  # choice was made that 0 difference -> accept change
     elif diff > 0 and self.temp == 0:
       return False
     else:
-      print(self.temp)
       probability = math.exp(- 1 * diff / self.temp)
       assert probability >= 0
       assert probability <= 1
@@ -192,6 +185,17 @@ class MetropolisEngine():
         return True
       else:
         return False
+
+  def construct_state(self, amplitude, field_coeffs):
+    """
+    helper function to construct position in parameter space as np array 
+    By default the parameters we track for correlation matrix, co-adjustemnt of step sizes are [abs(amplitude), {abs(field_coeff_i)}] (in this order)
+    override in derived classes where different representation of the parameters is tracked.
+    """
+    state = [abs(amplitude)]
+    state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    return np.array(state)
+
 
   def modify_phase(self, amplitude, phase, phase_sigma = .5):
     """
@@ -264,23 +268,26 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
     self.num_field_coeffs = len(initial_field_coeffs)
     super().__init__(self.num_field_coeffs, sampling_width, temp, covariance_matrix)
     #start collecting data for updating covariance matrix
-    mean=[initial_amplitude]
-    mean.extend([abs(initial_field_coeffs[key]) for key in self.keys_ordered])
-    self.mean = np.array(mean)
-    print(self.mean)
+    self.mean=self.construct_state(initial_amplitude, initial_field_coeffs)
 
   def update_proposal_distribution(self, accept, amplitude, field_coeffs):
     #update sampling width
     super().update_proposal_distribution(accept, amplitude, field_coeffs)
-    # TODO: update covarience matrix
-    self.update_mean(amplitude, field_coeffs)
+    new_state = self.construct_state(amplitude, field_coeffs)
+    old_mean = self.mean
+    assert(isinstance(new_state, np.ndarray))
+    self.update_mean(state=new_state)
+    self.update_covariance_matrix(old_mean, new_state)
 
-  def update_mean(self, amplitude, field_coeffs):
-    state = [abs(amplitude)]
-    state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
-    state=np.array(state)
+  def update_mean(self, state):
+    assert(isinstance(state, np.ndarray))
     self.mean *= (self.step_counter -1)/self.step_counter
     self.mean += state/self.step_counter
+
+  def update_covariance_matrix(self, old_mean, state):
+    i = self.step_counter
+    self.covariance_matrix *= (i-2)/(i-1)
+    self.covariance_matrix += np.outer(old_mean,old_mean) - i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1)
 
   # TODO: test for convergence of sampling_width, c->0
 
@@ -312,10 +319,7 @@ class RealImgAdaptiveMetropolisEngine(MetropolisEngine):
     self.step_counter =0
     self.accepted_counter =0
     self.param_space_dims = 2*len(initial_field_coeffs)+1 #perturbation amplitude, real and img parts of ci
-    state=[initial_amplitude]
-    state.extend([initial_field_coeffs[key].real for key in initial_field_coeffs])
-    state.extend([initial_field_coeffs[key].imag for key in initial_field_coeffs])
-    self.state = np.array(state)
+    self.state=self.construct_state(amplitude, field_coeffs)
     self.mean = self.state
     print("initialized", self.state, self.mean)
 
@@ -400,20 +404,24 @@ class RealImgAdaptiveMetropolisEngine(MetropolisEngine):
     #output system properties, energy
     return amplitude, field_coeffs, surface_energy, field_energy
 
+  def construct_state(amplitude, field_coeffs): 
+    
+    # TODO : still use abs(amplitude)?
+    state.extend([initial_field_coeffs[key].real for key in self.ordered_keys])
+    state.extend([initial_field_coeffs[key].imag for key in self.ordered_keys])
+    return np.array(state)
+
 
 class AmplitudePhaseAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None,
                initial_sampling_width=.0001, temp=0):
     self.num_field_coeffs = max(initial_field_coeffs)
     self.temp = temp
-
     # adaptive scheme
     self.step_counter = 1
     self.accepted_counter = 0
     self.param_space_dims = len(initial_field_coeffs) + 1  # perturbation amplitude, real and img parts of ci
-    state = [initial_amplitude]
-    state.extend([abs(initial_field_coeffs[key]) for key in initial_field_coeffs])
-    self.state = np.array(state)
+    self.state = self.construct_state(amplitude, field_coeffs)
     self.mean = self.state
     print("initialized", self.state, self.mean)
 
@@ -474,10 +482,15 @@ class AmplitudePhaseAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngin
     # output system properties, energy
     return amplitude, field_coeffs, surface_energy, field_energy
 
+  def construct_state(amplitude, field_coeffs):
+    state = [abs(initial_amplitude)] # TODO still abs?
+    state.extend([abs(initial_field_coeffs[key]) for key in self.ordered_keys])
+    state.extend([cmath.phase(initial_field_coeffs[key]) for key in self.ordered_keys])
+    return np.array(state)
 
 class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude =0 , sampling_width=.001, initial_covariance_matrix=None, temp=0):
-    super().__init__(initial_field_coeffs, sampling_width, temp, initial_covariance_matrix)
+    super().__init__(initial_field_coeffs=initial_field_coeffs, sampling_width=sampling_width, temp=temp, covariance_matrix=initial_covariance_matrix)
 
   def multivariate_normal_complex(self, mean, covariance_matrix):
     pass
