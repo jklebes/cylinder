@@ -51,17 +51,6 @@ def plot_save(wavenumber_range, kappa_range, results, title):
   plt.savefig(title + ".png")
   plt.close()
 
-def rand_complex(maxamplitude=1):
-  """
-  random complex number in/on unit (or other) circle
-  uniform distribution in amplitude from 0 to maxamplitude (default 1)
-  distribution not uniform wrt area of circle
-  :return:
-  """
-  amplitude = random.uniform(0,maxamplitude)
-  phase = random.uniform(0, 2*math.pi)
-  return cmath.rect(amplitude, phase)
-
 
 def run_experiment(type, experiment_title, range1, range2, n_steps, plot=True):
   """
@@ -98,7 +87,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   """
   ########### initial values ##############
   if field_coeffs is None:
-    field_coeffs = dict([(i, rand_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
+    field_coeffs = dict([(i, metropolis_engine.MetropolisEngine.gaussian_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
   if amplitude is None:
     amplitude = 0
   ########### setup #############

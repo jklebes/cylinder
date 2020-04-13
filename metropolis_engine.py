@@ -234,7 +234,8 @@ class MetropolisEngine():
     phi = random.uniform(-math.pi, math.pi)
     return cmath.rect(r, phi)
 
-  def gaussian_complex(self, sigma=1):
+  @staticmethod
+  def gaussian_complex(sigma=1):
     """
     a random complex number with completely random phase and amplitude drawn from a gaussian distribution with given width sigma (default 1)
     :param sigma: width of gaussian distribution (centered around 0) of possible magnitude of complex number
