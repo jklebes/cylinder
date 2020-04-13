@@ -1,29 +1,30 @@
 import math
 import scipy.integrate as integrate
 
+
 class System():
 
   def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma):
-    assert(all(map(lambda x: x>=0, [wavenumber, radius, C, u, kappa, gamma] )))
-    assert(alpha <=0)
+    assert (all(map(lambda x: x >= 0, [wavenumber, radius, C, u, kappa, gamma])))
+    assert (alpha <= 0)
     self.wavenumber = wavenumber
     self.radius = radius
     self.alpha = alpha
     self.C = C
     self.u = u
     self.n = n
-    self.kappa= kappa
+    self.kappa = kappa
     self.gamma = gamma
-    #memoization of integration results
+    # memoization of integration results
     self.A_integrals = {}
-    self.B_integrals = {} 
+    self.B_integrals = {}
 
-  ######## common terms in integrals ###########
+    ######## common terms in integrals ###########
 
   def sqrt_g_theta(self, amplitude, z):
     return self.radius_rescaled(amplitude) * (1 + amplitude * math.sin(self.wavenumber * z))
 
-  def sqrt_g_z(self,  amplitude, z):
+  def sqrt_g_z(self, amplitude, z):
     return math.sqrt(1 + (self.radius_rescaled(amplitude) * amplitude
                           * self.wavenumber * math.cos(self.wavenumber * z)) ** 2)
 
@@ -38,12 +39,12 @@ class System():
   def A_integrand_img_part(self, diff, amplitude, z):
     if amplitude == 0:
       return (math.sin(diff * self.wavenumber * z) *  # img part of e^(i ...)
-              self.radius)                            # sqrt(g_theta theta) = radius
-                                                      # radius rescale factor = 1
-                                                      # and sqrt(g_zz) =1
+              self.radius)  # sqrt(g_theta theta) = radius
+      # radius rescale factor = 1
+      # and sqrt(g_zz) =1
     else:
-      return (math.sin(diff * self.wavenumber * z) *                     # real part of e^(i ...)
-              self.sqrt_g_theta(amplitude, z) *  
+      return (math.sin(diff * self.wavenumber * z) *  # real part of e^(i ...)
+              self.sqrt_g_theta(amplitude, z) *
               self.sqrt_g_z(amplitude, z))
 
   def A_integrand_real_part(self, diff, amplitude, z):
@@ -53,47 +54,47 @@ class System():
     :return: float
     """
     if amplitude == 0:
-      return (math.cos(diff * self.wavenumber * z) * # real part of e^(i ...)
-              self.radius)                           # sqrt(g_theta theta) = radius
-                                                     # and sqrt(g_zz) =0
-    else:
-      assert(self.sqrt_g_z(amplitude, z) >= 1)
       return (math.cos(diff * self.wavenumber * z) *  # real part of e^(i ...)
-              self.sqrt_g_theta(amplitude, z) * 
+              self.radius)  # sqrt(g_theta theta) = radius
+      # and sqrt(g_zz) =0
+    else:
+      assert (self.sqrt_g_z(amplitude, z) >= 1)
+      return (math.cos(diff * self.wavenumber * z) *  # real part of e^(i ...)
+              self.sqrt_g_theta(amplitude, z) *
               self.sqrt_g_z(amplitude, z))
 
   def B_integrand_img_part(self, i, j, amplitude, z):
     if amplitude == 0:
       z_part = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
-                self.radius)                                                         # sqrt(g_theta theta) = radius
-                                                                                     # and 1/sqrt(g_zz) =1
+                self.radius)  # sqrt(g_theta theta) = radius
+      # and 1/sqrt(g_zz) =1
       return (z_part)
     else:
       z_part = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
-                self.sqrt_g_theta( amplitude,z) * 
-                self.sqrt_g_z(amplitude,z))
+                self.sqrt_g_theta(amplitude, z) *
+                self.sqrt_g_z(amplitude, z))
       return (z_part)
 
   def B_integrand_real_part(self, i, j, amplitude, z):
     if amplitude == 0:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
-                self.radius)                                                               # sqrt(g_theta theta) = radius
-                                                                                      # and 1/sqrt(g_zz) =1
+                self.radius)  # sqrt(g_theta theta) = radius
+      # and 1/sqrt(g_zz) =1
       return (z_part)
     else:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
-                self.sqrt_g_theta(amplitude, z) * 
+                self.sqrt_g_theta(amplitude, z) *
                 ## don't index raise in z direction
-                #1/self.sqrt_g_z(radius, amplitude, wavenumber, z))  # and 1/sqrt(g_zz) from metric ddeterminant, index raising g^zz
-                self.sqrt_g_z( amplitude, z))
-      theta_part = (self.n_A_theta_squared( amplitude, z) *  # part of n_A_theta^2
-                    1.0 / self.sqrt_g_z( amplitude, z) *  # sqrt(g_zz) annd with 1/g_zz normalizing A_theta^2
+                # 1/self.sqrt_g_z(radius, amplitude, wavenumber, z))  # and 1/sqrt(g_zz) from metric ddeterminant, index raising g^zz
+                self.sqrt_g_z(amplitude, z))
+      theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
+                    1.0 / self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) annd with 1/g_zz normalizing A_theta^2
                     ## index raise in theta direction?
-                    1.0 / self.sqrt_g_theta( amplitude, z))  # sqrt(g_thth) and g^thth
-                    #self.sqrt_g_theta(radius, amplitude, wavenumber, z))
+                    1.0 / self.sqrt_g_theta(amplitude, z))  # sqrt(g_thth) and g^thth
+      # self.sqrt_g_theta(radius, amplitude, wavenumber, z))
       return (z_part + theta_part)
 
-  def Kzz_integrand(self,amplitude, z):
+  def Kzz_integrand(self, amplitude, z):
     # TODO: redo with functions
     return ((amplitude * self.wavenumber ** 2 * math.sin(self.wavenumber * z)) ** 2 *
             self.radius_rescaled(amplitude) ** 3 * (1 + amplitude * math.sin(self.wavenumber * z)) *
@@ -106,7 +107,7 @@ class System():
             self.sqrt_g_theta(amplitude, z))  # one radius in sqrt_g_theta and -2 in Kthth
 
   def evaluate_A_integrals(self, amplitude, num_field_coeffs):
-    for diff in range(-4*num_field_coeffs, 4*num_field_coeffs+1):
+    for diff in range(-4 * num_field_coeffs, 4 * num_field_coeffs + 1):
       img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(diff, amplitude, z),
                                        0, 2 * math.pi / self.wavenumber)
       real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(diff, amplitude, z),
@@ -116,18 +117,18 @@ class System():
   def evaluate_A_integral_0(self, amplitude):
     img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(0, amplitude, z),
                                      0, 2 * math.pi / self.wavenumber)
-    assert( math.isclose(img_part, 0, abs_tol=1e-9))
+    assert (math.isclose(img_part, 0, abs_tol=1e-9))
     real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(0, amplitude, z),
                                       0, 2 * math.pi / self.wavenumber)
     self.A_integrals[0] = complex(real_part, img_part)
 
-  def evaluate_B_integrals(self, amplitude, num_field_coeffs): 
-    for i in range(-num_field_coeffs, num_field_coeffs+1):
-      for j in range(-num_field_coeffs, num_field_coeffs+1):
+  def evaluate_B_integrals(self, amplitude, num_field_coeffs):
+    for i in range(-num_field_coeffs, num_field_coeffs + 1):
+      for j in range(-num_field_coeffs, num_field_coeffs + 1):
         img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, amplitude, z),
+                                         0, 2 * math.pi / self.wavenumber)
+        real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, amplitude, z),
                                           0, 2 * math.pi / self.wavenumber)
-        real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, amplitude, z) ,
-          0, 2 * math.pi / self.wavenumber) 
         self.B_integrals[(i, j)] = complex(real_part, img_part)
 
   ############# calc energy ################
@@ -159,62 +160,69 @@ class System():
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
-    #print("total")
-    #print(self.alpha, A_complex_energy.real)
-    #print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
+    # print("total")
+    # print(self.alpha, A_complex_energy.real)
+    # print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
     return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
   def calc_field_energy_diff_ABpart(self, index, new_field_coeff, old_field_coeffs):
-    old_field_coeff=old_field_coeffs[index]
+    old_field_coeff = old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
     A_complex_energy_diff = 0 + 0j
     B_complex_energy_diff = 0 + 0j
     for i in old_field_coeffs:
       A_complex_energy_diff += diff * old_field_coeffs[i].conjugate() * self.A_integrals[index - i]
       A_complex_energy_diff += old_field_coeffs[i] * diff.conjugate() * self.A_integrals[i - index]
-      B_complex_energy_diff += diff * old_field_coeffs[i].conjugate() * self.B_integrals[ index, i]
+      B_complex_energy_diff += diff * old_field_coeffs[i].conjugate() * self.B_integrals[index, i]
       B_complex_energy_diff += old_field_coeffs[i] * diff.conjugate() * self.B_integrals[i, index]
     # undoing the change we did (with partially old value) where i=index above ,
     # + changing the point (index, i=index) correctly works out to this addition
-    A_complex_energy_diff += diff*diff.conjugate()*self.A_integrals[0]
-    B_complex_energy_diff += diff*diff.conjugate()*self.B_integrals[index, index]
+    A_complex_energy_diff += diff * diff.conjugate() * self.A_integrals[0]
+    B_complex_energy_diff += diff * diff.conjugate() * self.B_integrals[index, index]
     assert (math.isclose(B_complex_energy_diff.imag, 0, abs_tol=1e-7))
     print("diff A B parts")
     print("A:", A_complex_energy_diff.real, "B:", B_complex_energy_diff.real)
     return A_complex_energy_diff.real, B_complex_energy_diff.real
 
-
   def calc_field_energy_diff_Dpart(self, index, new_field_coeff, old_field_coeffs):
-    old_field_coeff=old_field_coeffs[index]
+    old_field_coeff = old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
     D_complex_energy_diff = 0 + 0j
     for i in old_field_coeffs:
-      #replace where 3 factors have changed
+      # replace where 3 factors have changed
       if i != index:
-        D_complex_energy_diff += 2*self.A_integrals[index+index-index-i]*old_field_coeffs[i].conjugate()*(new_field_coeff**2*new_field_coeff.conjugate()-old_field_coeff**2*old_field_coeff.conjugate())
-        D_complex_energy_diff += 2*self.A_integrals[i+index-index-index]*old_field_coeffs[i]*(new_field_coeff*new_field_coeff.conjugate()**2-old_field_coeff*old_field_coeff.conjugate()**2)
+        D_complex_energy_diff += 2 * self.A_integrals[index + index - index - i] * old_field_coeffs[i].conjugate() * (
+              new_field_coeff ** 2 * new_field_coeff.conjugate() - old_field_coeff ** 2 * old_field_coeff.conjugate())
+        D_complex_energy_diff += 2 * self.A_integrals[i + index - index - index] * old_field_coeffs[i] * (
+              new_field_coeff * new_field_coeff.conjugate() ** 2 - old_field_coeff * old_field_coeff.conjugate() ** 2)
 
-        #replace where 2 variables changed
+        # replace where 2 variables changed
         for j in old_field_coeffs:
-          if j!= index:
-            D_complex_energy_diff += 4*self.A_integrals[index+i-index-j]*old_field_coeffs[i]*old_field_coeffs[j].conjugate()*(new_field_coeff*new_field_coeff.conjugate()-old_field_coeff*old_field_coeff.conjugate())
-            D_complex_energy_diff += self.A_integrals[index+index-i-j]*old_field_coeffs[i].conjugate()*old_field_coeffs[j]*(new_field_coeff**2-old_field_coeff**2)
-            D_complex_energy_diff += self.A_integrals[i+j-index-index]*old_field_coeffs[i]*old_field_coeffs[j]*(new_field_coeff.conjugate()**2-old_field_coeff.conjugate()**2)
-  
-            #replace where one variable has changed
+          if j != index:
+            D_complex_energy_diff += 4 * self.A_integrals[index + i - index - j] * old_field_coeffs[i] * \
+                                     old_field_coeffs[j].conjugate() * (
+                                           new_field_coeff * new_field_coeff.conjugate() - old_field_coeff * old_field_coeff.conjugate())
+            D_complex_energy_diff += self.A_integrals[index + index - i - j] * old_field_coeffs[i].conjugate() * \
+                                     old_field_coeffs[j] * (new_field_coeff ** 2 - old_field_coeff ** 2)
+            D_complex_energy_diff += self.A_integrals[i + j - index - index] * old_field_coeffs[i] * old_field_coeffs[
+              j] * (new_field_coeff.conjugate() ** 2 - old_field_coeff.conjugate() ** 2)
+
+            # replace where one variable has changed
             for k in old_field_coeffs:
-              if k!=index:
-                D_complex_energy_diff += 2*self.A_integrals[index+i-j-k]*diff*old_field_coeffs[i]*old_field_coeffs[j].conjugate()*old_field_coeffs[k].conjugate()
-                D_complex_energy_diff += 2*self.A_integrals[i+j-index-k]*old_field_coeffs[i]*old_field_coeffs[j]*old_field_coeffs[k].conjugate()*diff.conjugate()
-    
-    #replace the point (index, index,index, index)
-    D_complex_energy_diff += self.A_integrals[0] * (new_field_coeff**2*new_field_coeff.conjugate()**2 - old_field_coeff**2*old_field_coeff.conjugate()**2)
+              if k != index:
+                D_complex_energy_diff += 2 * self.A_integrals[index + i - j - k] * diff * old_field_coeffs[i] * \
+                                         old_field_coeffs[j].conjugate() * old_field_coeffs[k].conjugate()
+                D_complex_energy_diff += 2 * self.A_integrals[i + j - index - k] * old_field_coeffs[i] * \
+                                         old_field_coeffs[j] * old_field_coeffs[k].conjugate() * diff.conjugate()
+
+    # replace the point (index, index,index, index)
+    D_complex_energy_diff += self.A_integrals[0] * (
+          new_field_coeff ** 2 * new_field_coeff.conjugate() ** 2 - old_field_coeff ** 2 * old_field_coeff.conjugate() ** 2)
 
     assert (math.isclose(D_complex_energy_diff.imag, 0, abs_tol=1e-5))
     print("diff d part")
-    print("D:" , D_complex_energy_diff.real)
+    print("D:", D_complex_energy_diff.real)
     return D_complex_energy_diff.real
-
 
   def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, amplitude_change=False):
     if amplitude_change:
@@ -223,7 +231,7 @@ class System():
       self.evaluate_B_integrals(amplitude, num_field_coeffs)
     A_energy_diff, B_energy_diff = self.calc_field_energy_diff_ABpart(index, new_field_coeff, old_field_coeffs)
     D_energy_diff = self.calc_field_energy_diff_Dpart(index, new_field_coeff, old_field_coeffs)
-    return self.alpha*A_energy_diff + self.C*B_energy_diff + 0.5 *self.u*D_energy_diff
+    return self.alpha * A_energy_diff + self.C * B_energy_diff + 0.5 * self.u * D_energy_diff
 
   def calc_bending_energy(self, amplitude):
     """
@@ -237,7 +245,7 @@ class System():
       Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z),
                                            0, 2 * math.pi / self.wavenumber)
       Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),
-        0, 2 * math.pi / self.wavenumber)
+                                             0, 2 * math.pi / self.wavenumber)
       return (Kzz_integral + Kthth_integral)
 
   def calc_surface_energy(self, amplitude, amplitude_change=True):
@@ -246,5 +254,5 @@ class System():
     """
     if amplitude_change:
       self.evaluate_A_integral_0(amplitude)
-    #A_integrals[0] is just surface area
+    # A_integrals[0] is just surface area
     return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)
