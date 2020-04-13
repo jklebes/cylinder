@@ -104,8 +104,9 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     cov = pickle.load(f)
   else:
     cov=None
-  
-  me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+
+  #use covariance from earlier files, optimize static covariance for speed
+  me = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
