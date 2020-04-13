@@ -94,23 +94,25 @@ class MetropolisEngine():
     :return:
     """
     proposed_amplitude = self.draw_amplitude_from_proposal_distriution(amplitude)
+    print(proposed_amplitude)
     if abs(proposed_amplitude) >= 1:
       # don't accept.
       # like an infinite energy barrier to self-intersection.
       # does not violate symmetric jump distribution, because this is like
       # an energy-landscape-based decision after generation
+      self.update_proposal_distribution(accept=False, amplitude=amplitude, field_coeffs=field_coeffs)
       return amplitude, surface_energy, field_energy
-    new_field_energy = system.calc_field_energy(field_coeffs, proposed_amplitude, radius=radius, n=n, alpha=alpha,
-                                                C=C, u=u,
-                                                wavenumber=wavenumber)
-    new_surface_energy = system.calc_surface_energy(proposed_amplitude, wavenumber=wavenumber, radius=radius,
-                                                    gamma=gamma,
-                                                    kappa=kappa, amplitude_change=False)
-    if self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy)):
+    new_field_energy = system.calc_field_energy(field_coeffs, proposed_amplitude, amplitude_change=True)
+    new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
+    accept = self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy))
+    print("old energy ", field_energy, surface_energy)
+    print("new energys", new_field_energy, new_surface_energy)
+    if accept:
+      print("accepted")
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
-      # TODO: how to handle separate acceptance rates?
+    self.update_proposal_distribution(accept, amplitude, field_coeffs)
     return amplitude, surface_energy, field_energy
 
   def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
@@ -124,17 +126,20 @@ class MetropolisEngine():
     :param system: object which holds functions for calculating energy.  May store pre-calculated values and shortcuts.
     :return: new state and energy in the form tuple (ampltiude, field_coeffs (dict), surface_energy, field_energy).  Identical to input parameters if step was rejected.  Also modifies step counter and acceptance rate counter.
     """
+    #print("field energy in", field_energy)
     proposed_amplitude, proposed_field_coeffs = self.draw_all_from_proposal_distribution(amplitude, field_coeffs)
-    # print("propsed state", proposed_amplitude, proposed_field_coeffs)
+    #print("propsed state", proposed_amplitude, proposed_field_coeffs)
     if abs(proposed_amplitude) >= 1:
+      self.update_proposal_distribution(False, amplitude, field_coeffs)
       return amplitude, field_coeffs, surface_energy, field_energy
     new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
     accept = self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy))
-    # print("propsed c0", proposed_field_coeffs[0])
-    # print("field_energy", new_field_energy, "old_field_energy", field_energy)
+    #print("step with", self.sampling_width, self.covariance_matrix[0,0])
+    #print("surface energy", new_surface_energy, "old suface energy", surface_energy)
+    #print("field_energy", new_field_energy, "old_field_energy", field_energy)
     if accept:
-      # print("accepted")
+      #print("accepted")
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
@@ -143,6 +148,7 @@ class MetropolisEngine():
     self.step_counter += 1
     self.update_proposal_distribution(accept, amplitude, field_coeffs)
     # output system properties, energy
+    #print("field_energy out ", field_energy)
     return amplitude, field_coeffs, surface_energy, field_energy
 
   def update_proposal_distribution(accept, amplitude, field_coeffs):
@@ -158,9 +164,7 @@ class MetropolisEngine():
     return proposed_field_coeffs
 
   def draw_amplitude_from_proposal_distriution(self, amplitude):
-    """ implement later"""
-    # TODO : genrealize to multivariate gaussian
-    proposed_amplitude = amplitude + random.gauss(0, self.sampling_width_amplitude)
+    proposed_amplitude = amplitude + random.gauss(0, self.sampling_width**2 * self.covariance_matrix[0,0]) #technically multiply by + or - 1 depending on sign of amplitud, because parameter that covariance matrix applies to is abd(amplitude).  But not needed when not simultaneousy drawing in other parameters.
     return proposed_amplitude
 
   def draw_all_from_proposal_distribution(self, amplitude, field_coeffs):
@@ -192,6 +196,7 @@ class MetropolisEngine():
     :return: bool True if step will be accepted; False to reject
     """
     diff = proposed_energy - old_energy
+    #print("diff", diff, "temp", self.temp)
     assert (self.temp is not None)
     if diff <= 0:
       return True  # choice was made that 0 difference -> accept change
@@ -199,8 +204,7 @@ class MetropolisEngine():
       return False
     else:
       probability = math.exp(- 1 * diff / self.temp)
-      assert probability >= 0
-      assert probability <= 1
+      #print("probability", probability)
       if random.uniform(0, 1) <= probability:
         return True
       else:

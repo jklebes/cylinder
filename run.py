@@ -92,7 +92,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     amplitude = 0
   ########### setup #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma)
-  
+  print("alpha", se.alpha)  
   #try getting last results from files
   if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
     f = open('last_sigma.pickle', 'rb')
@@ -106,12 +106,13 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     cov=None
 
   #use covariance from earlier files, optimize static covariance for speed
-  me = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  #me.covariance_matrix[0,0]*=10
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   ########### start of data collection ############
-  amplitudes = [amplitude]
-  c_0s=[abs(field_coeffs[0])]
+  amplitudes = []
+  c_0s=[]
   sigmas=[]
   means=[]
   amplitude_cov=[]
@@ -119,6 +120,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   c0_cov=[]
   if method == "sequential":
     for i in range(n_steps):
+      #TODO correct interpretation of output tuple?
       amplitude, field_energy, surface_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs,
                                                              field_energy=field_energy, surface_energy=surface_energy,
                                                              system=se)
@@ -129,7 +131,8 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
       amplitudes.append(amplitude)
   elif method == "simultaneous":
     for i in range(n_steps):
-      amplitude, field_coeffs, field_energy, surface_energy = me.step_all(amplitude=amplitude,
+      field_coeffs = {0: 0+0j}
+      amplitude, field_coeffs, surface_energy, field_energy = me.step_all(amplitude=amplitude,
                                                              field_coeffs=field_coeffs,
                                                              field_energy=field_energy, surface_energy=surface_energy,
                                                              system=se)
@@ -137,8 +140,24 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
       sigmas.append(me.sampling_width)
       c_0s.append(abs(field_coeffs[0]))
       amplitude_cov.append(me.covariance_matrix[0,0])
-      amplitude_c0_cov.append(me.covariance_matrix[0,4])
-      c0_cov.append(me.covariance_matrix[4,4])
+      amplitude_c0_cov.append(me.covariance_matrix[0,1])
+      c0_cov.append(me.covariance_matrix[1,1])
+      means.append(me.mean[0])
+  elif method == "no-field":
+    field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
+    me = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp) # no need ot calculate covariance matrix for amplitude-only run
+    surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
+    field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
+    for i in range(n_steps):
+      #print("field energy in", field_energy)
+      amplitude, surface_energy, field_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs, field_energy=field_energy, surface_energy=surface_energy, system=se)
+      #print("field energy recieved", field_energy)
+      amplitudes.append(amplitude)
+      sigmas.append(me.sampling_width)
+      c_0s.append(abs(field_coeffs[0]))
+      amplitude_cov.append(me.covariance_matrix[0,0])
+      amplitude_c0_cov.append(me.covariance_matrix[0,1])
+      c0_cov.append(me.covariance_matrix[1,1])
       means.append(me.mean[0])
   plt.scatter(range(len(amplitudes)), amplitudes, label='amplitude')
   plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
@@ -147,14 +166,14 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   plt.close()
   plt.scatter(range(len(sigmas)), sigmas, marker='.', label="sigma")
   plt.scatter(range(len(sigmas)), amplitude_cov,marker='.', label = "covariance matrix[0,0]")
-  plt.scatter(range(len(sigmas)), amplitude_c0_cov,marker='.', label = "covariance matrix[0,4]")
-  plt.scatter(range(len(sigmas)), c0_cov,marker='.', label = "covariance matrix[4,4]")
+  plt.scatter(range(len(sigmas)), amplitude_c0_cov,marker='.', label = "covariance matrix[0,1]")
+  plt.scatter(range(len(sigmas)), c0_cov,marker='.', label = "covariance matrix[1,1]")
   plt.legend()
   plt.savefig("amplitude_proposal_dist.png")
   plt.close()
   plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,0]")
-  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,4]")
-  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[4,4]")
+  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,2]")
+  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[2,2]")
   plt.legend()
   plt.savefig("amplitude_proposal_dist_2.png")
   plt.close()
@@ -165,8 +184,10 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   #dump in files
   f = open('last_cov.pickle', 'wb')
   pickle.dump(me.covariance_matrix, f)
+  print("cov", np.round(me.covariance_matrix,3))
   f = open('last_sigma.pickle', 'wb')
   pickle.dump(me.sampling_width, f)
+  print("sampling width", me.sampling_width)
   return amplitudes
 
 # coefficients
@@ -174,19 +195,16 @@ alpha = -1
 C = 1
 u = 1
 n = 1
-kappa = 1
+kappa = 0
 gamma = 1
-temp = 0.1
+temp = .01
 
 # system dimensions
 radius = 1
-wavenumber = 1.5
+wavenumber = 1.50
 
 # simulation details
-num_field_coeffs = 3
-#user-define jump distribution
-#sampling_dist = lambda width :  random.uniform(-1*x, x)
-sampling_dist = lambda width : random.gauss(0, width)
+num_field_coeffs = 0
 initial_sampling_width = .025
 
 if __name__ == "__main__":
@@ -195,11 +213,11 @@ if __name__ == "__main__":
   experiment_title = loop_type[0] + "_" + loop_type[1]
   range1 = np.arange(0.005, 1.2, .05)
   range2 = np.arange(0, 1, .05)
-  n_steps = 800
+  n_steps = 4000
 
   assert (alpha <= 0)
 
-  single_run(kappa, wavenumber, n_steps, method="simultaneous")
+  single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
 
   # run_experiment(loop_type, experiment_title,
   # range1, range2, amp_steps, converge_stop, fieldsteps_per_ampstep)

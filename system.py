@@ -159,6 +159,8 @@ class System():
                                  self.A_integrals[(i1 + i2 - j1 - j2)])
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
+    #print(field_coeffs)
+    #print(D_complex_energy)
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     # print("total")
     # print(self.alpha, A_complex_energy.real)
@@ -254,5 +256,6 @@ class System():
     """
     if amplitude_change:
       self.evaluate_A_integral_0(amplitude)
+    print("A integral 0", self.A_integrals[0].real)
     # A_integrals[0] is just surface area
     return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)
