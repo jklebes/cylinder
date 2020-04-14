@@ -33,7 +33,7 @@ class MetropolisEngine():
     self.param_space_dims = self.num_field_coeffs + 1  # in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
     self.mean = np.zeros(self.param_space_dims)
     if covariance_matrix is None:
-      self.covariance_matrix = .03 * np.identity(
+      self.covariance_matrix =  np.identity(
         self.param_space_dims)  # initial default guess needs to be of the right order of magnitude of variances, or covariance matrix doesnt stabilize withing first 200 steps before sigma starts adjusting
     else:
       self.covariance_matrix = covariance_matrix
@@ -94,7 +94,7 @@ class MetropolisEngine():
     :return:
     """
     proposed_amplitude = self.draw_amplitude_from_proposal_distriution(amplitude)
-    print(proposed_amplitude)
+    #print(proposed_amplitude)
     if abs(proposed_amplitude) >= 1:
       # don't accept.
       # like an infinite energy barrier to self-intersection.
@@ -105,10 +105,10 @@ class MetropolisEngine():
     new_field_energy = system.calc_field_energy(field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
     accept = self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy))
-    print("old energy ", field_energy, surface_energy)
-    print("new energys", new_field_energy, new_surface_energy)
+    #print("old energy ", field_energy, surface_energy)
+    #print("new energys", new_field_energy, new_surface_energy)
     if accept:
-      print("accepted")
+      #print("accepted")
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
@@ -272,16 +272,18 @@ class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
     # norm.ppf ('percent point function') is the inverse of the cumulative density function of standard normal distribution
     self.alpha = -1 * scipy.stats.norm.ppf(self.target_acceptance / 2)
     self.m = self.param_space_dims
+    self.steplength_c = None
 
   def update_proposal_distribution(self, accept, amplitude, field_coeffs):
     step_number_factor = max((self.step_counter / self.m, 200))
-    steplength_c = self.sampling_width * (
+    # TODO : save constant factor at init
+    self.steplength_c = self.sampling_width * (
         (1 - (1 / self.m)) * math.sqrt(2 * math.pi) * math.exp(self.alpha ** 2 / 2) / 2 * self.alpha + 1 / (
         self.m * self.target_acceptance * (1 - self.target_acceptance)))
     if accept:
-      self.sampling_width += steplength_c * (1 - self.target_acceptance) / step_number_factor
+      self.sampling_width += self.steplength_c * (1 - self.target_acceptance) / step_number_factor
     else:
-      self.sampling_width -= steplength_c * self.target_acceptance / step_number_factor
+      self.sampling_width -= self.steplength_c * self.target_acceptance / step_number_factor
     assert (self.sampling_width) > 0
   # TODO: test for convergence of sampling_width, c->0
 

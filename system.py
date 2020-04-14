@@ -96,15 +96,14 @@ class System():
 
   def Kzz_integrand(self, amplitude, z):
     # TODO: redo with functions
-    return ((amplitude * self.wavenumber ** 2 * math.sin(self.wavenumber * z)) ** 2 *
-            self.radius_rescaled(amplitude) ** 3 * (1 + amplitude * math.sin(self.wavenumber * z)) *
-            (1 + amplitude ** 2 / 2) ** (-3 / 2.0) *
-            1 / (1 + (amplitude * self.wavenumber * math.cos(self.wavenumber * z)) ** 2))
+    # return ((amplitude * self.wavenumber ** 2 * math.sin(self.wavenumber * z)) ** 2 * self.radius_rescaled(amplitude) ** 3 * (1 + amplitude * math.sin(self.wavenumber * z))* (1 + amplitude ** 2 / 2) ** (-3 / 2.0) * 1 / (1 + (amplitude * self.wavenumber * math.cos(self.wavenumber * z)) ** 2))
+    return ((amplitude*self.wavenumber**2*math.sin(self.wavenumber*z)) **2 / # r '' ^2
+        self.sqrt_g_z(amplitude, z)**6) # divided by sqrt_g_z **3 and **2 
 
   def Kthth_integrand(self, amplitude, z):
-    return (1 / ((self.radius) ** 2) *  # part of K_th^th^2
-            1 / self.sqrt_g_z(amplitude, z) *  # part of K_th^th^2*sqrt_g_zz
-            self.sqrt_g_theta(amplitude, z))  # one radius in sqrt_g_theta and -2 in Kthth
+    return (1 / self.radius_rescaled(amplitude) ** 2 * self.sqrt_g_z(amplitude, z)**4) #*  # part of K_th^th^2
+  #1 / self.sqrt_g_z(amplitude, z) *  # part of K_th^th^2*sqrt_g_zz
+  # self.sqrt_g_theta(amplitude, z))  # one radius in sqrt_g_theta and -2 in Kthth
 
   def evaluate_A_integrals(self, amplitude, num_field_coeffs):
     for diff in range(-4 * num_field_coeffs, 4 * num_field_coeffs + 1):
@@ -240,14 +239,11 @@ class System():
     calculate bending as (K_i^i)**2.  Gaussian curvature and cross term 2 K_th^th K_z^z are omitted due to gauss-bonnet theorem.
     """
     if amplitude == 0:
-      Kthth_integral, error = integrate.quad(lambda z: 1.0 / self.radius ** 2,
-                                             0, 2 * math.pi / self.wavenumber)
+      Kthth_integral, error = integrate.quad(lambda z: 1.0 / self.radius ** 2, 0, 2 * math.pi / self.wavenumber)
       return Kthth_integral
     else:
-      Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z),
-                                           0, 2 * math.pi / self.wavenumber)
-      Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),
-                                             0, 2 * math.pi / self.wavenumber)
+      Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)
+      Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
       return (Kzz_integral + Kthth_integral)
 
   def calc_surface_energy(self, amplitude, amplitude_change=True):
@@ -256,6 +252,6 @@ class System():
     """
     if amplitude_change:
       self.evaluate_A_integral_0(amplitude)
-    print("A integral 0", self.A_integrals[0].real)
+    #print("A integral 0", self.A_integrals[0].real)
     # A_integrals[0] is just surface area
     return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)
