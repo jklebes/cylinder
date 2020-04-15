@@ -154,6 +154,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
     #me = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp) # no need ot calculate covariance matrix for amplitude-only run
     surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
     field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
+    me.m = 1 #number of dimensions of parameter space for adaptive purposes such as target acceptance rate.  actually just 1 degree of freedom for amplitude-only run.
     for i in range(n_steps):
       #print("field energy in", field_energy)
       amplitude, surface_energy, field_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs, field_energy=field_energy, surface_energy=surface_energy, system=se)
@@ -220,8 +221,8 @@ if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
   experiment_title = loop_type[0] + "_" + loop_type[1]
-  range1 = np.arange(0.005, 1.6, .2)
-  range2 = np.arange(0, 1.1, .2)
+  range1 = np.arange(0.005, 1.6, .05)
+  range2 = np.arange(0, .7, .05)
   n_steps = 1000
 
   assert (alpha <= 0)
