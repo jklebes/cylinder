@@ -1,0 +1,11 @@
+,value
+n_steps,500
+temp,0.01
+method,simultaneous
+C,1
+alpha,-1
+n,1
+u,1
+num_field_coeffs,0
+range1,[0.005 0.155 0.305 0.455 0.605 0.755 0.905 1.055 1.205 1.355]
+range2,[0.   0.15 0.3  0.45]

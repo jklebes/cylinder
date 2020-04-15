@@ -254,6 +254,7 @@ class MetropolisEngine():
     change metropolis engine temperature
     :param new_temp: new temperature value, float >=0 .
     """
+
     assert (new_temp >= 0)
     self.temp = new_temp
 
