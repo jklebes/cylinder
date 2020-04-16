@@ -14,7 +14,6 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
   :param kappa_range:
   :return:
   """
-  # TODO: maybe convergence check
   abs_amplitude = []
   cov_amplitude = []
   abs_c0 = []
@@ -178,11 +177,11 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
       step_sizes.append(me.steplength_c)
       amplitude_cov.append(me.covariance_matrix[0,0])
       c_0s.append(abs(field_coeffs[0]))
-      means.append(me.mean[0])
+      means.append(me.mean[1])
   plt.scatter(range(len(sigmas)), sigmas, marker='.', label="sigma")
   plt.scatter(range(len(sigmas)), amplitude_cov, marker='.', label="covariance matrix[0,0]")
-  plt.scatter(range(len(sigmas)), amplitude_c0_cov, marker='.', label="covariance matrix[0,1]")
-  plt.scatter(range(len(sigmas)), c0_cov, marker='.', label="covariance matrix[1,1]")
+  #plt.scatter(range(len(sigmas)), amplitude_c0_cov, marker='.', label="covariance matrix[0,1]")
+  #plt.scatter(range(len(sigmas)), c0_cov, marker='.', label="covariance matrix[1,1]")
   plt.legend()
   plt.savefig("amplitude_proposal_dist.png")
   plt.close()
@@ -201,9 +200,9 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   plt.legend()
   plt.savefig("steplength_constant.png")
   plt.close()
-  plt.scatter(range(len(sigmas)), means ,marker='.', label = "amplitude_mean")
+  plt.scatter(range(len(sigmas)), means ,marker='.', label = "c0_mean")
   plt.legend()
-  plt.savefig("mean_amplitude.png")
+  plt.savefig("mean_c0.png")
   plt.close()
   #dump in files
   f = open('last_cov.pickle', 'wb')
@@ -220,7 +219,7 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   return me.mean[1:], me.mean[0], me.covariance_matrix
 
 # coefficients
-alpha = -1
+alpha = 0
 C = 0
 u = 1
 n = 1
@@ -240,10 +239,10 @@ if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
   experiment_title = loop_type[0] + "_" + loop_type[1]
-  range1 = np.arange(0.005, 0.5, .05)
-  range2 = np.arange(0, 1.4, .05)
+  range1 = np.arange(0.005, 1.5, .1)
+  range2 = np.arange(0, 0.9, .1)
   n_steps = 5000
-  method = "simultaneous"
+  method = "no-field"
 
   assert (alpha <= 0)
 

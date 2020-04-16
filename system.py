@@ -95,13 +95,13 @@ class System():
       return (z_part + theta_part)
 
   def Kzz_integrand(self, amplitude, z):
-    # TODO: redo with functions
     # return ((amplitude * self.wavenumber ** 2 * math.sin(self.wavenumber * z)) ** 2 * self.radius_rescaled(amplitude) ** 3 * (1 + amplitude * math.sin(self.wavenumber * z))* (1 + amplitude ** 2 / 2) ** (-3 / 2.0) * 1 / (1 + (amplitude * self.wavenumber * math.cos(self.wavenumber * z)) ** 2))
-    return ((amplitude*self.wavenumber**2*math.sin(self.wavenumber*z)) **2 / # r '' ^2
-        self.sqrt_g_z(amplitude, z)**6) # divided by sqrt_g_z **3 and **2 
+    return (((amplitude*self.wavenumber**2*math.sin(self.wavenumber*z)) **2 * # r '' ^2  
+        self.sqrt_g_theta(amplitude, z) )/ #from sqrt g measure of integral
+        self.sqrt_g_z(amplitude, z)**5) # divided by sqrt_g_z **3 and **2, times sqrt_g_z from integration 
 
   def Kthth_integrand(self, amplitude, z):
-    return (1 / self.radius_rescaled(amplitude) ** 2 * self.sqrt_g_z(amplitude, z)**4) #*  # part of K_th^th^2
+    return (self.sqrt_g_theta(amplitude,z) / self.radius_rescaled(amplitude) ** 2 * self.sqrt_g_z(amplitude, z)**3) #*  # part of K_th^th^2
   #1 / self.sqrt_g_z(amplitude, z) *  # part of K_th^th^2*sqrt_g_zz
   # self.sqrt_g_theta(amplitude, z))  # one radius in sqrt_g_theta and -2 in Kthth
 
