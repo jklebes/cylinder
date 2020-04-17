@@ -6,7 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import system as ce #TODO: refactor name
 import metropolis_engine
-
+import scipy.integrate as integrate
+import math
 def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simultaneous"):
   """
   A set of runs looping over a grid of wavenumber, bending rigdity values
@@ -83,7 +84,7 @@ def run_experiment(exp_type, experiment_title, range1, range2, n_steps, method =
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
   exp_notes = {"n_steps": n_steps, "temp":temp, "method": method, "C": C, "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs,
-               "range1":range1, "range2": range2, "radius":radius}
+      "range1":range1, "range2": range2, "radius":radius, "notes":"correct  Kthth^2? and g_z^z integrand put back in"}
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
@@ -178,6 +179,11 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
       amplitude_cov.append(me.covariance_matrix[0,0])
       c_0s.append(abs(field_coeffs[0]))
       means.append(me.mean[1])
+  print("latest amplitude", amplitude, "surface area", se.A_integrals[0].real, "bending energy", integrate.quad(lambda z: se.Kthth_integrand(amplitude, z),  0, 2 * math.pi / se.wavenumber))
+  se.calc_surface_energy(amplitude=.05)
+  print("curved a=.05", "surface area,", se.A_integrals[0].real, "bending energy", integrate.quad(lambda z: se.Kthth_integrand(.05,  z),  0, 2 * math.pi / se.wavenumber))
+  se.calc_surface_energy(amplitude=0)
+  print("flat", "surface area", se.A_integrals[0].real, "bending energy", integrate.quad(lambda z: se.Kthth_integrand(0, z),  0, 2 * math.pi / se.wavenumber))
   plt.scatter(range(len(sigmas)), sigmas, marker='.', label="sigma")
   plt.scatter(range(len(sigmas)), amplitude_cov, marker='.', label="covariance matrix[0,0]")
   #plt.scatter(range(len(sigmas)), amplitude_c0_cov, marker='.', label="covariance matrix[0,1]")
@@ -225,7 +231,7 @@ u = 1
 n = 1
 kappa = 0
 gamma = 1
-temp = .01
+temp = 0.001
 
 # system dimensions
 radius = 1
@@ -239,8 +245,8 @@ if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
   experiment_title = loop_type[0] + "_" + loop_type[1]
-  range1 = np.arange(0.005, 1.5, .1)
-  range2 = np.arange(0, 0.9, .1)
+  range1 = np.arange(0.005, 1.3, .03)
+  range2 = np.arange(0, 0.5, .03)
   n_steps = 5000
   method = "no-field"
 

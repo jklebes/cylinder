@@ -1,0 +1,13 @@
+,value
+n_steps,5000
+temp,0.001
+method,no-field
+C,0
+alpha,0
+n,1
+u,1
+num_field_coeffs,0
+range1,[0.005 0.105 0.205]
+range2,[0.  0.4 0.8 1.2 1.6 2.  2.4 2.8 3.2 3.6 4.  4.4 4.8]
+radius,1
+notes,testing prediciotn when  Kth^th^2 integrand is 0 - always unstable  at kappa>=0

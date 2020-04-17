@@ -25,8 +25,7 @@ class System():
     return self.radius_rescaled(amplitude) * (1 + amplitude * math.sin(self.wavenumber * z))
 
   def sqrt_g_z(self, amplitude, z):
-    return math.sqrt(1 + (self.radius_rescaled(amplitude) * amplitude
-                          * self.wavenumber * math.cos(self.wavenumber * z)) ** 2)
+    return math.sqrt(1 + (self.radius_rescaled(amplitude) * amplitude * self.wavenumber * math.cos(self.wavenumber * z)) ** 2)
 
   def radius_rescaled(self, amplitude):
     return self.radius / math.sqrt(1 + amplitude ** 2 / 2.0)
@@ -93,17 +92,17 @@ class System():
                     1.0 / self.sqrt_g_theta(amplitude, z))  # sqrt(g_thth) and g^thth
       # self.sqrt_g_theta(radius, amplitude, wavenumber, z))
       return (z_part + theta_part)
-
-  def Kzz_integrand(self, amplitude, z):
-    # return ((amplitude * self.wavenumber ** 2 * math.sin(self.wavenumber * z)) ** 2 * self.radius_rescaled(amplitude) ** 3 * (1 + amplitude * math.sin(self.wavenumber * z))* (1 + amplitude ** 2 / 2) ** (-3 / 2.0) * 1 / (1 + (amplitude * self.wavenumber * math.cos(self.wavenumber * z)) ** 2))
-    return (((amplitude*self.wavenumber**2*math.sin(self.wavenumber*z)) **2 * # r '' ^2  
-        self.sqrt_g_theta(amplitude, z) )/ #from sqrt g measure of integral
-        self.sqrt_g_z(amplitude, z)**5) # divided by sqrt_g_z **3 and **2, times sqrt_g_z from integration 
-
+  
   def Kthth_integrand(self, amplitude, z):
-    return (self.sqrt_g_theta(amplitude,z) / self.radius_rescaled(amplitude) ** 2 * self.sqrt_g_z(amplitude, z)**3) #*  # part of K_th^th^2
+    return (1/(self.sqrt_g_theta(amplitude,z) *  self.sqrt_g_z(amplitude, z))) #*  # part of K_th^th^2
   #1 / self.sqrt_g_z(amplitude, z) *  # part of K_th^th^2*sqrt_g_zz
   # self.sqrt_g_theta(amplitude, z))  # one radius in sqrt_g_theta and -2 in Kthth
+ 
+  def Kzz_integrand(self, amplitude, z):
+    return ((self.radius_rescaled(amplitude)*amplitude*self.wavenumber**2*math.sin(self.wavenumber*z))**2 *
+      self.sqrt_g_theta(amplitude, z) /
+      (self.sqrt_g_z(amplitude,z))**5)
+  
 
   def evaluate_A_integrals(self, amplitude, num_field_coeffs):
     for diff in range(-4 * num_field_coeffs, 4 * num_field_coeffs + 1):
