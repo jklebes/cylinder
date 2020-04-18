@@ -84,7 +84,7 @@ def run_experiment(exp_type, experiment_title, range1, range2, n_steps, method =
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
   exp_notes = {"n_steps": n_steps, "temp":temp, "method": method, "C": C, "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs,
-      "range1":range1, "range2": range2, "radius":radius, "notes":"correct  Kthth^2? and g_z^z integrand put back in"}
+      "range1":range1, "range2": range2, "radius":radius, "notes":""}
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
@@ -225,8 +225,8 @@ def single_run(kappa,wavenumber, n_steps, method = "simultaneous", field_coeffs=
   return me.mean[1:], me.mean[0], me.covariance_matrix
 
 # coefficients
-alpha = 0
-C = 0
+alpha = -1
+C = 1
 u = 1
 n = 1
 kappa = 0
@@ -245,10 +245,10 @@ if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
   experiment_title = loop_type[0] + "_" + loop_type[1]
-  range1 = np.arange(0.005, 1.3, .03)
-  range2 = np.arange(0, 0.5, .03)
-  n_steps = 5000
-  method = "no-field"
+  range1 = np.arange(0.005, .5, .03)
+  range2 = np.arange(0, .3, .03)
+  n_steps = 10000
+  method = "simultaneous"
 
   assert (alpha <= 0)
 
