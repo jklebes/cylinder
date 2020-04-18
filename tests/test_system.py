@@ -245,6 +245,25 @@ class Test_Energy_Diff(unittest.TestCase):
     energy_after_from_diff = energy_before + energy_diff
     self.assertEqual(energy_after, 0)
     self.assertAlmostEqual(energy_after_from_diff, 0)
+  
+  
+  def test_calc_energy_diff_coefftozero(self):
+    num_field_coeffs =1
+    field_coeffs = dict([(i, metropolis_engine.MetropolisEngine.gaussian_complex()) for i in
+                           range(-1 * num_field_coeffs, num_field_coeffs + 1)])
+    amplitude = 0 
+    energy_before = self.sys_basic.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
+    print("before", energy_before)
+    index = -1 #change c_{-1} to 0
+    #new field coeffs with one value (c_1) changed to a different random complex value
+    new_field_coeffs = copy.copy(field_coeffs)
+    new_field_coeff = 0+0j
+    new_field_coeffs[index] = new_field_coeff
+    assert(field_coeffs[index]!=new_field_coeffs[index])
+    energy_diff =  self.sys_basic.calc_field_energy_diff(index, new_field_coeff, field_coeffs, amplitude, amplitude_change=False)
+    energy_after =  self.sys_basic.calc_field_energy(new_field_coeffs, amplitude, amplitude_change=False)
+    energy_after_from_diff = energy_before + energy_diff
+    self.assertAlmostEqual(energy_after - energy_before, energy_diff)
 
   def test_calc_energy_diff(self):
     num_field_coeffs =1

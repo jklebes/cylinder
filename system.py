@@ -165,6 +165,7 @@ class System():
     # print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
     return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
+
   def calc_field_energy_diff_ABpart(self, index, new_field_coeff, old_field_coeffs):
     old_field_coeff = old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
@@ -183,8 +184,46 @@ class System():
     print("diff A B parts")
     print("A:", A_complex_energy_diff.real, "B:", B_complex_energy_diff.real)
     return A_complex_energy_diff.real, B_complex_energy_diff.real
-
+  
   def calc_field_energy_diff_Dpart(self, index, new_field_coeff, old_field_coeffs):
+    old_field_coeff = old_field_coeffs[index]
+    diff = new_field_coeff - old_field_coeff
+    D_complex_energy_diff = 0 + 0j
+    for i in old_field_coeffs:
+      if i != index:
+        for j in old_field_coeffs:
+          if j!= index:
+            for k in old_field_coeffs:
+              if k!= index:
+                #replacing parts of the sum where c_index or c_index^* occured once
+                D_complex_energy_diff += 2*diff * old_field_coeffs[i] * old_field_coeffs[j].conjugate() * old_field_coeffs[k].conjugate() * self.A_integrals[index + i - j-k ]
+                D_complex_energy_diff += 2*old_field_coeffs[i] *old_field_coeffs[j] * diff.conjugate() * old_field_coeffs[k].conjugate() * self.A_integrals[i+j-index-k]
+                #print("changed", "c_index", " * coeff[", i, j, k,"]")
+                #print("diff", D_complex_energy_diff)
+            #twice
+            D_complex_energy_diff -= old_field_coeff**2 * old_field_coeffs[j].conjugate() * old_field_coeffs[i].conjugate() *self.A_integrals[index+index-i-j]
+            D_complex_energy_diff += new_field_coeff**2 * old_field_coeffs[j].conjugate() * old_field_coeffs[i].conjugate() *self.A_integrals[index+index-i-j]
+            D_complex_energy_diff -= old_field_coeff.conjugate()**2 * old_field_coeffs[j] * old_field_coeffs[i] *self.A_integrals[i+j-index-index]
+            D_complex_energy_diff += new_field_coeff.conjugate()**2 * old_field_coeffs[j] * old_field_coeffs[i] *self.A_integrals[i+j-index-index]
+            D_complex_energy_diff -= 4*old_field_coeff*old_field_coeff.conjugate() * old_field_coeffs[i]* old_field_coeffs[j].conjugate() *self.A_integrals[index+i-index-j]
+            D_complex_energy_diff += 4*new_field_coeff*new_field_coeff.conjugate() * old_field_coeffs[i]* old_field_coeffs[j].conjugate() *self.A_integrals[index+i-index-j]
+        #three times
+        D_complex_energy_diff -=  2*old_field_coeff**2 * old_field_coeff.conjugate() * old_field_coeffs[i].conjugate()*self.A_integrals[index-i]
+        D_complex_energy_diff +=  2*new_field_coeff**2 * new_field_coeff.conjugate() * old_field_coeffs[i].conjugate()*self.A_integrals[index-i]
+        D_complex_energy_diff -= 2*old_field_coeff *old_field_coeffs[i]* old_field_coeff.conjugate()**2 * self.A_integrals[i-index]
+        D_complex_energy_diff += 2*new_field_coeff *old_field_coeffs[i]* new_field_coeff.conjugate()**2 * self.A_integrals[i-index]
+    #replacing the point where c_index occured 4 times
+    D_complex_energy_diff -= old_field_coeff**2 * old_field_coeff.conjugate()**2*self.A_integrals[0]
+    D_complex_energy_diff += new_field_coeff**2 * new_field_coeff.conjugate()**2*self.A_integrals[0]
+    #try:
+    assert (math.isclose(D_complex_energy_diff.imag, 0, abs_tol=1e-7))
+    #except AssertionError:
+      #print("failed assertion imag part of D_diff = 0.  D_complex_energy_diff: ", D_complex_energy_diff)
+    print("diff D parts")
+    print("D:", D_complex_energy_diff.real)
+    return D_complex_energy_diff.real
+
+  def calc_field_energy_diff_Dpart_the_complicated_way(self, index, new_field_coeff, old_field_coeffs):
     old_field_coeff = old_field_coeffs[index]
     diff = new_field_coeff - old_field_coeff
     D_complex_energy_diff = 0 + 0j
@@ -218,8 +257,10 @@ class System():
     # replace the point (index, index,index, index)
     D_complex_energy_diff += self.A_integrals[0] * (
           new_field_coeff ** 2 * new_field_coeff.conjugate() ** 2 - old_field_coeff ** 2 * old_field_coeff.conjugate() ** 2)
-
-    assert (math.isclose(D_complex_energy_diff.imag, 0, abs_tol=1e-5))
+    try:
+      assert (math.isclose(D_complex_energy_diff.imag, 0, abs_tol=1e-5))
+    except AssertionError:
+      print("failed assertion imag part of D_diff = 0.  D_complex_energy_diff: ", D_complex_energy_diff)
     print("diff d part")
     print("D:", D_complex_energy_diff.real)
     return D_complex_energy_diff.real
