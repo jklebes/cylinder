@@ -59,7 +59,7 @@ class MetropolisEngine():
     print(field_energy, field_coeffs)
     return amplitude, field_coeffs, surface_energy, field_energy
 
-  def step_fieldcoeff(self, field_coeff_index, field_coeffs, field_energy, surface_energy, amplitude, system,
+  def step_fieldcoeff(self, field_coeff_index, field_coeffs, field_energy, amplitude, system,
                       amplitude_change=False):
     """
     Stepping a single field coefficient c_i: generate a random complex value.  Accept or reject.
@@ -72,15 +72,16 @@ class MetropolisEngine():
     :param amplitude_change: this parameter is here isolated use of fct in unit testing.  default False should be enough for real use.
     :return:
     """
-    covariance_matrix_entry = self.covariance_matrix[field_coeff_index, field_coeff_index]
     field_coeff = field_coeffs[field_coeff_index]
-    proposed_field_coeff = self.modify_phase(
-      abs(field_coeff) + random.gauss(0, self.sampling_width * covariance_matrix_entry), cmath.phase(field_coeff))
-    new_field_energy = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs, amplitude,
+    proposed_field_coeff = self.draw_field_coeff_from_proposal_distribution(field_coeff, 1+max(field_coeffs.keys())+field_coeff_index)
+    diff = system.calc_field_energy_diff(field_coeff_index, proposed_field_coeff, field_coeffs, amplitude,
                                                      amplitude_change)
-    if self.metropolis_decision(field_energy + surface_energy, new_field_energy + surface_energy):
-      field_energy = new_field_energy
+    accept= self.metropolis_decision(0, diff)
+    if accept:
+      #print("accpted diff", diff)
+      field_energy += diff
       field_coeffs[field_coeff_index] = proposed_field_coeff
+    self.update_proposal_distribution(accept, amplitude, field_coeffs)
     return field_coeffs, field_energy
 
   def step_amplitude(self, amplitude, field_coeffs, surface_energy, field_energy, system):
@@ -162,6 +163,13 @@ class MetropolisEngine():
     for key in proposed_field_coeffs:
       proposed_field_coeffs[key] += self.gaussian_complex(self.sampling_width_field_coeffs[key])
     return proposed_field_coeffs
+
+  def draw_field_coeff_from_proposal_distribution(self, field_coeff, index):
+    old_phase = cmath.phase(field_coeff)
+    amplitude = abs(field_coeff)
+    proposed_addition = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index, index])
+    proposed_field_coeff = self.modify_phase(amplitude + proposed_addition, old_phase)
+    return proposed_field_coeff
 
   def draw_amplitude_from_proposal_distriution(self, amplitude):
     proposed_amplitude = amplitude + random.gauss(0, self.sampling_width**2 * self.covariance_matrix[0,0]) #technically multiply by + or - 1 depending on sign of amplitud, because parameter that covariance matrix applies to is abd(amplitude).  But not needed when not simultaneousy drawing in other parameters.
