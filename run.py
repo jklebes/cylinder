@@ -10,6 +10,13 @@ import metropolis_engine
 import scipy.integrate as integrate
 import math
 
+def phase_diff(c1, c2):
+  phasediff = cmath.phase(c1)- cmath.phase(c2)
+  if phasediff > math.pi: 
+    phasediff -= 2*math.pi
+  elif phasediff <= -math.pi:
+    phasediff +=2*math.pi
+  return phasediff
 
 def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "simultaneous"):
   """
@@ -25,7 +32,10 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "simultaneous")
   abs_c0 = []
   cov_c0 = []
   cross_cov = []
-  c0_index = 1+num_field_coeffs
+  abs_c1=[]
+  phases01=[]
+  phases11=[]
+  c0_index = 1+num_field_coeffs # in covariance matrix
   for a in amplitude_range:
     initial_amplitude=a
     abs_amplitude_line = []
@@ -33,26 +43,42 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "simultaneous")
     abs_c0_line=[]
     cov_c0_line=[]
     cross_cov_line= []
+    abs_c1_line = []
+    phases01_line = []
+    phases11_line = []
     for c in C_range:
       # run
       C=c
       field_coeffs, amplitude_out, cov_matrix = single_run(n_steps=n_steps, method=method)
       abs_amplitude_line.append(amplitude_out)
       cov_amplitude_line.append(cov_matrix[0,0])
-      abs_c0_line.append(abs(field_coeffs[0]))
+      abs_c0_line.append(abs(field_coeffs[num_field_coeffs]))
       cov_c0_line.append(cov_matrix[c0_index,c0_index])
       cross_cov_line.append(cov_matrix[0,c0_index])
-      print(initial_amplitude, C, amplitude_out)
+      #try:
+      abs_c1_line.append(abs(field_coeffs[num_field_coeffs+1]))
+      phases01_line.append(field_coeffs[num_field_coeffs*2+1])
+      phases11_line.append(field_coeffs[num_field_coeffs*2-1] - field_coeffs[num_field_coeffs*2+1])
+      #except IndexError:
+      #  pass
+      print("amplitude", initial_amplitude, "C", C, "result field coeffs", field_coeffs)
     abs_amplitude.append(abs_amplitude_line)
     cov_amplitude.append(cov_amplitude_line)
     abs_c0.append(abs_c0_line)
     cov_c0.append(cov_c0_line)
     cross_cov.append(cross_cov_line)
+    abs_c1.append(abs_c1_line)
+    phases01.append(phases01_line)
+    phases11.append(phases11_line)
   return  {"abs_amplitude": np.array(abs_amplitude),
            "cov_amplitude":np.array(cov_amplitude),
            "abs_c0": np.array(abs_c0),
            "cov_c0": np.array(cov_c0),
-           "cross_cov": np.array(cross_cov)}
+           "cross_cov": np.array(cross_cov),
+           "abs_c1": np.array(abs_c1),
+           "relative_phase_c0_c1": np.array(phases01),
+           "relative_phase_c-1_c1": np.array(phases11)}
+
 
 def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simultaneous"):
   """
@@ -110,7 +136,7 @@ def plot_save(wavenumber_range, kappa_range, results, title, exp_dir = '.'):
   print(results)
   df = pd.DataFrame(index=wavenumber_range, columns=kappa_range, data=results)
   df.to_csv(os.path.join(exp_dir, title + ".csv"))
-  plt.imshow(results, extent=[min(kappa_range), max(kappa_range), max(wavenumber_range), min(wavenumber_range)])
+  plt.imshow(results, extent=[min(kappa_range), max(kappa_range), max(wavenumber_range), min(wavenumber_range)], interpolation=None)
   plt.colorbar()
   plt.savefig(os.path.join(exp_dir, title + ".png"))
   plt.close()
@@ -136,7 +162,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"trying experiment loop in amplitude and C. trying stepping only 1 field coeff with difference method."}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"trying relative Phases-adaptive engine"}
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
@@ -164,19 +190,19 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma)
   print("alpha", se.alpha)  
   #try getting last results from files
-  if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
-    f = open('last_sigma.pickle', 'rb')
+  if os.path.isfile("./last_sigma_2.pickle") and os.path.getsize("./last_sigma_2.pickle"):
+    f = open('last_sigma_2.pickle', 'rb')
     sampling_width = pickle.load(f)
   else:
     sampling_width = .05
-  if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
-    f = open('last_cov.pickle', 'rb')
+  if os.path.isfile("./last_cov_2.pickle") and os.path.getsize("./last_cov_2.pickle"):
+    f = open('last_cov_2.pickle', 'rb')
     cov = pickle.load(f)
   else:
     cov=None
 
   #use covariance from earlier files, optimize static covariance for speed
-  me = metropolis_engine.RobbinsMonroAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  me = metropolis_engine.RelativePhasesAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
   ########### start of data collection ############
@@ -189,6 +215,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   c0_cov=[]
   step_sizes=[]
   c0_phases=[]
+  c1_phases=[]
+  cm1_phases=[]
   if method == "sequential":
     for i in range(n_steps):
       #TODO correct interpretation of output tuple?
@@ -208,22 +236,24 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
                                                              system=se)
       amplitudes.append(amplitude)
       sigmas.append(me.sampling_width)
-      c_0s.append(abs(field_coeffs[0]))
+      c_0s.append(abs(field_coeffs[0])) 
+      c0_phases.append(cmath.phase(field_coeffs[0]))
+      c1_phases.append(cmath.phase(field_coeffs[1]))
+      cm1_phases.append(cmath.phase(field_coeffs[-1]))
       amplitude_cov.append(me.covariance_matrix[0,0])
       amplitude_c0_cov.append(me.covariance_matrix[0,1])
       c0_cov.append(me.covariance_matrix[1,1])
       means.append(me.mean[0])
       step_sizes.append(me.steplength_c)
   elif method == "fixed-amplitude":
-    field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
     field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
     me.m -= 1
     for i in range(n_steps):
       #print("field energy in", field_energy)
       for index in field_coeffs:
         field_coeffs, field_energy = me.step_fieldcoeff(field_coeff_index=index, amplitude=amplitude, field_coeffs=field_coeffs, field_energy=field_energy, system=se, amplitude_change=False)
-        #print("field energy recieved", field_energy)
-        me.step_counter+=1
+        #print("field_coeff phases after changing ", index, " :", [(key, cmath.phase(field_coeffs[key])) for key in field_coeffs])
+      me.step_counter+=1
       amplitudes.append(amplitude)
       # print("amplitude", amplitude)
       sigmas.append(me.sampling_width)
@@ -231,6 +261,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       amplitude_cov.append(me.covariance_matrix[0,0])
       c_0s.append(abs(field_coeffs[0]))
       c0_phases.append(cmath.phase(field_coeffs[0]))
+      c1_phases.append(phase_diff(field_coeffs[1], field_coeffs[0]))
+      cm1_phases.append(phase_diff(field_coeffs[-1], field_coeffs[0]))
       means.append(me.mean[1])
   elif method == "no-field":
     field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
@@ -259,9 +291,11 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   plt.close()
   plt.scatter(range(len(amplitudes)), amplitudes, label='amplitude')
   plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
-  plt.scatter(range(len(amplitudes)), c0_phases, label='fieldcoeff 0 phase')
+  plt.scatter(range(len(amplitudes)), c0_phases, label='fieldcoeff 0 phase', s=1)
+  plt.scatter(range(len(amplitudes)), c1_phases, label='fieldcoeff 1 relative phase')
+  plt.scatter(range(len(amplitudes)), cm1_phases, label='fieldcoeff -1 relative phase')
   plt.legend()
-  plt.savefig("amplitudes_vs_time.png")
+  plt.savefig("coeffs_vs_time.png")
   plt.close()
   plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,0]")
   #plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,2]")
@@ -278,10 +312,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   plt.savefig("mean_c0.png")
   plt.close()
   #dump in files
-  f = open('last_cov.pickle', 'wb')
+  f = open('last_cov_2.pickle', 'wb')
   pickle.dump(me.covariance_matrix, f)
   print("cov", np.round(me.covariance_matrix,3))
-  f = open('last_sigma.pickle', 'wb')
+  f = open('last_sigma_2.pickle', 'wb')
   pickle.dump(me.sampling_width, f)
   #print("sampling width", me.sampling_width)
   #print("last surface energy", se.calc_surface_energy(amplitude))
@@ -298,7 +332,7 @@ u = 1
 n = 1
 kappa = 0
 gamma = 1
-temp = 0.001
+temp = 0.1
 
 # system dimensions
 initial_amplitude= 0  #also system amplitude for when amplitude is static
@@ -306,14 +340,14 @@ radius = 1
 wavenumber = 1
 
 # simulation details
-num_field_coeffs = 0
+num_field_coeffs = 1
 initial_sampling_width = .025
 
 if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("amplitude", "C")
-  range1 = np.arange(.2, 1, .05)
-  range2 = np.arange(3, 10, .5)
+  range1 = np.arange(.05, 1, .1)
+  range2 = np.arange(.5, 10, 1)
   n_steps = 15000
   method = "fixed-amplitude"
 

@@ -182,9 +182,9 @@ class System():
     A_complex_energy_diff += diff * diff.conjugate() * self.A_integrals[0]
     B_complex_energy_diff += diff * diff.conjugate() * self.B_integrals[index, index]
     assert (math.isclose(B_complex_energy_diff.imag, 0, abs_tol=1e-7))
-    print("diff A B parts")
-    print("B integral 0", self.B_integrals[(0,0)])
-    print("A:", A_complex_energy_diff.real, "B:", B_complex_energy_diff.real)
+    #print("diff A B parts")
+    #print("B integral 0", self.B_integrals[(0,0)])
+    #print("A:", A_complex_energy_diff.real, "B:", B_complex_energy_diff.real)
     return A_complex_energy_diff.real, B_complex_energy_diff.real
   
   def calc_field_energy_diff_Dpart(self, index, new_field_coeff, old_field_coeffs):

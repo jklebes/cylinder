@@ -27,8 +27,8 @@ class MetropolisEngine():
     self.temp = temp
     assert (self.temp is not None)
     self.num_field_coeffs = len(initial_field_coeffs)
-    max_field_coeffs = max(initial_field_coeffs)
-    self.keys_ordered = list(range(-max_field_coeffs, max_field_coeffs + 1))
+    self.max_field_coeffs = max(initial_field_coeffs)
+    self.keys_ordered = list(range(-self.max_field_coeffs, self.max_field_coeffs + 1))
     self.sampling_width = sampling_width
     self.param_space_dims = self.num_field_coeffs + 1  # in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
     self.mean = np.zeros(self.param_space_dims)
@@ -228,7 +228,7 @@ class MetropolisEngine():
     state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
     return np.array(state)
 
-  def modify_phase(self, amplitude, phase, phase_sigma=.5):
+  def modify_phase(self, amplitude, phase, phase_sigma=.1):
     """
     takes a random number and changes phase by gaussian proposal distribution
     :param phase_sigma: width of gaussian distribution to modify phase by.  Optional, default .5 (pi)
@@ -256,6 +256,15 @@ class MetropolisEngine():
     amplitude = random.gauss(0, sigma)
     phase = random.uniform(0, 2 * math.pi)
     return cmath.rect(amplitude, phase)
+
+  @staticmethod
+  def phase_diff(c1, c2):
+    phasediff = cmath.phase(c1)- cmath.phase(c2)
+    if phasediff > math.pi:
+      phasediff -= 2*math.pi
+    elif phasediff <= -math.pi:
+      phasediff +=2*math.pi
+    return phasediff
 
   def set_temperature(self, new_temp):
     """
@@ -358,20 +367,97 @@ class FiniteAdaptiveMetropolisEngine(MetropolisEngine):
 ########## three schemes for more accurate covariance matrix ###########
 class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None,
-               initial_sampling_width=.0001, temp=0):
+               sampling_width=.05, temp=0):
     self.param_space_dims = 2 * len(initial_field_coeffs) + 1
+    self.mean_other = [abs(initial_amplitude)]
     print("initialized", self.state, self.mean)
 
   def construct_state(self):
-    pass
+    state = [amplitude] 
+    state.extend([field_coeffs[key].real for key in self.keys_ordered])
+    state.extend([field_coeffs[key].imag for key in self.keys_ordered])
+    return np.array(state)
 
-class AmplitudePhaseAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
-  def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None,
-               initial_sampling_width=.0001, temp=0):
-    pass
+class PhasesAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
+  def __init__(self, initial_field_coeffs, initial_amplitude, covariance_matrix=None,
+               sampling_width=.05, temp=0):
+    super().__init__(initial_field_coeffs=initial_field_coeffs, initial_amplitude=initial_amplitude,
+                     sampling_width=sampling_width, temp=temp, covariance_matrix=covariance_matrix)
+    self.param_space_dims = 2* self.num_field_coeffs+1
+    if covariance_matrix is None:
+      self.covariance_matrix =  np.identity(self.param_space_dims)  
+    self.m = self.param_space_dims
 
-  def construct_state(self):
-    pass
+  def construct_state(self, amplitude, field_coeffs):
+    """
+    helper function to construct position in parameter space as np array 
+    By default the parameters we track for correlation matrix, co-adjustemnt of step sizes are [abs(amplitude), {abs(field_coeff_i)}] (in this order)
+    override in derived classes where different representation of the parameters is tracked.
+    """
+    state = [abs(amplitude)]
+    state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    state.extend([cmath.phase(field_coeffs[key]) for key in self.keys_ordered])
+    return np.array(state)
+
+ 
+  def draw_all_from_proposal_distribution(self, amplitude, field_coeffs):
+    """
+    draw from multivariate gaussian distribution with sampling_width * covariance matrix
+    exactly equivlent to drawing from n independent gaussian distributions when covariance matrix is identity matrix
+    :param amplitude: current amplitude
+    :param field_coeffs: dict of current (complex) field coeff values
+    In this implementation only ampltiude of perturbation and magnitude of field coeffs is modifified by adaptive metropolis algorithm with (possible adapted) step sizes and covariance matrix.  Phases of field coeffs are independently adjusted by fixed-width, uncoupled gaussian distribution around their current state at each step.
+    """
+    state = self.construct_state(amplitude, field_coeffs)
+    proposed_addition = np.random.multivariate_normal([0] * len(state),
+                                                      self.sampling_width ** 2 * self.covariance_matrix,
+                                                      check_valid='raise')
+    proposed_amplitude = amplitude + (-1 if amplitude < 0 else 1) * proposed_addition[0]
+    proposed_field_coeff_amplitude = [original + addition for (original, addition) in
+                                      zip(state[1:1+num_field_coeffs], proposed_addition[1:1+num_field_coeffs])]
+    proposed_phases = [orginal + addition for (original, addition) in zip(state[1+num_field_coeffs:], proposed_addition[1+num_field_coeffs:])]
+    proposed_field_coeffs = dict(
+      [(key, cmath.rect(proposed_amplitude, proposed_phase)) for (key, (proposed_amplitude,proposed_phase)) in
+       zip(self.keys_ordered, zip(proposed_field_coeff_amplitude, proposed_phases))])
+    return proposed_amplitude, proposed_field_coeffs
+
+
+
+  def draw_field_coeff_from_proposal_distribution(self, field_coeff, index):
+    old_phase = cmath.phase(field_coeff)
+    amplitude = abs(field_coeff)
+    #TODO - draw from multivariate with 2x2 covariance submatrix
+    proposed_addition = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index, index])
+    proposed_phase_addition = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index+self.num_field_coeffs, index+self.num_field_coeffs])
+    #print("phase addition", proposed_phase_addition)
+    #print("amplitude_addition", proposed_addition)
+    proposed_field_coeff = cmath.rect(amplitude + proposed_addition, old_phase+proposed_phase_addition)
+    #print("old_coeff", field_coeff)
+    #print("new coeff", proposed_field_coeff)
+    return proposed_field_coeff
+
+class RelativePhasesAdaptiveMetropolisEngine(PhasesAdaptiveMetropolisEngine):
+  def __init__(self, initial_field_coeffs, initial_amplitude, covariance_matrix=None,
+               sampling_width=.05, temp=0):
+    super().__init__(initial_field_coeffs=initial_field_coeffs, initial_amplitude=initial_amplitude,
+                     sampling_width=sampling_width, temp=temp, covariance_matrix=covariance_matrix)
+
+  def construct_state(self, amplitude, field_coeffs):
+    """
+    helper function to construct position in parameter space as np array 
+    By default the parameters we track for correlation matrix, co-adjustemnt of step sizes are [abs(amplitude), {abs(field_coeff_i)}] (in this order)
+    override in derived classes where different representation of the parameters is tracked.
+    """
+    state = [abs(amplitude)]
+    state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    phase0 = cmath.phase(field_coeffs[0])
+    state.extend([self.phase_diff(field_coeffs[key], phase0) for key in self.keys_ordered[:self.max_field_coeffs]]) # relative phases of c_-n... c_1 relative to c_0 
+    state.append(phase0) # absolute (relative to real line) phase of c_0
+    #print("appended absolute phase of", field_coeffs[0], ":", phase0)
+    state.extend([self.phase_diff(field_coeffs[key], phase0) for key in self.keys_ordered[self.max_field_coeffs+1:]]) # relative phases of c_1... c_n relative to c_0 
+    #print("from field coeffs", field_coeffs, "constructed state", np.array(state))
+    return np.array(state)
+
 
 class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude=0, sampling_width=.001, initial_covariance_matrix=None,

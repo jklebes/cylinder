@@ -1,0 +1,17 @@
+,value
+experiment type,amplitude C
+n_steps,15000
+temp,0.01
+method,fixed-amplitude
+C,5
+kappa,0
+alpha,-1
+n,1
+u,1
+num_field_coeffs,1
+range1,[0.  0.5]
+range2,[0 5]
+radius,1
+amplitude,0.5
+wavenumber,1
+notes,trying relative Phases-adaptive engine
