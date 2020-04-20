@@ -39,7 +39,19 @@ class MetropolisEngine():
       self.covariance_matrix = covariance_matrix
     self.accepted_counter = 1
     self.step_counter = 1
-    self.target_acceptance = target_acceptance
+    self.target_acceptance = target_acceptance #todo hard code as fct of nuber of parameter space dims
+    self.mean = np.array([]) #measuring that set of parameters that constitute the basis of parameter space in each case
+    self.mean=self.construct_state(initial_amplitude, field_coeffs)
+    self.observables = self.construct_observables_state(initial_amplitude, field_coeffs) # additional quantities to record: none in base class
+    self.observabes_names = []
+    self.params_names = ["abs amplitude"]
+    self.params_names.extend(["abs c"+str(i) for i in self.keys_ordered])
+
+  def update_mean(self, state):
+    assert (isinstance(state, np.ndarray))
+    self.mean *= (self.step_counter - 1) / self.step_counter
+    self.mean += state / self.step_counter
+
 
   def step_sequential(self, amplitude, field_coeffs, field_energy, surface_energy,
                       system):
@@ -78,7 +90,7 @@ class MetropolisEngine():
                                                      amplitude_change)
     accept= self.metropolis_decision(0, diff)
     if accept:
-      #print("accpted diff", diff)
+      #print("accpted diff, diff)
       field_energy += diff
       field_coeffs[field_coeff_index] = proposed_field_coeff
     self.update_proposal_distribution(accept, amplitude, field_coeffs)
@@ -153,8 +165,9 @@ class MetropolisEngine():
     return amplitude, field_coeffs, surface_energy, field_energy
 
   def update_proposal_distribution(accept, amplitude, field_coeffs):
-    """ does nothinng in non-adaptive base class """
-    pass
+    """ does nothing in non-adaptive base class"""
+    """take measurements"""
+    self.update_mean()
 
   def draw_field_coeffs_from_proposal_distribution(self, ield_coeffs):
     """implement later"""
@@ -228,6 +241,14 @@ class MetropolisEngine():
     state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
     return np.array(state)
 
+
+  def construct_observables_state(self, amplitude, field_coeffs):
+    """
+    helper function to construct current list of additional quantities whose mean is to be measured
+    in base class: none
+    """
+    return np.array([])
+
   def modify_phase(self, amplitude, phase, phase_sigma=.1):
     """
     takes a random number and changes phase by gaussian proposal distribution
@@ -257,14 +278,6 @@ class MetropolisEngine():
     phase = random.uniform(0, 2 * math.pi)
     return cmath.rect(amplitude, phase)
 
-  @staticmethod
-  def phase_diff(c1, c2):
-    phasediff = cmath.phase(c1)- cmath.phase(c2)
-    if phasediff > math.pi:
-      phasediff -= 2*math.pi
-    elif phasediff <= -math.pi:
-      phasediff +=2*math.pi
-    return phasediff
 
   def set_temperature(self, new_temp):
     """
@@ -284,15 +297,23 @@ class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
 
   def __init__(self, initial_field_coeffs, initial_amplitude=None, sampling_width=0.05, temp=0, covariance_matrix=None):
     super().__init__(initial_field_coeffs, initial_amplitude, sampling_width, temp, covariance_matrix)
-
     # alpha (a constant used later) := -phi^(-1)(target acceptance /2) 
     # ,where  phi is the cumulative density function of the standard normal distribution
     # norm.ppf ('percent point function') is the inverse of the cumulative density function of standard normal distribution
     self.alpha = -1 * scipy.stats.norm.ppf(self.target_acceptance / 2)
     self.m = self.param_space_dims
     self.steplength_c = None
+    # inherit mean, construct mean from base class : abs amplitude, abs of field coeffs
+    # inherit other observables to measure from base class: none
 
   def update_proposal_distribution(self, accept, amplitude, field_coeffs):
+    new_state = self.construct_state(amplitude, field_coeffs)
+    old_mean = copy.copy(self.mean)
+    assert (isinstance(new_state, np.ndarray))
+    self.update_mean(state=new_state)
+    self.update_sigma(accept, amplitude, field_coeffs)
+
+  def update_sigma(self, accept, amplitude, field_coeffs):
     step_number_factor = max((self.step_counter / self.m, 200))
     # TODO : save constant factor at init
     self.steplength_c = self.sampling_width * (
@@ -316,24 +337,13 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
                covariance_matrix=None):
     super().__init__(initial_field_coeffs=initial_field_coeffs, initial_amplitude=initial_amplitude,
                      sampling_width=sampling_width, temp=temp, covariance_matrix=covariance_matrix)
-    # start collecting data for updating covariance matrix
-    self.mean = self.construct_state(initial_amplitude, initial_field_coeffs)
+    # still working with the set of parameters : abs(amplitude), abs(field coeffs)
+    # additional things to measure: none
 
   def update_proposal_distribution(self, accept, amplitude, field_coeffs):
-    # update sampling width
     super().update_proposal_distribution(accept, amplitude, field_coeffs)
-    new_state = self.construct_state(amplitude, field_coeffs)
-    old_mean = copy.copy(self.mean)
-    assert (isinstance(new_state, np.ndarray))
-    self.update_mean(state=new_state)
     if self.step_counter > 100:
       self.update_covariance_matrix(old_mean, new_state)
-    # print("covariace_matrix", self.covariance_matrix)
-
-  def update_mean(self, state):
-    assert (isinstance(state, np.ndarray))
-    self.mean *= (self.step_counter - 1) / self.step_counter
-    self.mean += state / self.step_counter
 
   def update_covariance_matrix(self, old_mean, state):
     i = self.step_counter
@@ -347,36 +357,59 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
       state, state) / (i - 1) + small_number * np.identity(self.param_space_dims)
   # TODO: test for convergence of sampling_width, c->0
 
-# a simpler class that stops adapting and starts measuring after n steps?
-class FiniteAdaptiveMetropolisEngine(MetropolisEngine):
-  def __init__(self, initial_field_coeffs, amplitude, sampling_width=0.05, temp=0):
-    # init superclass
-    self.adaption_size = 1
-
-  def update_proposal_distribution(self, accept):
-    if self.step_counter < n:
-      if accept:
-        self.sampling_width_amplitude += 0
-        self.sampling_width_field_coeffs += 0
-      else:
-        pass
-      self.adaption_size *= .08
-    print("acceptance_rate", self.accept_counter / self.step_counter, "target", self.target)
-
 
 ########## three schemes for more accurate covariance matrix ###########
 class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
-  def __init__(self, initial_field_coeffs, initial_amplitude, initial_covariance_matrix=None,
+  def __init__(self, initial_field_coeffs, initial_amplitude, covariance_matrix=None,
                sampling_width=.05, temp=0):
+    super().__init__(initial_field_coeffs=initial_field_coeffs, initial_amplitude=initial_amplitude,
+                     sampling_width=sampling_width, temp=temp, covariance_matrix=covariance_matrix)
     self.param_space_dims = 2 * len(initial_field_coeffs) + 1
-    self.mean_other = [abs(initial_amplitude)]
-    print("initialized", self.state, self.mean)
+    if covariance_matrix is None:
+      self.covariance_matrix =  np.identity(self.param_space_dims)  
+    self.m = self.param_space_dims
+    
+    #these text descriptions should match lists created in contruct_state, construct_observables_state functions
+    self.params_names= ["ampiltude"] # key to interpreting output: mean of parameters, covariance matrix
+    self.params_names.extend(["real_c_"+str(i) for i in self.keys_ordered])
+    self.params_names.extend(["img_c_"+str(i) for i in self.keys_ordered])
+    self.observables_names = ["abs_amplitude"] # key to interpreting output: other measured means
+    self.observables_names.extend(["abs_c_"+str(i) for i in self.keys_ordered])
 
-  def construct_state(self):
+
+  def update_proposal_distribution(self, accept, amplitude, field_coeffs):
+    super().update_proposal_distribution(accept, amplitude, field_coeffs)
+    self.update_observables_mean(state_observables)
+
+  def update_observables_mean(self, state_observables):
+    self.observables *= (self.step_counter - 1) / self.step_counter
+    self.observables += state_observables / self.step_counter
+
+  def construct_state(self, amplitude, field_coeffs):
+    """
+    override function listing which variables are the basis of parameter space for the purpose of sampling
+    here: amplitude, real and imaginary parts of field coefficeints
+    """
     state = [amplitude] 
     state.extend([field_coeffs[key].real for key in self.keys_ordered])
     state.extend([field_coeffs[key].imag for key in self.keys_ordered])
     return np.array(state)
+
+  def construct_observables_state(self, amplitude, field_coeffs):
+    """
+    override function constructing list of other values whose mean is to be measured.  here: abs of amplitude,
+    abs of field coeffs
+    """
+    state_observables = [abs(amplitude)]
+    state_observables.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    return np.array(state_observables)    
+
+  #TODO make single field coeffs, amplitude, all draw method for each subclass 
+  def draw_field_coeff_from_proposal_distribution(self, field_coeff, index):
+    proposed_addition_real = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index, index])
+    proposed_addition_imag = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index+self.num_field_coeffs, index+self.num_field_coeffs])
+    proposed_field_coeff = field_coeff + (proposed_addition_real + 1j* proposed_addition_imag)
+    return proposed_field_coeff
 
 class PhasesAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   def __init__(self, initial_field_coeffs, initial_amplitude, covariance_matrix=None,
@@ -387,6 +420,12 @@ class PhasesAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     if covariance_matrix is None:
       self.covariance_matrix =  np.identity(self.param_space_dims)  
     self.m = self.param_space_dims
+    
+    #these text descriptions should match lists created in contruct_state, construct_observables_state functions
+    self.params_names= ["abs amplitude"] # key to interpreting output: mean of parameters, covariance matrix
+    self.params_names.extend(["abs_c_"+str(i) for i in self.keys_ordered])
+    self.params_names.extend(["phase_c_"+str(i) for i in self.keys_ordered])
+    #self.observables_names = [] #inherit from base class
 
   def construct_state(self, amplitude, field_coeffs):
     """
@@ -399,7 +438,13 @@ class PhasesAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     state.extend([cmath.phase(field_coeffs[key]) for key in self.keys_ordered])
     return np.array(state)
 
- 
+  """
+  #not needed because identical to base class
+  def construct_observables_state(self, amplitude, field_coeffs):
+    #override function constructing list of other values whose mean is to be measured.  here: none
+    return np.array([])    
+  """
+
   def draw_all_from_proposal_distribution(self, amplitude, field_coeffs):
     """
     draw from multivariate gaussian distribution with sampling_width * covariance matrix
@@ -442,20 +487,34 @@ class RelativePhasesAdaptiveMetropolisEngine(PhasesAdaptiveMetropolisEngine):
     super().__init__(initial_field_coeffs=initial_field_coeffs, initial_amplitude=initial_amplitude,
                      sampling_width=sampling_width, temp=temp, covariance_matrix=covariance_matrix)
 
+    
+    #these text descriptions should match lists created in contruct_state, construct_observables_state functions
+    self.params_names= ["abs amplitude"] # key to interpreting output: mean of parameters, covariance matrix
+    self.params_names.extend(["abs_c_"+str(i) for i in self.keys_ordered])
+    self.params_names.extend(["relative_phase_c_"+str(i) for i in self.keys_ordered[:self.max_field_coeffs]])
+    self.params_names.append("phase_c0")
+    self.params_names.extend(["relative_phase_c_"+str(i) for i in self.keys_ordered[self.max_field_coeffs+1:]])
+    #self.observables_names = [] #inherit from base class
+  
+  @staticmethod
+  def phase_diff(c1, c2):
+    phasediff = cmath.phase(c1)- cmath.phase(c2)
+    if phasediff > math.pi:
+      phasediff -= 2*math.pi
+    elif phasediff <= -math.pi:
+      phasediff +=2*math.pi
+    return phasediff
+
   def construct_state(self, amplitude, field_coeffs):
     """
     helper function to construct position in parameter space as np array 
-    By default the parameters we track for correlation matrix, co-adjustemnt of step sizes are [abs(amplitude), {abs(field_coeff_i)}] (in this order)
-    override in derived classes where different representation of the parameters is tracked.
     """
     state = [abs(amplitude)]
     state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
     phase0 = cmath.phase(field_coeffs[0])
     state.extend([self.phase_diff(field_coeffs[key], phase0) for key in self.keys_ordered[:self.max_field_coeffs]]) # relative phases of c_-n... c_1 relative to c_0 
     state.append(phase0) # absolute (relative to real line) phase of c_0
-    #print("appended absolute phase of", field_coeffs[0], ":", phase0)
     state.extend([self.phase_diff(field_coeffs[key], phase0) for key in self.keys_ordered[self.max_field_coeffs+1:]]) # relative phases of c_1... c_n relative to c_0 
-    #print("from field coeffs", field_coeffs, "constructed state", np.array(state))
     return np.array(state)
 
 
@@ -464,6 +523,41 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
                temp=0):
     super().__init__(initial_field_coeffs=initial_field_coeffs, sampling_width=sampling_width, temp=temp,
                      covariance_matrix=initial_covariance_matrix)
+    
+    #these text descriptions should match lists created in contruct_state, construct_observables_state functions
+    self.params_names= ["amplitude"] # key to interpreting output: mean of parameters, covariance matrix
+    self.params_names.extend(["c_"+str(i) for i in self.keys_ordered])
+    self.observables_names = ["abs_amplitude"]
+    self.observables_names.extend(["abs_c_"+str(i) for i in self.keys_ordered])
+ 
+
+
+
+  def construct_state(self, amplitude, field_coeffs):
+    """
+    helper function to construct position in parameter space as np array 
+    state is now a complex vector
+    """
+    state = [amplitude+0j] #amplitude as complex number, arbitrarily real
+    state.extend([field_coeffs[key] for key in self.keys_ordered])
+    return np.array(state)
+
+  def construct_state(self, amplitude, field_coeffs):
+    """
+    helper function to construct position in parameter space as np array 
+    state is now a complex vector
+    """
+    state = [amplitude+0j] #amplitude as complex number, arbitrarily real
+    state.extend([field_coeffs[key] for key in self.keys_ordered])
+    return np.array(state)
+
+  def construct_observables_state(self, amplitude, field_coeffs):
+    """other things to measure the mean of.
+    vector of real numbers
+    """
+    state = [abs(amplitude)]
+    state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    return np.array(state)
 
   def multivariate_normal_complex(self, mean, covariance_matrix):
     pass

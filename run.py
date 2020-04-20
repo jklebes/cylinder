@@ -11,14 +11,9 @@ import scipy.integrate as integrate
 import math
 
 def phase_diff(c1, c2):
-  phasediff = cmath.phase(c1)- cmath.phase(c2)
-  if phasediff > math.pi: 
-    phasediff -= 2*math.pi
-  elif phasediff <= -math.pi:
-    phasediff +=2*math.pi
-  return phasediff
+  return metropolis_engine.MetropolisEngine.phasediff(c1,c2)
 
-def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "simultaneous"):
+def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitude"):
   """
   A set of runs looping over a grid of wavenumber, bending rigdity values
   :param wavenumber_range:
@@ -57,8 +52,8 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "simultaneous")
       cross_cov_line.append(cov_matrix[0,c0_index])
       #try:
       abs_c1_line.append(abs(field_coeffs[num_field_coeffs+1]))
-      phases01_line.append(field_coeffs[num_field_coeffs*2+1])
-      phases11_line.append(field_coeffs[num_field_coeffs*2-1] - field_coeffs[num_field_coeffs*2+1])
+      phases01_line.append(field_coeffs[3*num_field_coeffs+1+1])
+      phases11_line.append(field_coeffs[3*num_field_coeffs+1+1]- field_coeffs[3*num_field_coeffs+1-1])
       #except IndexError:
       #  pass
       print("amplitude", initial_amplitude, "C", C, "result field coeffs", field_coeffs)
@@ -73,11 +68,12 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "simultaneous")
   return  {"abs_amplitude": np.array(abs_amplitude),
            "cov_amplitude":np.array(cov_amplitude),
            "abs_c0": np.array(abs_c0),
-           "cov_c0": np.array(cov_c0),
-           "cross_cov": np.array(cross_cov),
+           "cov_abs_c0": np.array(cov_c0),
+           "cross_cov_absc0_amplitude": np.array(cross_cov),
            "abs_c1": np.array(abs_c1),
-           "relative_phase_c0_c1": np.array(phases01),
-           "relative_phase_c-1_c1": np.array(phases11)}
+           "phasediff_01": np.array(phases01),
+           "phasediff_1-1": np.array(phases11)
+           }
 
 
 def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simultaneous"):
@@ -162,7 +158,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"trying relative Phases-adaptive engine"}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"trying relative phases scheme - corrected phase diff?"}
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
@@ -190,19 +186,19 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma)
   print("alpha", se.alpha)  
   #try getting last results from files
-  if os.path.isfile("./last_sigma_2.pickle") and os.path.getsize("./last_sigma_2.pickle"):
-    f = open('last_sigma_2.pickle', 'rb')
+  if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
+    f = open('last_sigma.pickle', 'rb')
     sampling_width = pickle.load(f)
   else:
     sampling_width = .05
-  if os.path.isfile("./last_cov_2.pickle") and os.path.getsize("./last_cov_2.pickle"):
-    f = open('last_cov_2.pickle', 'rb')
+  if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
+    f = open('last_cov.pickle', 'rb')
     cov = pickle.load(f)
   else:
     cov=None
 
   #use covariance from earlier files, optimize static covariance for speed
-  me = metropolis_engine.RelativePhasesAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  me = metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
   ########### start of data collection ############
@@ -312,10 +308,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   plt.savefig("mean_c0.png")
   plt.close()
   #dump in files
-  f = open('last_cov_2.pickle', 'wb')
+  f = open('last_cov.pickle', 'wb')
   pickle.dump(me.covariance_matrix, f)
   print("cov", np.round(me.covariance_matrix,3))
-  f = open('last_sigma_2.pickle', 'wb')
+  f = open('last_sigma.pickle', 'wb')
   pickle.dump(me.sampling_width, f)
   #print("sampling width", me.sampling_width)
   #print("last surface energy", se.calc_surface_energy(amplitude))
@@ -323,7 +319,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   #print("flat", se.calc_surface_energy(.00001))
   #print("flat", se.calc_surface_energy(0))
   #print("from bending", se.calc_surface_energy(.00001, amplitude_change=False)-gamma*se.A_integrals[0].real)
-  return me.mean[1:], me.mean[0], me.covariance_matrix
+  return me.mean_other[1:], me.mean_other[0], me.covariance_matrix
 
 # coefficients
 alpha = -1
