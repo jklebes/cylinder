@@ -9,9 +9,7 @@ import system as ce #TODO: refactor name
 import metropolis_engine
 import scipy.integrate as integrate
 import math
-
-def phase_diff(c1, c2):
-  return metropolis_engine.MetropolisEngine.phasediff(c1,c2)
+import collections
 
 def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitude"):
   """
@@ -22,59 +20,19 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitud
   """
   global initial_amplitude
   global C
-  abs_amplitude = []
-  cov_amplitude = []
-  abs_c0 = []
-  cov_c0 = []
-  cross_cov = []
-  abs_c1=[]
-  phases01=[]
-  phases11=[]
-  c0_index = 1+num_field_coeffs # in covariance matrix
+  results = collections.defaultdict(list)
   for a in amplitude_range:
-    initial_amplitude=a
-    abs_amplitude_line = []
-    cov_amplitude_line = []
-    abs_c0_line=[]
-    cov_c0_line=[]
-    cross_cov_line= []
-    abs_c1_line = []
-    phases01_line = []
-    phases11_line = []
+    initial_amplitude = a
+    results_line = collections.defaultdict(list)
     for c in C_range:
-      # run
       C=c
-      field_coeffs, amplitude_out, cov_matrix = single_run(n_steps=n_steps, method=method)
-      abs_amplitude_line.append(amplitude_out)
-      cov_amplitude_line.append(cov_matrix[0,0])
-      abs_c0_line.append(abs(field_coeffs[num_field_coeffs]))
-      cov_c0_line.append(cov_matrix[c0_index,c0_index])
-      cross_cov_line.append(cov_matrix[0,c0_index])
-      #try:
-      abs_c1_line.append(abs(field_coeffs[num_field_coeffs+1]))
-      phases01_line.append(field_coeffs[3*num_field_coeffs+1+1])
-      phases11_line.append(field_coeffs[3*num_field_coeffs+1+1]- field_coeffs[3*num_field_coeffs+1-1])
-      #except IndexError:
-      #  pass
-      print("amplitude", initial_amplitude, "C", C, "result field coeffs", field_coeffs)
-    abs_amplitude.append(abs_amplitude_line)
-    cov_amplitude.append(cov_amplitude_line)
-    abs_c0.append(abs_c0_line)
-    cov_c0.append(cov_c0_line)
-    cross_cov.append(cross_cov_line)
-    abs_c1.append(abs_c1_line)
-    phases01.append(phases01_line)
-    phases11.append(phases11_line)
-  return  {"abs_amplitude": np.array(abs_amplitude),
-           "cov_amplitude":np.array(cov_amplitude),
-           "abs_c0": np.array(abs_c0),
-           "cov_abs_c0": np.array(cov_c0),
-           "cross_cov_absc0_amplitude": np.array(cross_cov),
-           "abs_c1": np.array(abs_c1),
-           "phasediff_01": np.array(phases01),
-           "phasediff_1-1": np.array(phases11)
-           }
-
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method)
+      means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
+      for name in names:
+        results_line[name].append(means_dict[name])
+    for name in names:
+      results[name].append(results_line[name])
+  return results 
 
 def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simultaneous"):
   """
@@ -158,7 +116,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"trying relative phases scheme - corrected phase diff?"}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"real img method with saving additional means"}
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
@@ -198,7 +156,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     cov=None
 
   #use covariance from earlier files, optimize static covariance for speed
-  me = metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  me = metropolis_engine.RealImgAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
   ########### start of data collection ############
@@ -257,8 +215,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       amplitude_cov.append(me.covariance_matrix[0,0])
       c_0s.append(abs(field_coeffs[0]))
       c0_phases.append(cmath.phase(field_coeffs[0]))
-      c1_phases.append(phase_diff(field_coeffs[1], field_coeffs[0]))
-      cm1_phases.append(phase_diff(field_coeffs[-1], field_coeffs[0]))
+      c1_phases.append(metropolis_engine.RelativePhasesAdaptiveMetropolisEngine.phase_diff(field_coeffs[1], field_coeffs[0]))
+      cm1_phases.append(metropolis_engine.RelativePhasesAdaptiveMetropolisEngine.phase_diff(field_coeffs[-1], field_coeffs[0]))
       means.append(me.mean[1])
   elif method == "no-field":
     field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
@@ -319,7 +277,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   #print("flat", se.calc_surface_energy(.00001))
   #print("flat", se.calc_surface_energy(0))
   #print("from bending", se.calc_surface_energy(.00001, amplitude_change=False)-gamma*se.A_integrals[0].real)
-  return me.mean_other[1:], me.mean_other[0], me.covariance_matrix
+  result_means = np.concatenate((me.mean,me.observables))
+  result_names = me.params_names
+  result_names.extend(me.observables_names)
+  return result_names, result_means , me.covariance_matrix
 
 # coefficients
 alpha = -1
