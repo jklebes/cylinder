@@ -528,11 +528,10 @@ class RelativePhasesAdaptiveMetropolisEngine(PhasesAdaptiveMetropolisEngine):
 
 
 class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
-  def __init__(self, initial_field_coeffs, initial_amplitude=0, sampling_width=.001, initial_covariance_matrix=None,
+  def __init__(self, initial_field_coeffs, initial_amplitude=0, sampling_width=.05, covariance_matrix=None,
                temp=0):
     super().__init__(initial_field_coeffs=initial_field_coeffs, sampling_width=sampling_width, temp=temp,
-                     covariance_matrix=initial_covariance_matrix)
-    
+                     covariance_matrix=covariance_matrix)
     #these text descriptions should match lists created in contruct_state, construct_observables_state functions
     self.params_names= ["amplitude"] # key to interpreting output: mean of parameters, covariance matrix
     self.params_names.extend(["c_"+str(i) for i in self.keys_ordered])
@@ -544,14 +543,7 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     super().update_proposal_distribution(accept, amplitude, field_coeffs)
     state_observables = self.construct_observables_state(amplitude, field_coeffs)
     self.update_observables_mean(state_observables)
-  def construct_state(self, amplitude, field_coeffs):
-    """
-    helper function to construct position in parameter space as np array 
-    state is now a complex vector
-    """
-    state = [amplitude+0j] #amplitude as complex number, arbitrarily real
-    state.extend([field_coeffs[key] for key in self.keys_ordered])
-    return np.array(state)
+
 
   def construct_state(self, amplitude, field_coeffs):
     """
@@ -570,8 +562,30 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
     return np.array(state)
 
+
+  def update_observables_mean(self, state_observables):
+    self.observables *= (self.step_counter - 1) / self.step_counter
+    self.observables += state_observables / self.step_counter
+
+  def update_covariance_matrix(self, old_mean, state):
+    i = self.step_counter
+    small_number = self.sampling_width ** 2 / i #stabilizes - coutnerintuitivelt causes nonzero estimated covariance for completely constant parameter at low stepcounts
+    #print("old_mean", old_mean, "mean", self.mean, "state", state, "smallnumber", small_number)
+    #print("added",  np.outer(old_mean,old_mean) - i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1) + small_number*np.identity(self.param_space_dims))
+    # print("multiplied", (i-2)/(i-1)*self.covariance_matrix)
+    #print("result",  (i-2)/(i-1)*self.covariance_matrix +  np.outer(old_mean,old_mean)- i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1) + small_number*np.identity(self.param_space_dims))
+    self.covariance_matrix *= (i - 2) / (i - 1)
+    self.covariance_matrix += np.outer(old_mean, old_mean.conjugate()) - i / (i - 1) * np.outer(self.mean, self.mean.conjugate()) + np.outer(
+        state, state.conjugate()) / (i - 1) + small_number  *np.identity(self.param_space_dims)
+
+
+  def draw_field_coeff_from_proposal_distribution(self, field_coeff, index):
+    old_phase = cmath.phase(field_coeff)
+    amplitude = abs(field_coeff)
+    proposed_addition = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index, index])
+    proposed_field_coeff = self.modify_phase(amplitude + proposed_addition, old_phase)
+    return proposed_field_coeff
+
   def multivariate_normal_complex(self, mean, covariance_matrix):
     pass
 
-  def construct_state(self):
-    pass

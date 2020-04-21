@@ -116,7 +116,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"real img method with saving additional means"}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "notes":"long runs with complex adaptive class - if mean of complex variables is 0 over a long time distribution is circularly symmertrix"}
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
@@ -156,7 +156,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     cov=None
 
   #use covariance from earlier files, optimize static covariance for speed
-  me = metropolis_engine.RealImgAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  me = metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
   field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
   ########### start of data collection ############
@@ -303,9 +303,9 @@ initial_sampling_width = .025
 if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("amplitude", "C")
-  range1 = np.arange(.05, 1, .1)
-  range2 = np.arange(.5, 10, 1)
-  n_steps = 15000
+  range1 = np.arange(.05, 1, .4)
+  range2 = np.arange(.5, 10, 4)
+  n_steps = 1500000
   method = "fixed-amplitude"
 
   assert (alpha <= 0)
