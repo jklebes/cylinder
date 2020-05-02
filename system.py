@@ -161,7 +161,7 @@ class System():
     #print(D_complex_energy)
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     # print("total")
-    print(self.C, B_complex_energy.real)
+    #print(self.C, B_complex_energy.real)
     # print(self.alpha, A_complex_energy.real)
     # print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
     return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
