@@ -29,7 +29,6 @@ class MetropolisEngine():
     self.num_field_coeffs = len(initial_field_coeffs)
     self.max_field_coeffs = max(initial_field_coeffs)
     self.keys_ordered = list(range(-self.max_field_coeffs, self.max_field_coeffs + 1))
-    self.sampling_width = sampling_width
     self.param_space_dims = self.num_field_coeffs + 1  # in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
     self.mean = np.zeros(self.param_space_dims)
     if covariance_matrix is None:
@@ -40,6 +39,15 @@ class MetropolisEngine():
     #self.accepted_counter = 1
     self.step_counter = 1
     self.measure_step_counter = 1
+    self.amplitude_step_counter = 1
+    self.field_step_counter = 1
+    if isinstance(sampling_width,list):
+      self.field_sampling_width, self.amplitude_sampling_width = sampling_width
+      self.sampling_width = self.field_sampling_width #arbitrarily use this one when generating a small number to stabilize cov matrix
+    else:
+      self.sampling_width = sampling_width
+      self.field_sampling_width = sampling_width
+      self.amplitude_sampling_width = sampling_width
     self.target_acceptance = target_acceptance #TODO: hard code as fct of nuber of parameter space dims
     self.mean = np.array([]) #measuring that set of parameters that constitute the basis of parameter space in each case
     self.mean=self.construct_state(initial_amplitude, initial_field_coeffs)
@@ -53,6 +61,10 @@ class MetropolisEngine():
     self.mean *= (self.measure_step_counter - 1) / self.measure_step_counter
     self.mean += state / self.measure_step_counter
 
+
+  def update_observables_mean(self, state_observables):
+    self.observables *= (self.measure_step_counter - 1) / self.measure_step_counter
+    self.observables += state_observables / self.measure_step_counter
 
   def step_sequential(self, amplitude, field_coeffs, field_energy, surface_energy,
                       system):
@@ -73,31 +85,8 @@ class MetropolisEngine():
     return amplitude, field_coeffs, surface_energy, field_energy
 
 
+
   def step_fieldcoeffs(self, field_coeffs, field_energy, amplitude, system,
-                      amplitude_change=False):
-    """
-    Stepping a single field coefficient c_i: generate a random complex value.  Accept or reject.
-    :param field_coeffs:
-    :param field_energy:
-    :param surface_energy:
-    :param amplitude:
-    :param system_energy:
-    :param amplitude_change: this parameter is here isolated use of fct in unit testing.  default False should be enough for real use.
-    :return:
-    """
-    proposed_field_coeffs = self.draw_field_coeffs_from_proposal_distribution(amplitude, field_coeffs)
-    proposed_field_energy = system.calc_field_energy(proposed_field_coeffs, amplitude,
-                                                     amplitude_change)
-    accept= self.metropolis_decision(field_energy, proposed_field_energy)
-    if accept:
-      #print("accpted diff, diff)
-      field_energy = proposed_field_energy
-      field_coeffs = proposed_field_coeffs
-    #self.update_proposal_distribution(accept, amplitude, field_coeffs) #don't need to adjust step size every fieldcoeff step 
-    return field_coeffs, field_energy
-
-
-  def step_fieldcoeffs_withstepupdate(self, field_coeffs, field_energy, amplitude, system,
                       amplitude_change=False):
     """
     why is this a separate method?  to adjust step size distibution once per cycle of fieldstepsperampstep steps
@@ -106,13 +95,16 @@ class MetropolisEngine():
     why not call above? to save passing out accept
     """
     proposed_field_coeffs = self.draw_field_coeffs_from_proposal_distribution(amplitude, field_coeffs)
+    #print("proposed field coeffs", proposed_field_coeffs, "old", field_coeffs)
     proposed_field_energy = system.calc_field_energy(proposed_field_coeffs, amplitude,
                                                      amplitude_change)
+    #print("proposed field energy", proposed_field_energy, "old", field_energy)
     accept= self.metropolis_decision(field_energy, proposed_field_energy)
     if accept:
+      #print("accepted")
       field_energy = proposed_field_energy
       field_coeffs = proposed_field_coeffs
-    self.update_proposal_distribution(accept, amplitude, field_coeffs)
+    self.update_field_sigma(accept)
     return field_coeffs, field_energy
 
   def step_amplitude(self, amplitude, field_coeffs, surface_energy, field_energy, system):
@@ -132,7 +124,7 @@ class MetropolisEngine():
       # like an infinite energy barrier to self-intersection.
       # does not violate symmetric jump distribution, because this is like
       # an energy-landscape-based decision after generation
-      self.update_proposal_distribution(accept=False, amplitude=amplitude, field_coeffs=field_coeffs)
+      self.update_amplitude_sigma(accept=False)
       return amplitude, surface_energy, field_energy
     new_field_energy = system.calc_field_energy(field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
@@ -144,7 +136,7 @@ class MetropolisEngine():
       field_energy = new_field_energy
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
-    self.update_proposal_distribution(accept, amplitude, field_coeffs)
+    self.update_amplitude_sigma(accept)
     return amplitude, surface_energy, field_energy
 
   def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
@@ -177,15 +169,17 @@ class MetropolisEngine():
       amplitude = proposed_amplitude
       field_coeffs = proposed_field_coeffs
       #self.accepted_counter += 1
-    self.update_proposal_distribution(accept, amplitude, field_coeffs)
+    self.update_sigma(accept)
     # output system properties, energy
     #print("field_energy out ", field_energy)
     return amplitude, field_coeffs, surface_energy, field_energy
 
-  def update_proposal_distribution(accept, amplitude, field_coeffs):
-    """ update step size only
-    taking measurements, incl updating covariance matrix for proposal distribution, happens in exteranally called measure fct"""
-    """ does nothing in non-adaptive base class"""
+
+  def update_sigma(accept):
+    pass
+  def update_field_sigma(accept):
+    pass
+  def update_amplitude_sigma(accept):
     pass
 
   def measure(amplitude, field_coeffs):
@@ -198,20 +192,30 @@ class MetropolisEngine():
 
   def draw_field_coeffs_from_proposal_distribution(self, amplitude, field_coeffs):
     """in basic abs(c_i) variable scheme - step ampltiude of each, vary phase by fixed amount"""
-    #taking into account cov matrix - as draw_all but discarding addition to amplitude
-    proposed_amplitude, proposed_field_coeffs = self.draw_all_from_proposal_distribution(amplitude, field_coeffs)
+    state = self.construct_state(amplitude, field_coeffs)
+    old_phases = [cmath.phase(field_coeffs[key]) for key in field_coeffs]
+    proposed_addition = np.random.multivariate_normal([0] * len(state),
+                                                      self.field_sampling_width ** 2 * self.covariance_matrix,
+                                                      check_valid='raise')
+    proposed_amplitude = amplitude + (-1 if amplitude < 0 else 1) * proposed_addition[0]
+    proposed_field_coeff_amplitude = [original + addition for (original, addition) in
+                                      zip(state[1:], proposed_addition[1:])]
+    proposed_field_coeffs = dict(
+      [(key, self.modify_phase(proposed_amplitude, old_phase)) for (key, (proposed_amplitude, old_phase)) in
+       zip(self.keys_ordered, zip(proposed_field_coeff_amplitude, old_phases))])
+    # as draw_all but discarding addition to amplitude, with field sampling width
     return proposed_field_coeffs
 
   def draw_field_coeff_from_proposal_distribution(self, field_coeff, index):
     old_phase = cmath.phase(field_coeff)
     amplitude = abs(field_coeff)
     index_in_cov_matrix = 1 + self.max_field_coeffs + index
-    proposed_addition = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index_in_cov_matrix, index_in_cov_matrix])
+    proposed_addition = random.gauss(0, self.field_sampling_width**2 * self.covariance_matrix[index_in_cov_matrix, index_in_cov_matrix])
     proposed_field_coeff = self.modify_phase(amplitude + proposed_addition, old_phase)
     return proposed_field_coeff
 
   def draw_amplitude_from_proposal_distriution(self, amplitude):
-    proposed_amplitude = amplitude + random.gauss(0, self.sampling_width**2 * self.covariance_matrix[0,0]) #technically multiply by + or - 1 depending on sign of amplitud, because parameter that covariance matrix applies to is abd(amplitude).  But not needed when not simultaneousy drawing in other parameters.
+    proposed_amplitude = amplitude + random.gauss(0, self.amplitude_sampling_width**2 * self.covariance_matrix[0,0]) #technically multiply by + or - 1 depending on sign of amplitud, because parameter that covariance matrix applies to is abd(amplitude).  But not needed when not simultaneousy drawing in other parameters.
     return proposed_amplitude
 
   def draw_all_from_proposal_distribution(self, amplitude, field_coeffs):
@@ -334,17 +338,29 @@ class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
     # inherit mean, construct mean from base class : abs amplitude, abs of field coeffs
     # inherit other observables to measure from base class: none
 
-  def update_proposal_distribution(self, accept, amplitude, field_coeffs):
-    self.update_sigma(accept, amplitude, field_coeffs)
+  def update_field_sigma(self, accept):
+    self.field_step_counter +=1 # only count steps  while sigma was updated?
+    step_number_factor = max((self.measure_step_counter / self.m, 200))
+    field_steplength_c = self.field_sampling_width * self.ratio
+    if accept:
+      self.field_sampling_width += field_steplength_c * (1 - self.target_acceptance) / step_number_factor
+    else:
+      self.field_sampling_width -= field_steplength_c * self.target_acceptance / step_number_factor
+    assert (self.field_sampling_width) > 0
 
+  def update_amplitude_sigma(self, accept):
+    self.amplitude_step_counter +=1 # only count steps  while sigma was updated?
+    step_number_factor = max((self.measure_step_counter / self.m, 200))
+    amplitude_steplength_c = self.amplitude_sampling_width * self.ratio
+    if accept:
+      self.amplitude_sampling_width += amplitude_steplength_c * (1 - self.target_acceptance) / step_number_factor
+    else:
+      self.amplitude_sampling_width -= amplitude_steplength_c * self.target_acceptance / step_number_factor
+    assert (self.amplitude_sampling_width) > 0
 
-  #def measure(amplitude, field_coeffs):
-    #super().measure(amplitude,field_coeffs)
-
-  def update_sigma(self, accept, amplitude, field_coeffs):
+  def update_sigma(self, accept):
     self.step_counter +=1 # only count steps  while sigma was updated?
     step_number_factor = max((self.step_counter / self.m, 200))
-    # TODO : save constant factor at init
     self.steplength_c = self.sampling_width * self.ratio
     if accept:
       self.sampling_width += self.steplength_c * (1 - self.target_acceptance) / step_number_factor
@@ -367,9 +383,6 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
     # still working with the set of parameters : abs(amplitude), abs(field coeffs)
     # additional things to measure: none
 
-
-  def update_proposal_distribution(self, accept, amplitude, field_coeffs):
-    self.update_sigma(accept, amplitude, field_coeffs)
   
   def measure(self, amplitude, field_coeffs):
     self.measure_step_counter +=1
@@ -386,7 +399,7 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
 
   def update_covariance_matrix(self, old_mean, state):
     i = self.measure_step_counter
-    small_number = self.sampling_width ** 2 / self.step_counter #stabilizes - coutnerintuitivelt causes nonzero estimated covariance for completely constant parameter at low stepcounts #self.step_counter instead of measurestpcounter for a smaller addition
+    small_number = self.sampling_width ** 2 / self.measure_step_counter #stabilizes - coutnerintuitivelt causes nonzero estimated covariance for completely constant parameter at low stepcounts #self.step_counter instead of measurestpcounter for a smaller addition
     #print("old_mean", old_mean, "mean", self.mean, "state", state, "smallnumber", small_number)
     #print("added",  np.outer(old_mean,old_mean) - i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1) + small_number*np.identity(self.param_space_dims))
     # print("multiplied", (i-2)/(i-1)*self.covariance_matrix)
@@ -423,10 +436,6 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     #super().measure(amplitude, field_coeffs) #update mean (with this subclass' construct state), covariance matrix
     # also update observables mean
 
-  def update_observables_mean(self, state_observables):
-    self.observables *= (self.measure_step_counter - 1) / self.measure_step_counter
-    self.observables += state_observables / self.measure_step_counter
-
   def construct_state(self, amplitude, field_coeffs):
     """
     override function listing which variables are the basis of parameter space for the purpose of sampling
@@ -453,6 +462,7 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     proposed_field_coeff = field_coeff + (proposed_addition_real + 1j* proposed_addition_imag)
     return proposed_field_coeff
   
+  
   def draw_all_from_proposal_distribution(self, amplitude, field_coeffs):
     """
     draw from multivariate gaussian distribution with sampling_width * covariance matrix
@@ -469,6 +479,14 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     proposed_field_coeffs = dict([(key, field_coeffs[key] + (add_real + add_img*1j)) for (key,(add_real, add_img)) in zip(field_coeffs, zip(proposed_field_coeff_additions_real, proposed_field_coeff_additions_img))])
     #print(proposed_amplitude, proposed_field_coeffs)
     return proposed_amplitude, proposed_field_coeffs
+
+  def draw_field_coeffs_from_proposal_distribution(self, amplitude, field_coeffs):
+    state = self.construct_state(amplitude, field_coeffs)
+    proposed_addition = np.random.multivariate_normal(mean = [0]*len(state), cov=self.field_sampling_width**2*self.covariance_matrix)
+    proposed_field_coeff_additions_real  = proposed_addition[1:self.num_field_coeffs+1]
+    proposed_field_coeff_additions_img = proposed_addition[self.num_field_coeffs+1:]
+    proposed_field_coeffs = dict([(key, field_coeffs[key] + (add_real + add_img*1j)) for (key,(add_real, add_img)) in zip(field_coeffs, zip(proposed_field_coeff_additions_real, proposed_field_coeff_additions_img))])
+    return proposed_field_coeffs
 
 class PhasesAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   "not a good way to measure complex variables"
@@ -504,6 +522,20 @@ class PhasesAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     #override function constructing list of other values whose mean is to be measured.  here: none
     return np.array([])    
   """
+
+
+  def draw_field_coeffs_from_proposal_distribution(self, amplitude, field_coeffs):
+    state = self.construct_state(amplitude, field_coeffs)
+    proposed_addition = np.random.multivariate_normal([0] * len(state),
+                                                      self.field_sampling_width ** 2 * self.covariance_matrix,
+                                                      check_valid='raise')
+    proposed_field_coeff_amplitude = [original + addition for (original, addition) in
+                                      zip(state[1:1+num_field_coeffs], proposed_addition[1:1+num_field_coeffs])]
+    proposed_phases = [orginal + addition for (original, addition) in zip(state[1+num_field_coeffs:], proposed_addition[1+num_field_coeffs:])]
+    proposed_field_coeffs = dict(
+      [(key, cmath.rect(proposed_amplitude, proposed_phase)) for (key, (proposed_amplitude,proposed_phase)) in
+       zip(self.keys_ordered, zip(proposed_field_coeff_amplitude, proposed_phases))])
+    return proposed_field_coeffs
 
   def draw_all_from_proposal_distribution(self, amplitude, field_coeffs):
     """

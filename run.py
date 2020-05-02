@@ -104,7 +104,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":"coarse exploration of kappa-kb plane with -1 to 1 field coefficients to see in what regions field is in -1 or 1 mode.  long simulations needed because switch event is probably rare. with new scheme measuring every n steps "}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":"debugging seperate stepsizes in sequential method"}
   if method == "sequential":
     exp_notes["fieldsteps per ampstep"] = fieldsteps_per_ampstep
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
@@ -154,6 +154,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   c_0s=[]
   c_1s=[]
   sigmas=[]
+  field_sigmas = []
+  a_sigmas = []
   means=[]
   amplitude_cov=[]
   amplitude_c0_cov=[]
@@ -169,20 +171,23 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
                                                               field_coeffs=field_coeffs,
                                                               field_energy=field_energy, surface_energy=surface_energy,
                                                               system=se)
-        field_coeffs, field_energy = me.step_fieldcoeffs_withstepupdate(field_coeffs, field_energy, amplitude, se, amplitude_change=False)
-        for k in range(fieldsteps_per_ampstep):
+        #print("amplitude change", amplitude, surface_energy, field_energy)
+        for ii in range(fieldsteps_per_ampstep):
           # all simultaneously since main saving is from not re-integrating
           # energy difference method for changing single field coeff is only an advantage at larger number of fieldcoeffs
-          field_coeffs, field_energy = me.step_fieldcoeffs(field_coeffs, field_energy, amplitude, se, amplitude_change = False)
+          field_coeffs, field_energy = me.step_fieldcoeffs(field_coeffs=field_coeffs, field_energy=field_energy, amplitude=amplitude, 
+              system=se, amplitude_change = False)
+          #print("field_energy",field_energy, me.field_sampling_width)
       print("measure", i)
       me.measure(amplitude, field_coeffs) #update mean, covariance matrix, other parameters' mean by sampling this step
        
       amplitudes.append(amplitude)
-      sigmas.append(me.sampling_width)
+      field_sigmas.append(me.field_sampling_width)
+      a_sigmas.append(me.amplitude_sampling_width)
       c_0s.append(abs(field_coeffs[0])) 
-      c_1s.append(abs(field_coeffs[1])) 
+      #c_1s.append(abs(field_coeffs[1])) 
       c0_phases.append(cmath.phase(field_coeffs[0]))
-      c1_phases.append(cmath.phase(field_coeffs[1]))
+      #c1_phases.append(cmath.phase(field_coeffs[1]))
       #cm1_phases.append(cmath.phase(field_coeffs[-1]))
       amplitude_cov.append(me.covariance_matrix[0,0])
       amplitude_c0_cov.append(me.covariance_matrix[0,1])
@@ -249,33 +254,34 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       amplitude_cov.append(me.covariance_matrix[0,0])
       c_0s.append(abs(field_coeffs[0]))
       means.append(me.mean[1])
-  plt.scatter(range(len(sigmas)), sigmas, marker='.', label="sigma")
-  plt.scatter(range(len(sigmas)), amplitude_cov, marker='.', label="covariance matrix[0,0]")
+  plt.scatter(range(len(field_sigmas)), field_sigmas, marker='.', label="fieldsigma")
+  plt.scatter(range(len(a_sigmas)), a_sigmas, marker='.', label="asigma")
+  plt.scatter(range(len(field_sigmas)), amplitude_cov, marker='.', label="covariance matrix[0,0]")
   #plt.scatter(range(len(sigmas)), amplitude_c0_cov, marker='.', label="covariance matrix[0,1]")
-  #plt.scatter(range(len(sigmas)), c0_cov, marker='.', label="covariance matrix[1,1]")
+  plt.scatter(range(len(field_sigmas)), c0_cov, marker='.', label="covariance matrix[1,1]")
   plt.legend()
   plt.savefig("amplitude_proposal_dist.png")
   plt.close()
   plt.scatter(range(len(amplitudes)), amplitudes, label='amplitude')
   plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
-  plt.scatter(range(len(amplitudes)), c_1s, label='fieldcoeff 1')
+  #plt.scatter(range(len(amplitudes)), c_1s, label='fieldcoeff 1')
   plt.scatter(range(len(amplitudes)), c0_phases, label='fieldcoeff 0 phase', s=1)
-  plt.scatter(range(len(amplitudes)), c1_phases, label='fieldcoeff 1 phase')
+  #plt.scatter(range(len(amplitudes)), c1_phases, label='fieldcoeff 1 phase')
   #plt.scatter(range(len(amplitudes)), cm1_phases, label='fieldcoeff -1 relative phase')
   plt.legend()
   plt.savefig("coeffs_vs_time.png")
   plt.close()
-  plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,0]")
+  plt.scatter(range(len(field_sigmas)), [a*s**2 for (a,s) in zip(amplitude_cov, a_sigmas)] ,marker='.', label = "sigma**2 * cov[0,0]")
   #plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,2]")
   #plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[2,2]")
   plt.legend()
   plt.savefig("amplitude_proposal_dist_2.png")
   plt.close()
-  plt.scatter(range(len(sigmas)), step_sizes, label = "adaptation step size",marker='.') 
+  plt.scatter(range(len(field_sigmas)), step_sizes, label = "adaptation step size",marker='.') 
   plt.legend()
   plt.savefig("steplength_constant.png")
   plt.close()
-  plt.scatter(range(len(sigmas)), means ,marker='.', label = "c0_mean")
+  plt.scatter(range(len(field_sigmas)), means ,marker='.', label = "c0_mean")
   plt.legend()
   plt.savefig("mean_c0.png")
   plt.close()
@@ -284,7 +290,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   pickle.dump(me.covariance_matrix, f)
   print("cov", np.round(me.covariance_matrix,3))
   f = open('last_sigma_2.pickle', 'wb')
-  pickle.dump(me.sampling_width, f)
+  if method == "sequential":
+    pickle.dump([me.field_sampling_width, me.amplitude_sampling_width], f)
+  else:
+    pickle.dump(me.sampling_width, f)
   #print("sampling width", me.sampling_width)
   #print("last surface energy", se.calc_surface_energy(amplitude))
   #print("from bending", se.calc_surface_energy(amplitude, amplitude_change=False)-gamma*se.A_integrals[0].real)
@@ -303,7 +312,7 @@ u = 1
 n = 1
 kappa = 0
 gamma = 1
-temp = 0.1
+temp = 1
 
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
@@ -311,17 +320,17 @@ radius = 1
 wavenumber = 1
 
 # simulation details
-num_field_coeffs = 1
+num_field_coeffs = 0
 initial_sampling_width = .025
-measure_every = 200
-fieldsteps_per_ampstep = 5 #only relevant for sequential
+measure_every = 100
+fieldsteps_per_ampstep = 5  #only relevant for sequential
 
 if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
   range1 = np.arange(.005, 1.1, .1)
   range2 = np.arange(0, 2.1, .1)
-  n_steps = 200 #n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  n_steps = 300 #n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   assert (alpha <= 0)
