@@ -130,10 +130,22 @@ class System():
         self.B_integrals[(i, j)] = complex(real_part, img_part)
 
   ############# calc energy ################
+  def calc_field_energy_matrix(self, field_coeffs, amplitude, amplitude_change=False):
+    if amplitude_change: #TODO: optimize further -
+                          # don't check truth value every time
+                          # separate out fct to recacl matrices and call externally
+      num_field_coeffs = max(field_coeffs)
+      self.evaluate_A_integrals(amplitude, num_field_coeffs)
+      self.evaluate_B_integrals(amplitude, num_field_coeffs)
+    #Matrix products of the form c_i A_ij c*_j
+    A_complex_energy = 0
+    B_complex_energy = 0
+    # ??? D matrix
 
   def calc_field_energy(self, field_coeffs, amplitude, amplitude_change=False):
     """
     :param amplitude_change: True by default as this function is often called in simultaneous update of field and amplitude
+    old version of cacl_field_energy with loop, dict lookups
     """
     # some memoization: use previously calculated A integrals (=D integrals) and B integrals
     # reevaluate only on  amplitude change

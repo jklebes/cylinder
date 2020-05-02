@@ -1,8 +1,8 @@
 import cmath
 import copy
 import math
-import random
 import numpy as np
+import random
 import scipy.stats
 
 
@@ -376,9 +376,10 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
     new_state = self.construct_state(amplitude, field_coeffs)
     old_mean = copy.copy(self.mean)
     self.update_mean(state=new_state)
-    #if self.step_counter > 100: #with only measuring cov matrix every n=1000 steps or similar and stepsize adjusting every step, 
+    if self.measure_step_counter > 100: #with only measuring cov matrix every n=1000 steps or similar and stepsize adjusting every step,
                                   # this condition for eltting stepsize equilibrate first is unnecessay
-    self.update_covariance_matrix(old_mean=old_mean, state=new_state)
+                                    # this is actuallt about getting enough data to get a good estimate before using it?
+      self.update_covariance_matrix(old_mean=old_mean, state=new_state)
     # other parameters that are not the basis for cov matrix
     state_observables = self.construct_observables_state(amplitude, field_coeffs)
     self.update_observables_mean(state_observables)
@@ -610,11 +611,11 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
 
 
   def update_observables_mean(self, state_observables):
-    self.observables *= (self.step_counter - 1) / self.step_counter
-    self.observables += state_observables / self.step_counter
+    self.observables *= (self.measure_step_counter - 1) / self.measure_step_counter
+    self.observables += state_observables / self.measure_step_counter
 
   def update_covariance_matrix(self, old_mean, state):
-    i = self.step_counter
+    i = self.measure_step_counter
     small_number = self.sampling_width ** 2 / i #stabilizes - coutnerintuitivelt causes nonzero estimated covariance for completely constant parameter at low stepcounts
     #print("old_mean", old_mean, "mean", self.mean, "state", state, "smallnumber", small_number)
     #print("added",  np.outer(old_mean,old_mean) - i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1) + small_number*np.identity(self.param_space_dims))
