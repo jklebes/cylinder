@@ -1,0 +1,13 @@
+,value
+n_steps,5000
+temp,0.001
+method,no-field
+C,0
+alpha,0
+n,1
+u,1
+num_field_coeffs,0
+range1,[0.005 0.105 0.205]
+range2,[0.   0.05 0.1  0.15 0.2  0.25 0.3  0.35 0.4  0.45]
+radius,1
+notes,still with  Kz^z^2 integrand is 0 - correct  Kthth^2? expect root at kappa=1/3 in small k limit.

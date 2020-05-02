@@ -10,28 +10,18 @@ import copy
 class TestMetropolisSteps(unittest.TestCase):
 
   def setUp(self):
-    self.me = metropolis_engine.MetropolisEngine( num_field_coeffs=3)
+    self.field_coeffs = dict([(i, 0+0j) for i in range(-3,4)])
+    self.me_sim = metropolis_engine.MetropolisEngine(self.field_coeffs)
+    self.me_seq = metropolis_engine.MetropolisEngine(self.field_coeffs)
     self.sys_basic = system.System(radius=1, wavenumber=1, kappa=1, gamma=1, alpha=-1, u=1, C=1, n=1)
 
   def tearDown(self):
     pass
   
-  def test_init_sampling_widths_float(self):
+  def test_init_sampling_width_float(self):
     num_field_coeffs=3
-    me = metropolis_engine.MetropolisEngine(num_field_coeffs=num_field_coeffs, sampling_widths=.5)
-    self.assertEqual(me.sampling_width_amplitude,.5)
-    self.assertEqual(me.sampling_width_coeffs[-num_field_coeffs],.5)
-    self.assertEqual(me.sampling_width_coeffs[num_field_coeffs],.5)
-    self.assertEqual(me.sampling_width_coeffs[0],.5)
-
-  
-  def test_init_sampling_widths_tuple(self):
-    num_field_coeffs=3
-    me = metropolis_engine.MetropolisEngine(num_field_coeffs=num_field_coeffs, sampling_widths=(.21, {-3:.7, -2:.3, -1:.1, 0:1.4, 1:3, 2:5, 3:.001}))
-    self.assertEqual(me.sampling_width_amplitude,.21)
-    self.assertEqual(me.sampling_width_coeffs[-num_field_coeffs],.7)
-    self.assertEqual(me.sampling_width_coeffs[num_field_coeffs],.001)
-    self.assertEqual(me.sampling_width_coeffs[0],1.4)
+    me = metropolis_engine.MetropolisEngine(self.field_coeffs , sampling_width =.5)
+    self.assertEqual(me.sampling_width,.5)
  
   def test_step_fieldcoeff(self):
     num_field_coeffs=3
@@ -42,7 +32,7 @@ class TestMetropolisSteps(unittest.TestCase):
     surface_energy = 12.5 #some constant value
     amplitude = .012
     system = self.sys_basic
-    new_field_coeffs, new_field_energy = self.me.step_fieldcoeff(index, field_coeffs, field_energy, surface_energy, amplitude, system, amplitude_change=True)
+    new_field_coeffs, new_field_energy = self.me_seq.step_fieldcoeff(index, field_coeffs, field_energy, surface_energy, amplitude, system, amplitude_change=True)
     #new_field_coeffs[index] changed
     self.assertNotEqual(new_field_coeffs[index], complex(0,0))
     # new energy decreased (certain with temp=0 and unrealistically high old energy value)
@@ -63,7 +53,8 @@ class TestMetropolisSteps(unittest.TestCase):
 class TestMetropolisHelperFunctions(unittest.TestCase):
 
   def setUp(self):
-    self.me = metropolis_engine.MetropolisEngine( num_field_coeffs=3, sampling_dist=random.gauss, sampling_widths=.5, temp=0)
+    self.field_coeffs=dict([(i, 0+0j) for i in range(-3,4)])
+    self.me = metropolis_engine.MetropolisEngine( self.field_coeffs, sampling_width=.05, temp=0)
 
   def tearDown(self):
     pass
@@ -73,7 +64,7 @@ class TestMetropolisHelperFunctions(unittest.TestCase):
     pass
 
   def test_set_temperature(self):
-    me = metropolis_engine.MetropolisEngine(num_field_coeffs=3, sampling_dist=random.gauss, sampling_widths=.5, temp=0)
+    me = metropolis_engine.MetropolisEngine(self.field_coeffs, temp=0)
     self.assertEqual(me.temp, 0.0)
     me.set_temperature(0.50)
     self.assertEqual(me.temp, 0.5)
