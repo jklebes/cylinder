@@ -1,11 +1,11 @@
 import math
 import scipy.integrate as integrate
-
+import numpy as np
 
 class System():
 
-  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma):
-    assert (all(map(lambda x: x >= 0, [wavenumber, radius, C, u, kappa, gamma])))
+  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs):
+    assert (all(map(lambda x: x >= 0, [wavenumber, radius, C, u, kappa, gamma, num_field_coeffs])))
     assert (alpha <= 0)
     self.wavenumber = wavenumber
     self.radius = radius
@@ -15,11 +15,16 @@ class System():
     self.n = n
     self.kappa = kappa
     self.gamma = gamma
+    self.num_field_coeffs = num_field_coeffs
+    self.len_arrays = 2*self.num_field_coeffs+1
     # memoization of integration results
-    self.A_integrals = {}
-    self.B_integrals = {}
+    self.A_integrals = np.zeros(4*self.len_arrays-3, dtype=complex) #initialize 1D np array of complex 
+    #A_integrals list is longer than others because it covers range of possible differences in index between 2 or 4 field coeffs 
+    self.B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
+    self.A_matrix = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) #initialize np complex array nxn
+    self.D_matrix = np.zeros((self.len_arrays, self.len_arrays, self.len_arrays, self.len_arrays),dtype=complex) # same 4D
 
-    ######## common terms in integrals ###########
+  ######## common terms in integrals ###########
 
   def sqrt_g_theta(self, amplitude, z):
     return self.radius_rescaled(amplitude) * (1 + amplitude * math.sin(self.wavenumber * z))
@@ -105,12 +110,24 @@ class System():
   
 
   def evaluate_A_integrals(self, amplitude, num_field_coeffs):
-    for diff in range(-4 * num_field_coeffs, 4 * num_field_coeffs + 1):
+    for diff in range(-4*self.num_field_coeffs,  4*self.num_field_coeffs+1):
       img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(diff, amplitude, z),
                                        0, 2 * math.pi / self.wavenumber)
       real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(diff, amplitude, z),
                                         0, 2 * math.pi / self.wavenumber)
-      self.A_integrals[diff] = complex(real_part, img_part)
+      self.A_integrals[diff+4*self.num_field_coeffs] = complex(real_part, img_part) # in A_integrals list results are stored by diff between coefficient indices from -n to n
+                                                            # places 0 to _ in list correspond to differences -2n+1 to 2n-1 (incl)
+    ## fill matrix A[i,j] from list A[diff], where i j k are matrix indices from 0 to 2n (corresponding to ordered list of coefficient's indices from -n to n)
+    ## fill matrix D[i,j,k,l] where D[i+j-l-k]=A[diff]
+    l = self.len_arrays
+    for i in range(l): 
+      self.A_matrix[i] = self.A_integrals[2*l-i-2:3*l-2-i]
+      #print(i,self.A_integrals[-i+0+4*self.num_field_coeffs], "filled", self.A_matrix[i,0])
+      for j in range(l):
+        for k in range(l):
+          self.D_matrix[i,j,k] =  self.A_integrals[k-i-j+2*l-2:k-i-j+3*l-2] 
+          #print(i,j,k,self.A_integrals[-i-j+k+0+4*self.num_field_coeffs], "filled", self.D_matrix[i,j,k,0])
+
 
   def evaluate_A_integral_0(self, amplitude):
     img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(0, amplitude, z),
@@ -118,7 +135,7 @@ class System():
     assert (math.isclose(img_part, 0, abs_tol=1e-9))
     real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(0, amplitude, z),
                                       0, 2 * math.pi / self.wavenumber)
-    self.A_integrals[0] = complex(real_part, img_part)
+    self.A_integrals[0] = complex(real_part, img_part) # this is usually done for surface area - no need to fill into A_matrix
 
   def evaluate_B_integrals(self, amplitude, num_field_coeffs):
     for i in range(-num_field_coeffs, num_field_coeffs + 1):
@@ -126,23 +143,49 @@ class System():
         img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, amplitude, z),
                                          0, 2 * math.pi / self.wavenumber)
         real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, amplitude, z),
-                                          0, 2 * math.pi / self.wavenumber)
-        self.B_integrals[(i, j)] = complex(real_part, img_part)
+                                          0, 2 * math.pi / self.wavenumber) # integrands demand coefficient's indices in range -n to n
+        self.B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
 
   ############# calc energy ################
-  def calc_field_energy_matrix(self, field_coeffs, amplitude, amplitude_change=False):
+  def calc_field_energy(self, field_coeffs, amplitude, amplitude_change=False):
+    """ einsum is (at least 10x) faster than loops! even with constructing matrix A from list
+    same for D part even though 4d matrix is constructed from list every time: 10x faster at 3(-1to1) coeffs
+    much more for longer set of coeffs
+    :param field_coeffs: list of complex values as np array from lowest to highest index, i. e. [c_-n, ..., c_0 , ... c_n] value at index 0 is c_-n
+    A, B, D matrices are orderd on the same scheme - because np array is faster than dict explcitly stating indices -n .. 0 .. n for matrix muktiplication
+    """
+
     if amplitude_change: #TODO: optimize further -
                           # don't check truth value every time
                           # separate out fct to recacl matrices and call externally
-      num_field_coeffs = max(field_coeffs)
-      self.evaluate_A_integrals(amplitude, num_field_coeffs)
-      self.evaluate_B_integrals(amplitude, num_field_coeffs)
+      self.evaluate_A_integrals(amplitude, self.num_field_coeffs)
+      self.evaluate_B_integrals(amplitude, self.num_field_coeffs)
     #Matrix products of the form c_i A_ij c*_j
-    A_complex_energy = 0
-    B_complex_energy = 0
-    # ??? D matrix
+    A_complex_energy = np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
+                                                                              # because its the faster way to construct them
+    B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals, field_coeffs, field_coeffs.conjugate()) # B is filled directly with outcomes of B_integrals, not transposed
+    D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
+    D_complex_energy2= 0+0j
+    for (i,ci) in enumerate(field_coeffs.conjugate()):
+      for (j,cj) in enumerate(field_coeffs.conjugate()):
+        for (k,ck) in enumerate(field_coeffs):
+          for (l, cl) in enumerate(field_coeffs):
+            #print(self.A_integrals[i+j-k-l], self.D_matrix[k,l,i,j])
+            D_complex_energy2 += ci*cj*ck*cl*self.A_integrals[k+l-i-j+4*self.num_field_coeffs]
+    assert (math.isclose(D_complex_energy.real, D_complex_energy2.real))
+    assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
+    assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
+    #print(field_coeffs, field_coeffs.conjugate())
+    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) # this means either D matrix calculation is wrong OR proposed field coefficeitns got very big
+    # print("total")
+    #print("B part", self.C, B_complex_energy.real)
+    #print("A part", self.alpha, A_complex_energy.real)
+    #print("D part", self.u, D_complex_energy.real)
+    #print(self.A_matrix, self.D_matrix[1,1,:,:])
+    # print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
+    return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
-  def calc_field_energy(self, field_coeffs, amplitude, amplitude_change=False):
+  def calc_field_energy_loop(self, field_coeffs, amplitude, amplitude_change=False):
     """
     :param amplitude_change: True by default as this function is often called in simultaneous update of field and amplitude
     old version of cacl_field_energy with loop, dict lookups

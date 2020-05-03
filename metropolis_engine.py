@@ -27,10 +27,9 @@ class MetropolisEngine():
     self.temp = temp
     assert (self.temp is not None)
     self.num_field_coeffs = len(initial_field_coeffs)
-    self.max_field_coeffs = max(initial_field_coeffs)
-    self.keys_ordered = list(range(-self.max_field_coeffs, self.max_field_coeffs + 1))
+    self.max_field_coeffs = (self.num_field_coeffs-1)//2
+    #self.keys_ordered = list(range(-self.max_field_coeffs, self.max_field_coeffs + 1))
     self.param_space_dims = self.num_field_coeffs + 1  # in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
-    self.mean = np.zeros(self.param_space_dims)
     if covariance_matrix is None:
       self.covariance_matrix =  np.identity(
         self.param_space_dims)  # initial default guess needs to be of the right order of magnitude of variances, or covariance matrix doesnt stabilize withing first 200 steps before sigma starts adjusting
@@ -54,7 +53,9 @@ class MetropolisEngine():
     self.observables = self.construct_observables_state(initial_amplitude, initial_field_coeffs) # additional quantities to record: none in base class
     self.observabes_names = ["amplitude_squared"]
     self.params_names = ["abs_amplitude"]
-    self.params_names.extend(["abs_c"+str(i) for i in self.keys_ordered])
+    self.params_names.extend(["abs_c"+str(i) for i in range(-self.max_field_coeffs, self.max_field_coeffs+1)]) 
+                                                                #for output files etc, labelling coefficeints by their wavenumber index from -n to n, 
+                                                                #even though they are stored in ordered list with implicit indices 0 to 2n+1
 
   def update_mean(self, state):
     assert (isinstance(state, np.ndarray))
@@ -66,33 +67,10 @@ class MetropolisEngine():
     self.observables *= (self.measure_step_counter - 1) / self.measure_step_counter
     self.observables += state_observables / self.measure_step_counter
 
-  def step_sequential(self, amplitude, field_coeffs, field_energy, surface_energy,
-                      system):
-    """
-    Try stepping each field coefficient c_i once, in a random order
-    -> this is Gibbs sampling
-    I chose sequential for greater acceptance rates
-    Not yet implemented.
-    """
-    amplitude = self.step_amplitude()
-    indices_randomized = [*field_coeffs]  # unpack iterable into list - like list() but faster
-    # TODO : find out whether randomizing the order is helpful
-    random.shuffle(indices_randomized)
-    for index in indices_randomized:
-      field_coeffs, field_energy = self.step_fieldcoeff(index, field_coeffs, field_energy, surface_energy, amplitude,
-                                                        system)
-    print(field_energy, field_coeffs)
-    return amplitude, field_coeffs, surface_energy, field_energy
-
-
 
   def step_fieldcoeffs(self, field_coeffs, field_energy, amplitude, system,
                       amplitude_change=False):
     """
-    why is this a separate method?  to adjust step size distibution once per cycle of fieldstepsperampstep steps
-    why not a flag on above? to save a check every cycle
-    why not call update_proposal_distribution from outside? to save passing out accept
-    why not call above? to save passing out accept
     """
     proposed_field_coeffs = self.draw_field_coeffs_from_proposal_distribution(amplitude, field_coeffs)
     #print("proposed field coeffs", proposed_field_coeffs, "old", field_coeffs)
@@ -193,16 +171,12 @@ class MetropolisEngine():
   def draw_field_coeffs_from_proposal_distribution(self, amplitude, field_coeffs):
     """in basic abs(c_i) variable scheme - step ampltiude of each, vary phase by fixed amount"""
     state = self.construct_state(amplitude, field_coeffs)
-    old_phases = [cmath.phase(field_coeffs[key]) for key in field_coeffs]
-    proposed_addition = np.random.multivariate_normal([0] * len(state),
+    old_phases = map(cmath.phase,field_coeffs)
+    proposed_addition = np.random.multivariate_normal(np.zeros(self.num_field_coeffs),
                                                       self.field_sampling_width ** 2 * self.covariance_matrix,
                                                       check_valid='raise')
-    proposed_amplitude = amplitude + (-1 if amplitude < 0 else 1) * proposed_addition[0]
-    proposed_field_coeff_amplitude = [original + addition for (original, addition) in
-                                      zip(state[1:], proposed_addition[1:])]
-    proposed_field_coeffs = dict(
-      [(key, self.modify_phase(proposed_amplitude, old_phase)) for (key, (proposed_amplitude, old_phase)) in
-       zip(self.keys_ordered, zip(proposed_field_coeff_amplitude, old_phases))])
+    proposed_state = state + proposed_addition
+    proposed_field_coeffs = np.array([self.modify_phase(proposed_amplitude, old_phase) for (proposed_amplitude, old_phase) in  zip(proposed_state[1:], old_phases)])
     # as draw_all but discarding addition to amplitude, with field sampling width
     return proposed_field_coeffs
 
@@ -425,10 +399,10 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     
     #these text descriptions should match lists created in contruct_state, construct_observables_state functions
     self.params_names= ["ampiltude"] # key to interpreting output: mean of parameters, covariance matrix
-    self.params_names.extend(["real_c_"+str(i) for i in self.keys_ordered])
-    self.params_names.extend(["img_c_"+str(i) for i in self.keys_ordered])
+    self.params_names.extend(["real_c_"+str(i) for i in range(-self.max_field_coeffs, self.max_field_coeffs+1)])
+    self.params_names.extend(["img_c_"+str(i) for i in range(-self.max_field_coeffs, self.max_field_coeffs+1)])
     self.observables_names = ["abs_amplitude", "amplitude_squared"] # key to interpreting output: other measured means
-    self.observables_names.extend(["abs_c_"+str(i) for i in self.keys_ordered])
+    self.observables_names.extend(["abs_c_"+str(i) for i in range(-self.max_field_coeffs, self.max_field_coeffs+1)])
 
   #update mean, cov, observables mean as in abs-robbinsmonro baseclass
   # differnt set of variables happens because  of different constructstate methods
@@ -442,8 +416,10 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     here: amplitude, real and imaginary parts of field coefficeints
     """
     state = [amplitude] 
-    state.extend([field_coeffs[key].real for key in self.keys_ordered])
-    state.extend([field_coeffs[key].imag for key in self.keys_ordered])
+    #state.extend([field_coeffs[key].real for key in self.keys_ordered])
+    #state.extend([field_coeffs[key].imag for key in self.keys_ordered])
+    state.extend([field_coeff.real for field_coeff in field_coeffs])
+    state.extend([field_coeff.imag for field_coeff in field_coeffs])
     return np.array(state)
 
   def construct_observables_state(self, amplitude, field_coeffs):
@@ -452,7 +428,8 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     abs of field coeffs
     """
     state_observables = [abs(amplitude), amplitude**2]
-    state_observables.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    #state_observables.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
+    state_observables.extend([abs(field_coeff) for field_coeff in field_coeffs])
     return np.array(state_observables)    
 
   #TODO make single field_coeff, field coeffs, amplitude, all draw method for each subclass 
@@ -485,8 +462,9 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     proposed_addition = np.random.multivariate_normal(mean = [0]*len(state), cov=self.field_sampling_width**2*self.covariance_matrix)
     proposed_field_coeff_additions_real  = proposed_addition[1:self.num_field_coeffs+1]
     proposed_field_coeff_additions_img = proposed_addition[self.num_field_coeffs+1:]
-    proposed_field_coeffs = dict([(key, field_coeffs[key] + (add_real + add_img*1j)) for (key,(add_real, add_img)) in zip(field_coeffs, zip(proposed_field_coeff_additions_real, proposed_field_coeff_additions_img))])
-    return proposed_field_coeffs
+    proposed_field_coeffs = [field_coeff + (add_real + add_img*1j) for (field_coeff,(add_real, add_img)) in zip(field_coeffs, zip(proposed_field_coeff_additions_real, proposed_field_coeff_additions_img))]
+    #print("proposed field coeffs",  np.array(proposed_field_coeffs))
+    return np.array(proposed_field_coeffs)
 
 class PhasesAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   "not a good way to measure complex variables"

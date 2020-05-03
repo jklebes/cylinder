@@ -55,6 +55,7 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
       kappa=kb
       names, means, cov_matrix = single_run(n_steps=n_steps, method=method)
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
+      print(names)
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
       print(kappa, wavenumber, means_dict["abs_amplitude"])
       for name in names:
@@ -104,7 +105,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
   #save eveythin about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":"debugging seperate stepsizes in sequential method"}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes}
   if method == "sequential":
     exp_notes["fieldsteps per ampstep"] = fieldsteps_per_ampstep
   notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
@@ -126,21 +127,23 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   """
   ########### initial values ##############
   if field_coeffs is None:
-    field_coeffs = dict([(i, metropolis_engine.MetropolisEngine.gaussian_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
+    #field_coeffs = dict([(i, metropolis_engine.MetropolisEngine.gaussian_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
+    #switch to nparray version
+    field_coeffs = np.array(list(map(lambda x: metropolis_engine.MetropolisEngine.gaussian_complex(),range(0,2*num_field_coeffs+1))))
   if amplitude is None:
     global initial_amplitude
     amplitude = initial_amplitude #take from global
   ########### setup #############
-  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma)
+  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #print("alpha", se.alpha)  
   #try getting last results from files
-  if os.path.isfile("./last_sigma_2.pickle") and os.path.getsize("./last_sigma.pickle"):
-    f = open('last_sigma_2.pickle', 'rb')
+  if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
+    f = open('last_sigma.pickle', 'rb')
     sampling_width = pickle.load(f)
   else:
     sampling_width = .05
-  if os.path.isfile("./last_cov_2.pickle") and os.path.getsize("./last_cov.pickle"):
-    f = open('last_cov_2.pickle', 'rb')
+  if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
+    f = open('last_cov.pickle', 'rb')
     cov = pickle.load(f)
   else:
     cov=None
@@ -286,10 +289,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   plt.savefig("mean_c0.png")
   plt.close()
   #dump in files
-  f = open('last_cov_2.pickle', 'wb')
+  f = open('last_cov.pickle', 'wb')
   pickle.dump(me.covariance_matrix, f)
   print("cov", np.round(me.covariance_matrix,3))
-  f = open('last_sigma_2.pickle', 'wb')
+  f = open('last_sigma.pickle', 'wb')
   if method == "sequential":
     pickle.dump([me.field_sampling_width, me.amplitude_sampling_width], f)
   else:
@@ -312,7 +315,7 @@ u = 1
 n = 1
 kappa = 0
 gamma = 1
-temp = 1
+temp = 0.1
 
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
@@ -320,18 +323,19 @@ radius = 1
 wavenumber = 1
 
 # simulation details
-num_field_coeffs = 0
+num_field_coeffs = 1
 initial_sampling_width = .025
-measure_every = 100
-fieldsteps_per_ampstep = 5  #only relevant for sequential
+measure_every = 50
+fieldsteps_per_ampstep = 10  #nly relevant for sequential
 
 if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
   range1 = np.arange(.005, 1.1, .1)
   range2 = np.arange(0, 2.1, .1)
-  n_steps = 300 #n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  n_steps = 500 #n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
+  notes = "fixed D einsum" #describe motivation for a simulation here!
 
   assert (alpha <= 0)
 
