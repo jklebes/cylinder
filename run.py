@@ -114,7 +114,7 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
   range2 = range2[-len(results[0]):]
   df = pd.DataFrame(index=range1, columns=range2, data=results)
   df.to_csv(os.path.join(exp_dir, title + ".csv"))
-  sb.heatmap(df)
+  sb.heatmap(df, cmap = "viridis")
   plt.savefig(os.path.join(exp_dir, title + ".png"))
   plt.close()
 
