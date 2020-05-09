@@ -10,6 +10,38 @@ import metropolis_engine
 import scipy.integrate as integrate
 import math
 import collections
+import timeit
+import seaborn as sb
+
+def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential"):
+  """
+  A set of runs over different number field coeffs
+  choose and interesting position in pararmeter space
+  time it
+  :param wavenumber_range:
+  :param kappa_range:
+  :return:
+  """
+  global num_field_coeffs # n as in c_-n to c_n - number of c variables is 2n+1
+  global fieldsteps_per_ampstep
+  results = collections.defaultdict(list)
+  for num in num_field_coeff_range:
+    num_field_coeffs = num
+    results_line = collections.defaultdict(list)
+    for fieldsteps in fieldstep_range:
+      start_time = timeit.default_timer()
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method)
+      time = timeit.default_timer() - start_time
+      means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
+      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
+      for name in names:
+        results_line[name+"_mean"].append(means_dict[name])
+      results_line["time_per_experiment"].append(time)
+      for name in var_dict:
+        results_line[name+"_variance"].append(var_dict[name])
+    for name in results_line:
+      results[name].append(results_line[name])
+  return results 
 
 def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitude"):
   """
@@ -67,7 +99,7 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
   return results 
 
 
-def plot_save(wavenumber_range, kappa_range, results, title, exp_dir = '.'):
+def plot_save(range1, range2, results, title, exp_dir = '.'):
   """
   Save data in a CSV file and generate plots
   :param wavenumber_range:
@@ -77,10 +109,12 @@ def plot_save(wavenumber_range, kappa_range, results, title, exp_dir = '.'):
   :return:
   """
   print(results)
-  df = pd.DataFrame(index=wavenumber_range, columns=kappa_range, data=results)
+  #cut ranges to shape of data
+  range1 = range1[-len(results):]
+  range2 = range2[-len(results[0]):]
+  df = pd.DataFrame(index=range1, columns=range2, data=results)
   df.to_csv(os.path.join(exp_dir, title + ".csv"))
-  plt.imshow(results, extent=[min(kappa_range), max(kappa_range), max(wavenumber_range), min(wavenumber_range)], interpolation=None)
-  plt.colorbar()
+  sb.heatmap(df)
   plt.savefig(os.path.join(exp_dir, title + ".png"))
   plt.close()
 
@@ -92,7 +126,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   :param experiment_title:
   :param range1:
   :param range2:
-  :return:
+  :return
   """
   # TODO: lookup from type, decide on loop function
   if exp_type == ("wavenumber", "kappa"):
@@ -100,6 +134,8 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
     print(results["abs_amplitude"])
   elif exp_type == ("amplitude", "C"):
     results = loop_amplitude_C(amplitude_range=range1, C_range=range2, n_steps=n_steps, method=method)
+  elif exp_type == ("num_field_coeffs", "fieldsteps_per_ampstep"):
+    results = loop_num_field_coeffs(num_field_coeff_range=range1, fieldstep_range=range2, n_steps=n_steps, method=method)
   #make directory for the experiment
   now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
   exp_dir= os.path.join("out", "exp-"+now)
@@ -108,11 +144,11 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes}
   if method == "sequential":
     exp_notes["fieldsteps per ampstep"] = fieldsteps_per_ampstep
-  notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
-  notes.to_csv(os.path.join(exp_dir, "notes.csv"))
+  exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
+  exp_notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
   for name in results:
-    plot_save(wavenumber_range=range1, kappa_range=range2, results=results[name], title=exp_type[0]+"_"+exp_type[1]+ "_"+name+"_", exp_dir=exp_dir)
+    plot_save(range1=range1, range2=range2, results=results[name], title=exp_type[0]+ "_"+name+"_", exp_dir=exp_dir)
 
 
 def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=None):
@@ -137,14 +173,15 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #print("alpha", se.alpha)  
   #try getting last results from files
-  if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
-    f = open('last_sigma.pickle', 'rb')
+  if os.path.isfile("./last_sigma_2.pickle") and os.path.getsize("./last_sigma_2.pickle"):
+    f = open('last_sigma_2.pickle', 'rb')
     sampling_width = pickle.load(f)
   else:
     sampling_width = .05
-  if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
-    f = open('last_cov.pickle', 'rb')
-    cov = pickle.load(f)
+  if False:
+    if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
+      f = open('last_cov.pickle', 'rb')
+      cov = pickle.load(f)
   else:
     cov=None
 
@@ -181,7 +218,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
           field_coeffs, field_energy = me.step_fieldcoeffs(field_coeffs=field_coeffs, field_energy=field_energy, amplitude=amplitude, 
               system=se, amplitude_change = False)
           #print("field_energy",field_energy, me.field_sampling_width)
-      print("measure", i)
+      print("measure", i, "sampling widths", me.field_sampling_width)#, me.amplitude_sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      #print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
       me.measure(amplitude, field_coeffs) #update mean, covariance matrix, other parameters' mean by sampling this step
        
       amplitudes.append(amplitude)
@@ -205,7 +243,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
                                                               field_coeffs=field_coeffs,
                                                               field_energy=field_energy, surface_energy=surface_energy,
                                                               system=se) #this doesnt measure mean, cov; update cov for sampling
-      print("measure", i)
+      print("measure", i, "sampling widths", me.sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
       me.measure(amplitude, field_coeffs) #update mean, covariance matrix, other parameters' mean by sampling this step
       
       amplitudes.append(amplitude)
@@ -289,10 +328,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   plt.savefig("mean_c0.png")
   plt.close()
   #dump in files
-  f = open('last_cov.pickle', 'wb')
+  f = open('last_cov_2.pickle', 'wb')
   pickle.dump(me.covariance_matrix, f)
   print("cov", np.round(me.covariance_matrix,3))
-  f = open('last_sigma.pickle', 'wb')
+  f = open('last_sigma_2.pickle', 'wb')
   if method == "sequential":
     pickle.dump([me.field_sampling_width, me.amplitude_sampling_width], f)
   else:
@@ -313,29 +352,30 @@ alpha = -1
 C = 1
 u = 1
 n = 1
-kappa = 0
+kappa = .1
 gamma = 1
-temp = 0.1
+temp = 1
 
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = 1
+wavenumber = .4
 
 # simulation details
 num_field_coeffs = 1
 initial_sampling_width = .025
-measure_every = 50
+measure_every = 10
 fieldsteps_per_ampstep = 10  #nly relevant for sequential
+
+notes = "TEST improves saving and plotting" #describe motivation for a simulation here!
 
 if __name__ == "__main__":
   # specify type, range of plot; title of experiment
-  loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(.005, 1.1, .1)
-  range2 = np.arange(0, 2.1, .1)
-  n_steps = 500 #n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
+  range1 = range(0, 3, 1)
+  range2 = range(5, 30, 10)
+  n_steps = 3#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
-  notes = "fixed D einsum" #describe motivation for a simulation here!
 
   assert (alpha <= 0)
 

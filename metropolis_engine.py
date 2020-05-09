@@ -31,7 +31,7 @@ class MetropolisEngine():
     #self.keys_ordered = list(range(-self.max_field_coeffs, self.max_field_coeffs + 1))
     self.param_space_dims = self.num_field_coeffs + 1  # in more basic case perturbation amplitude, magnitudes only of ci.  subclasses may consider both magnitude and phase / both real and img parts of cis and increase this number.
     if covariance_matrix is None:
-      self.covariance_matrix =  np.identity(
+      self.covariance_matrix = np.identity(
         self.param_space_dims)  # initial default guess needs to be of the right order of magnitude of variances, or covariance matrix doesnt stabilize withing first 200 steps before sigma starts adjusting
     else:
       self.covariance_matrix = covariance_matrix
@@ -74,11 +74,14 @@ class MetropolisEngine():
     """
     proposed_field_coeffs = self.draw_field_coeffs_from_proposal_distribution(amplitude, field_coeffs)
     #print("proposed field coeffs", proposed_field_coeffs, "old", field_coeffs)
-    proposed_field_energy = system.calc_field_energy(proposed_field_coeffs, amplitude,
-                                                     amplitude_change)
-    #print("proposed field energy", proposed_field_energy, "old", field_energy)
+    proposed_field_energy = system.calc_field_energy(field_coeffs=proposed_field_coeffs, amplitude=amplitude,
+                                                     amplitude_change=False)
     accept= self.metropolis_decision(field_energy, proposed_field_energy)
+    #if self.field_step_counter%60==0:
+    #print("proposed field energy", proposed_field_energy, "old", field_energy)
+    #print("amplitude", amplitude, "field coeffs", field_coeffs)
     if accept:
+      #if self.field_step_counter%60==0:
       #print("accepted")
       field_energy = proposed_field_energy
       field_coeffs = proposed_field_coeffs
@@ -102,7 +105,8 @@ class MetropolisEngine():
       # like an infinite energy barrier to self-intersection.
       # does not violate symmetric jump distribution, because this is like
       # an energy-landscape-based decision after generation
-      self.update_amplitude_sigma(accept=False)
+      self.update_amplitude_sigma(accept=False) #DO NOT have an effect on step length from this - leads to ever smaller steps that still get rejected half the time
+      #print("early return")
       return amplitude, surface_energy, field_energy
     new_field_energy = system.calc_field_energy(field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
@@ -115,6 +119,7 @@ class MetropolisEngine():
       surface_energy = new_surface_energy
       amplitude = proposed_amplitude
     self.update_amplitude_sigma(accept)
+    #print("updated a sigma")
     return amplitude, surface_energy, field_energy
 
   def step_all(self, amplitude, field_coeffs, surface_energy, field_energy, system):
@@ -132,7 +137,7 @@ class MetropolisEngine():
     proposed_amplitude, proposed_field_coeffs = self.draw_all_from_proposal_distribution(amplitude, field_coeffs)
     #print("propsed state", proposed_amplitude, proposed_field_coeffs)
     if abs(proposed_amplitude) >= 1:
-      self.update_proposal_distribution(False, amplitude, field_coeffs)
+      self.update_sigma(False)
       return amplitude, field_coeffs, surface_energy, field_energy
     new_field_energy = system.calc_field_energy(proposed_field_coeffs, proposed_amplitude, amplitude_change=True)
     new_surface_energy = system.calc_surface_energy(proposed_amplitude, amplitude_change=False)
@@ -140,7 +145,12 @@ class MetropolisEngine():
     #print("step with", self.sampling_width, self.covariance_matrix[0,0])
     #print("surface energy", new_surface_energy, "old suface energy", surface_energy)
     #print("field_energy", new_field_energy, "old_field_energy", field_energy)
+    #if self.step_counter%60==0:
+      #print("proposed field energy", new_field_energy, "old", field_energy)
+      #print("amplitude", amplitude)
     if accept:
+      #if self.step_counter%60==0:
+        #print("accepted")
       #print("accepted")
       field_energy = new_field_energy
       surface_energy = new_surface_energy
@@ -272,7 +282,7 @@ class MetropolisEngine():
     return cmath.rect(r, phi)
 
   @staticmethod
-  def gaussian_complex(sigma=1):
+  def gaussian_complex(sigma=.1): #by default v low chance of constructing random numbers magnitude>1  - because this leads to the v small field stepsize problem?
     """
     a random complex number with completely random phase and amplitude drawn from a gaussian distribution with given width sigma (default 1)
     :param sigma: width of gaussian distribution (centered around 0) of possible magnitude of complex number
@@ -313,28 +323,33 @@ class StaticCovarianceAdaptiveMetropolisEngine(MetropolisEngine):
     # inherit other observables to measure from base class: none
 
   def update_field_sigma(self, accept):
+    m = self.param_space_dims//2 -1
     self.field_step_counter +=1 # only count steps  while sigma was updated?
-    step_number_factor = max((self.measure_step_counter / self.m, 200))
+    step_number_factor = max((self.measure_step_counter / self.m, 200)) # because it shouldnt converge until cov is measured
     field_steplength_c = self.field_sampling_width * self.ratio
     if accept:
+      #print("bigger field step")
       self.field_sampling_width += field_steplength_c * (1 - self.target_acceptance) / step_number_factor
+      #print(self.field_sampling_width)
     else:
       self.field_sampling_width -= field_steplength_c * self.target_acceptance / step_number_factor
     assert (self.field_sampling_width) > 0
 
   def update_amplitude_sigma(self, accept):
+    #print("in", accept)
     self.amplitude_step_counter +=1 # only count steps  while sigma was updated?
-    step_number_factor = max((self.measure_step_counter / self.m, 200))
+    step_number_factor = max((self.measure_step_counter , 200)) #divided by m=1
     amplitude_steplength_c = self.amplitude_sampling_width * self.ratio
     if accept:
       self.amplitude_sampling_width += amplitude_steplength_c * (1 - self.target_acceptance) / step_number_factor
     else:
       self.amplitude_sampling_width -= amplitude_steplength_c * self.target_acceptance / step_number_factor
+      #print("decreasestep size")
     assert (self.amplitude_sampling_width) > 0
 
   def update_sigma(self, accept):
     self.step_counter +=1 # only count steps  while sigma was updated?
-    step_number_factor = max((self.step_counter / self.m, 200))
+    step_number_factor = max((self.measure_step_counter / self.m, 200))
     self.steplength_c = self.sampling_width * self.ratio
     if accept:
       self.sampling_width += self.steplength_c * (1 - self.target_acceptance) / step_number_factor
@@ -363,9 +378,8 @@ class RobbinsMonroAdaptiveMetropolisEngine(StaticCovarianceAdaptiveMetropolisEng
     new_state = self.construct_state(amplitude, field_coeffs)
     old_mean = copy.copy(self.mean)
     self.update_mean(state=new_state)
-    if self.measure_step_counter > 100: #with only measuring cov matrix every n=1000 steps or similar and stepsize adjusting every step,
-                                  # this condition for eltting stepsize equilibrate first is unnecessay
-                                    # this is actuallt about getting enough data to get a good estimate before using it?
+    if self.measure_step_counter > 50: #down from recommendedation because when measurement is taken only every n steps
+                                  # from more statistically independent data I expect to get a more accurate estimate of cov matrix sooner
       self.update_covariance_matrix(old_mean=old_mean, state=new_state)
     # other parameters that are not the basis for cov matrix
     state_observables = self.construct_observables_state(amplitude, field_coeffs)
@@ -394,7 +408,7 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
                      sampling_width=sampling_width, temp=temp, covariance_matrix=covariance_matrix)
     self.param_space_dims = 2 * len(initial_field_coeffs) + 1
     if covariance_matrix is None:
-      self.covariance_matrix =  np.identity(self.param_space_dims)  
+      self.covariance_matrix = .2* np.identity(self.param_space_dims)  
     self.m = self.param_space_dims
     
     #these text descriptions should match lists created in contruct_state, construct_observables_state functions
@@ -453,13 +467,13 @@ class RealImgAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     proposed_amplitude = amplitude+proposed_addition[0]*(-1 if amplitude <0 else 1)  # bcause prposed state[0] is proposed step in abs(amplitude)
     proposed_field_coeff_additions_real  = proposed_addition[1:self.num_field_coeffs+1]
     proposed_field_coeff_additions_img = proposed_addition[self.num_field_coeffs+1:]
-    proposed_field_coeffs = dict([(key, field_coeffs[key] + (add_real + add_img*1j)) for (key,(add_real, add_img)) in zip(field_coeffs, zip(proposed_field_coeff_additions_real, proposed_field_coeff_additions_img))])
-    #print(proposed_amplitude, proposed_field_coeffs)
-    return proposed_amplitude, proposed_field_coeffs
+    proposed_field_coeffs = [field_coeff + (add_real + add_img*1j) for (field_coeff,(add_real, add_img)) in zip(field_coeffs, zip(proposed_field_coeff_additions_real, proposed_field_coeff_additions_img))]
+    #print("proposed field coeffs",  np.array(proposed_field_coeffs))
+    return proposed_amplitude, np.array(proposed_field_coeffs)
 
   def draw_field_coeffs_from_proposal_distribution(self, amplitude, field_coeffs):
     state = self.construct_state(amplitude, field_coeffs)
-    proposed_addition = np.random.multivariate_normal(mean = [0]*len(state), cov=self.field_sampling_width**2*self.covariance_matrix)
+    proposed_addition = np.random.multivariate_normal(np.zeros(2*self.num_field_coeffs+1), cov=self.field_sampling_width**2*self.covariance_matrix)
     proposed_field_coeff_additions_real  = proposed_addition[1:self.num_field_coeffs+1]
     proposed_field_coeff_additions_img = proposed_addition[self.num_field_coeffs+1:]
     proposed_field_coeffs = [field_coeff + (add_real + add_img*1j) for (field_coeff,(add_real, add_img)) in zip(field_coeffs, zip(proposed_field_coeff_additions_real, proposed_field_coeff_additions_img))]
