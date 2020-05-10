@@ -13,7 +13,7 @@ import collections
 import timeit
 import seaborn as sb
 
-def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential"):
+def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
   """
   A set of runs over different number field coeffs
   choose and interesting position in pararmeter space
@@ -29,8 +29,9 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
     num_field_coeffs = num
     results_line = collections.defaultdict(list)
     for fieldsteps in fieldstep_range:
+      fieldsteps_per_ampstep = fieldsteps
       start_time = timeit.default_timer()
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method)
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep))
       time = timeit.default_timer() - start_time
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
@@ -43,7 +44,7 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
       results[name].append(results_line[name])
   return results 
 
-def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitude"):
+def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitude", outdir =None):
   """
   A set of runs looping over a grid of wavenumber, bending rigdity values
   :param wavenumber_range:
@@ -58,7 +59,7 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitud
     results_line = collections.defaultdict(list)
     for c in C_range:
       C=c
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method)
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir)
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
       for name in names:
@@ -69,7 +70,7 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitud
       results[name].append(results_line[name])
   return results 
 
-def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simultaneous"):
+def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simultaneous", outdir=None):
   """
   A set of runs looping over a grid of wavenumber, bending rigdity values
   :param wavenumber_range:
@@ -85,7 +86,7 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
     for kb in kappa_range:
       # run
       kappa=kb
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method)
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir)
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       print(names)
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
@@ -119,7 +120,7 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
   plt.close()
 
 
-def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
+def run_experiment(exp_type,  range1, range2, n_steps, method):
   """
   Launches a set of runs exploring the stability on a grid of 2 parameters.
   :param type:
@@ -128,30 +129,31 @@ def run_experiment(exp_type,  range1, range2, n_steps, method = "simultaneous"):
   :param range2:
   :return
   """
-  # TODO: lookup from type, decide on loop function
-  if exp_type == ("wavenumber", "kappa"):
-    results = loop_wavenumber_kappa(wavenumber_range=range1, kappa_range=range2, n_steps=n_steps, method=method)
-    print(results["abs_amplitude"])
-  elif exp_type == ("amplitude", "C"):
-    results = loop_amplitude_C(amplitude_range=range1, C_range=range2, n_steps=n_steps, method=method)
-  elif exp_type == ("num_field_coeffs", "fieldsteps_per_ampstep"):
-    results = loop_num_field_coeffs(num_field_coeff_range=range1, fieldstep_range=range2, n_steps=n_steps, method=method)
   #make directory for the experiment
   now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
-  #save eveythin about how the experiment was run
+  #save variables about how the experiment was run
   exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes}
   if method == "sequential":
     exp_notes["fieldsteps per ampstep"] = fieldsteps_per_ampstep
   exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   exp_notes.to_csv(os.path.join(exp_dir, "notes.csv"))
+  # run experiment of the requested type
+  # TODO: could be switch or dict of functions
+  if exp_type == ("wavenumber", "kappa"):
+    results = loop_wavenumber_kappa(wavenumber_range=range1, kappa_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
+    print(results["abs_amplitude"])
+  elif exp_type == ("amplitude", "C"):
+    results = loop_amplitude_C(amplitude_range=range1, C_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
+  elif exp_type == ("num_field_coeffs", "fieldsteps_per_ampstep"):
+    results = loop_num_field_coeffs(num_field_coeff_range=range1, fieldstep_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
   for name in results:
     plot_save(range1=range1, range2=range2, results=results[name], title=exp_type[0]+ "_"+name+"_", exp_dir=exp_dir)
 
 
-def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=None):
+def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=None, outdir = None, title = None):
   """
   for examining a single run over time.
   with all the data recording
@@ -204,6 +206,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   c0_phases=[]
   c1_phases=[]
   cm1_phases=[]
+  states=[]
+  other_states = []
   if method == "sequential":
     for i in range(n_steps):
       for j in range(measure_every):
@@ -235,7 +239,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       c0_cov.append(me.covariance_matrix[1,1])
       means.append(me.mean[0])
       step_sizes.append(me.steplength_c)
-      
+      states.append(me.construct_state(amplitude, field_coeffs))
+      other_states.append(me.construct_observables_state(amplitude, field_coeffs))
   elif method == "simultaneous":
     for i in range(n_steps):
       for j in range(measure_every):
@@ -296,6 +301,11 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       amplitude_cov.append(me.covariance_matrix[0,0])
       c_0s.append(abs(field_coeffs[0]))
       means.append(me.mean[1])
+  if outdir is not None and os.path.isdir(outdir):
+    df = pd.DataFrame(states)
+    df.to_csv(os.path.join(outdir, title + ".csv"), header=me.params_names)
+    df_other = pd.DataFrame(other_states)
+    df_other.to_csv(os.path.join(outdir, title + "_other.csv"), header = me.observables_names)
   plt.scatter(range(len(field_sigmas)), field_sigmas, marker='.', label="fieldsigma")
   plt.scatter(range(len(a_sigmas)), a_sigmas, marker='.', label="asigma")
   plt.scatter(range(len(field_sigmas)), amplitude_cov, marker='.', label="covariance matrix[0,0]")
@@ -364,7 +374,7 @@ wavenumber = .4
 # simulation details
 num_field_coeffs = 1
 initial_sampling_width = .025
-measure_every = 10
+measure_every = 20
 fieldsteps_per_ampstep = 10  #nly relevant for sequential
 
 notes = "TEST improves saving and plotting" #describe motivation for a simulation here!
@@ -372,9 +382,9 @@ notes = "TEST improves saving and plotting" #describe motivation for a simulatio
 if __name__ == "__main__":
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = range(0, 3, 1)
-  range2 = range(5, 30, 10)
-  n_steps = 3#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  range1 = range(7, 8, 1)
+  range2 = range(1, 17, 5)
+  n_steps = 500#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   assert (alpha <= 0)
