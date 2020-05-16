@@ -36,11 +36,14 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
       time = timeit.default_timer() - start_time
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
+      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
       for name in names:
         results_line[name+"_mean"].append(means_dict[name])
       results_line["time_per_experiment"].append(time)
       for name in var_dict:
         results_line[name+"_variance"].append(var_dict[name])
+      for name in covar_dict:
+        results_line[name+"_covariance"].append(var_dict[name])
     for name in results_line:
       results[name].append(results_line[name])
   return results 
@@ -63,10 +66,13 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitud
       names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir)
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
+      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
       for name in names:
         results_line[name+"_mean"].append(means_dict[name])
       for name in var_dict:
         results_line[name+"_variance"].append(var_dict[name])
+      for name in covar_dict:
+        results_line[name+"_covariance"].append(var_dict[name])
     for name in results_line:
       results[name].append(results_line[name])
   return results 
@@ -92,10 +98,13 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
       print(names)
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
       print(kappa, wavenumber, means_dict["abs_amplitude"])
+      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
       for name in names:
         results_line[name].append(means_dict[name])
       for name in var_dict:
         results_line[name+"_variance"].append(var_dict[name])
+      for name in covar_dict:
+        results_line[name+"_covariance"].append(var_dict[name])
     for name in results_line:
       results[name].append(results_line[name])
   return results 
@@ -199,20 +208,6 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   field_energy = se.calc_field_energy(state=state, amplitude_change=False)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
   ########### start of data collection ############
-  amplitudes = []
-  c_0s=[]
-  c_1s=[]
-  sigmas=[]
-  field_sigmas = []
-  a_sigmas = []
-  means=[]
-  amplitude_cov=[]
-  amplitude_c0_cov=[]
-  c0_cov=[]
-  step_sizes=[]
-  c0_phases=[]
-  c1_phases=[]
-  cm1_phases=[]
   states=[]
   other_states = []
   if method == "sequential":
@@ -231,20 +226,6 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       print("measure", i, "sampling widths", me.field_sampling_width)#, me.amplitude_sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       #print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
       me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
-       
-      amplitudes.append(amplitude)
-      field_sigmas.append(me.field_sampling_width)
-      a_sigmas.append(me.amplitude_sampling_width)
-      c_0s.append(abs(field_coeffs[0])) 
-      #c_1s.append(abs(field_coeffs[1])) 
-      c0_phases.append(cmath.phase(field_coeffs[0]))
-      #c1_phases.append(cmath.phase(field_coeffs[1]))
-      #cm1_phases.append(cmath.phase(field_coeffs[-1]))
-      amplitude_cov.append(me.covariance_matrix[0,0])
-      amplitude_c0_cov.append(me.covariance_matrix[0,1])
-      c0_cov.append(me.covariance_matrix[1,1])
-      means.append(me.mean[0])
-      step_sizes.append(me.steplength_c)
       states.append(state)
       other_states.append(me.construct_observables_state2(state))
   elif method == "simultaneous":
@@ -257,19 +238,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       print("measure", i, "sampling widths", me.sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
       me.measure(amplitude, field_coeffs) #update mean, covariance matrix, other parameters' mean by sampling this step
-      
-      amplitudes.append(amplitude)
-      sigmas.append(me.sampling_width)
-      c_0s.append(abs(field_coeffs[0])) 
-      #c_1s.append(abs(field_coeffs[1])) 
-      c0_phases.append(cmath.phase(field_coeffs[0]))
-      #c1_phases.append(cmath.phase(field_coeffs[1]))
-      #cm1_phases.append(cmath.phase(field_coeffs[-1]))
-      amplitude_cov.append(me.covariance_matrix[0,0])
-      amplitude_c0_cov.append(me.covariance_matrix[0,1])
-      c0_cov.append(me.covariance_matrix[1,1])
-      means.append(me.mean[0])
-      step_sizes.append(me.steplength_c)
+      # TODO collect to states, other_states    
   elif method == "fixed-amplitude":
     me.m -= 1
     for i in range(n_steps):
@@ -277,68 +246,30 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
         for ii in range(fieldsteps_per_ampstep):
           state, field_energy = me.step_fieldcoeffs(state=state, field_energy=field_energy, system=se)
       print("measure", i, "sampling widths", me.field_sampling_width)#, me.amplitude_sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
-      amplitudes.append(amplitude)
       me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
-      sigmas.append(me.sampling_width)
-      step_sizes.append(me.steplength_c)
       states.append(state)
       other_states.append(me.construct_observables_state2(state))
   elif method == "no-field":
+    # TODO - could not calculate field?
     field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
-    #me = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp) # no need ot calculate covariance matrix for amplitude-only run
     surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
     field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
     me.m = 1 #number of dimensions of parameter space for adaptive purposes such as target acceptance rate.  actually just 1 degree of freedom for amplitude-only run.
     for i in range(n_steps):
-      #print("field energy in", field_energy)
-      amplitude, surface_energy, field_energy = me.step_amplitude(amplitude=amplitude, field_coeffs=field_coeffs, field_energy=field_energy, surface_energy=surface_energy, system=se)
-      #print("field energy recieved", field_energy)
-      me.step_counter+=1
-      amplitudes.append(amplitude)
-      # print("amplitude", amplitude)
-      sigmas.append(me.sampling_width)
-      step_sizes.append(me.steplength_c)
-      amplitude_cov.append(me.covariance_matrix[0,0])
-      c_0s.append(abs(field_coeffs[0]))
-      means.append(me.mean[1])
+      for j in range(measure_every):
+        state, surface_energy, field_energy = me.step_amplitude(state=state,
+                                                              field_energy=field_energy, surface_energy=surface_energy,
+                                                              system=se)
+      me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
+      states.append(state)
+      other_states.append(me.construct_observables_state2(state))
   if outdir is not None and os.path.isdir(outdir):
     df = pd.DataFrame(states)
     print(outdir, title, me.params_names)
     df.to_csv(os.path.join(outdir, title + ".csv"), header=me.params_names)
     df_other = pd.DataFrame(other_states)
     df_other.to_csv(os.path.join(outdir, title + "_other.csv"), header = me.observables_names)
-  plt.scatter(range(len(field_sigmas)), field_sigmas, marker='.', label="fieldsigma")
-  plt.scatter(range(len(a_sigmas)), a_sigmas, marker='.', label="asigma")
-  plt.scatter(range(len(field_sigmas)), amplitude_cov, marker='.', label="covariance matrix[0,0]")
-  #plt.scatter(range(len(sigmas)), amplitude_c0_cov, marker='.', label="covariance matrix[0,1]")
-  plt.scatter(range(len(field_sigmas)), c0_cov, marker='.', label="covariance matrix[1,1]")
-  plt.legend()
-  plt.savefig("amplitude_proposal_dist.png")
-  plt.close()
-  plt.scatter(range(len(amplitudes)), amplitudes, label='amplitude')
-  #plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
-  #plt.scatter(range(len(amplitudes)), c_1s, label='fieldcoeff 1')
-  #plt.scatter(range(len(amplitudes)), c0_phases, label='fieldcoeff 0 phase', s=1)
-  #plt.scatter(range(len(amplitudes)), c1_phases, label='fieldcoeff 1 phase')
-  #plt.scatter(range(len(amplitudes)), cm1_phases, label='fieldcoeff -1 relative phase')
-  plt.legend()
-  plt.savefig("coeffs_vs_time.png")
-  plt.close()
-  plt.scatter(range(len(field_sigmas)), [a*s**2 for (a,s) in zip(amplitude_cov, a_sigmas)] ,marker='.', label = "sigma**2 * cov[0,0]")
-  #plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(amplitude_c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[0,2]")
-  #plt.scatter(range(len(sigmas)), [a*s**2 for (a,s) in zip(c0_cov, sigmas)] ,marker='.', label = "sigma**2 * cov[2,2]")
-  plt.legend()
-  plt.savefig("amplitude_proposal_dist_2.png")
-  plt.close()
-  #plt.scatter(range(len(field_sigmas)), step_sizes, label = "adaptation step size",marker='.') 
-  plt.legend()
-  plt.savefig("steplength_constant.png")
-  plt.close()
-  plt.scatter(range(len(field_sigmas)), means ,marker='.', label = "c0_mean")
-  plt.legend()
-  plt.savefig("mean_c0.png")
-  plt.close()
-  #dump in files
+  #dump in files for order of magnitude estimate to start next simulation from
   f = open('last_cov_2.pickle', 'wb')
   pickle.dump(me.covariance_matrix, f)
   print("cov", np.round(me.covariance_matrix,3))
@@ -347,12 +278,6 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     pickle.dump([me.field_sampling_width, me.amplitude_sampling_width], f)
   else:
     pickle.dump(me.sampling_width, f)
-  #print("sampling width", me.sampling_width)
-  #print("last surface energy", se.calc_surface_energy(amplitude))
-  #print("from bending", se.calc_surface_energy(amplitude, amplitude_change=False)-gamma*se.A_integrals[0].real)
-  #print("flat", se.calc_surface_energy(.00001))
-  #print("flat", se.calc_surface_energy(0))
-  #print("from bending", se.calc_surface_energy(.00001, amplitude_change=False)-gamma*se.A_integrals[0].real)
   result_means = list(me.mean)+list(me.observables) # change away from np array at this point because it is mixed complex and float type
   result_names = me.params_names
   result_names.extend(me.observables_names)
