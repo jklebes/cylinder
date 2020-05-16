@@ -12,6 +12,7 @@ import math
 import collections
 import timeit
 import seaborn as sb
+import argparse
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
   """
@@ -377,12 +378,14 @@ initial_sampling_width = .025
 measure_every = 1000
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
-notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
+#notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
 
 if __name__ == "__main__":
 
-
-  
+  parser = argparse.ArgumentParser(description='get description')
+  parser.add_argument('-n', '--notes', dest = 'notes',  type=str, nargs=1,
+                    help='add experiment description with --notes', required=True)
+  notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
