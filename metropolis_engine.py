@@ -170,7 +170,7 @@ class MetropolisEngine():
   def update_amplitude_sigma(accept):
     pass
 
-  def measure(amplitude, field_coeffs):
+  def measure(self,amplitude, field_coeffs):
     self.measure_step_counter +=1
     #basic: measure means of two goups of variables
     state = self.construct_state(amplitude, field_coeffs)
@@ -674,7 +674,7 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     """
     proposed_state = self.draw_field_coeffs_from_proposal_distribution(state)
     #print("proposed field coeffs", proposed_field_coeffs, "old", field_coeffs)
-    proposed_field_energy = system.calc_field_energy(state= state,
+    proposed_field_energy = system.calc_field_energy(state= proposed_state,
                                                      amplitude_change=False)
     accept= self.metropolis_decision(field_energy, proposed_field_energy)
     #if self.field_step_counter%60==0:
@@ -728,8 +728,7 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
       # like an infinite energy barrier to self-intersection.
       # does not violate symmetric jump distribution, because this is like
       # an energy-landscape-based decision after generation
-      self.update_amplitude_sigma(accept=False) #DO NOT have an effect on step length from this - leads to ever smaller steps that still get rejected half the time
-      #print("early return")
+      self.update_amplitude_sigma(accept=False)
       return state, surface_energy, field_energy
     system.evaluate_integrals(proposed_amplitude)
     new_surface_energy = system.calc_surface_energy(amplitude = proposed_amplitude, amplitude_change=False)
