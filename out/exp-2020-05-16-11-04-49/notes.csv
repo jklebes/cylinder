@@ -1,0 +1,19 @@
+,value
+experiment type,wavenumber kappa
+n_steps,2000
+temp,1
+method,no-field
+C,1
+kappa,0.1
+alpha,-1
+n,1
+u,1
+num_field_coeffs,0
+range1,"[0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]"
+range2,"[0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]"
+radius,1
+amplitude,0
+wavenumber,0.4
+measure every n ampsteps,10
+total number ampsteps,20000
+notes,running wavenumber - kappa grid at more extreme values
