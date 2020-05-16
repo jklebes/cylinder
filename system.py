@@ -147,32 +147,34 @@ class System():
         self.B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
 
   ############# calc energy ################
-  def calc_field_energy(self, field_coeffs, amplitude, amplitude_change=False):
+  def calc_field_energy(self, state, amplitude_change=False):
     """ einsum is (at least 10x) faster than loops! even with constructing matrix A from list
     same for D part even though 4d matrix is constructed from list every time: 10x faster at 3(-1to1) coeffs
     much more for longer set of coeffs
     :param field_coeffs: list of complex values as np array from lowest to highest index, i. e. [c_-n, ..., c_0 , ... c_n] value at index 0 is c_-n
     A, B, D matrices are orderd on the same scheme - because np array is faster than dict explcitly stating indices -n .. 0 .. n for matrix muktiplication
     """
-
+    amplitude = state[0].real
+    assert(state[0].imag == 0)
+    field_coeffs = state[1:]
     if amplitude_change: #TODO: optimize further -
                           # don't check truth value every time
                           # separate out fct to recacl matrices and call externally
-      self.evaluate_A_integrals(amplitude, self.num_field_coeffs)
-      self.evaluate_B_integrals(amplitude, self.num_field_coeffs)
+      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals externally")
     #Matrix products of the form c_i A_ij c*_j
     A_complex_energy = np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
                                                                               # because its the faster way to construct them
     B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals, field_coeffs, field_coeffs.conjugate()) # B is filled directly with outcomes of B_integrals, not transposed
     D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
     D_complex_energy2= 0+0j
-    for (i,ci) in enumerate(field_coeffs.conjugate()):
-      for (j,cj) in enumerate(field_coeffs.conjugate()):
-        for (k,ck) in enumerate(field_coeffs):
-          for (l, cl) in enumerate(field_coeffs):
-            #print(self.A_integrals[i+j-k-l], self.D_matrix[k,l,i,j])
-            D_complex_energy2 += ci*cj*ck*cl*self.A_integrals[k+l-i-j+4*self.num_field_coeffs]
-    assert (math.isclose(D_complex_energy.real, D_complex_energy2.real))
+    #for (i,ci) in enumerate(field_coeffs.conjugate()):
+    #  for (j,cj) in enumerate(field_coeffs.conjugate()):
+    #    for (k,ck) in enumerate(field_coeffs):
+    #      for (l, cl) in enumerate(field_coeffs):
+    #        #print(self.A_integrals[i+j-k-l], self.D_matrix[k,l,i,j])
+    #        D_complex_energy2 += ci*cj*ck*cl*self.A_integrals[k+l-i-j+4*self.num_field_coeffs]
+    #print("remember to comment this out later!")
+    #assert (math.isclose(D_complex_energy.real, D_complex_energy2.real))
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     #print(field_coeffs, field_coeffs.conjugate())
@@ -194,6 +196,7 @@ class System():
     # reevaluate only on  amplitude change
     # TODO : initialize on System object creation, instead of checking if empty every time
     if amplitude_change:
+      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals")
       num_field_coeffs = max(field_coeffs)
       self.evaluate_A_integrals(amplitude, num_field_coeffs)
       self.evaluate_B_integrals(amplitude, num_field_coeffs)
@@ -282,6 +285,8 @@ class System():
 
   def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, amplitude_change=False):
     if amplitude_change:
+      
+      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals")
       num_field_coeffs = max(old_field_coeffs)
       self.evaluate_A_integrals(amplitude, num_field_coeffs)
       self.evaluate_B_integrals(amplitude, num_field_coeffs)
@@ -301,12 +306,16 @@ class System():
       Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
       return (Kzz_integral + Kthth_integral)
 
+  def evaluate_integrals(self, amplitude):
+    self.evaluate_A_integrals(amplitude, self.num_field_coeffs)
+    self.evaluate_B_integrals(amplitude, self.num_field_coeffs)
+
   def calc_surface_energy(self, amplitude, amplitude_change=True):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
     if amplitude_change:
-      self.evaluate_A_integral_0(amplitude)
+      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals")
     #print("A integral 0", self.A_integrals[0].real)
     # A_integrals[0] is just surface area
     return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)

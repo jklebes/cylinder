@@ -20,22 +20,18 @@ def plot_timeseries(data):
 
 #replot heatmap
 def replot_heatmap(data, outdir, title):
-  sb.heatmap(data, xticklabels=5, yticklabels=7,cmap ="viridis")
-  plt.title("mean perturbation amplitude |a|")
-  plt.ylabel("wavenumber k")
-  plt.xlabel("bending rigidity kappa_b")
+  ax=sb.heatmap(data, xticklabels=3, yticklabels=3,cmap ="hot") #viridis and hot
+  plt.title("variance field Fourier component 0")
+  plt.xlabel("C")
+  plt.ylabel("amplitude of surface curve")
+  ax.invert_yaxis()
   plt.savefig(os.path.join(outdir, title))
 
 if __name__=="__main__":
 
-  dir_ = os.path.join("out","exp-2020-05-10-16-44-13" )
-  file_ = "ncoeffs1_fsteps5_other.csv"
-  data = pd.read_csv(os.path.join(dir_,file_), index_col=0)
-  #print(data)
-  plot_timeseries(data)
+  dir_ = os.path.join("out","fixed-amplitude-nc1-withabs-relphase" )
+  file_ = "amplitude_C_cov_c0_.csv"
 
-  #dir_ = os.path.join("out", "wavenumber-kappa")
-  #file_ = "wavenumber_kappa_abs_amplitude_.csv" 
-  #data = pd.read_csv(os.path.join(dir_,file_), index_col=0)
-  #print(data)
-  #replot_heatmap(data=data,outdir=dir_, title = "abs_amplitudxe.png")
+  data = pd.read_csv(os.path.join(dir_,file_), index_col=0)
+  print(data)
+  replot_heatmap(data=data,outdir=dir_, title = "cov_c0.png")

@@ -50,7 +50,7 @@ class MetropolisEngine():
     self.target_acceptance = target_acceptance #TODO: hard code as fct of nuber of parameter space dims
     self.mean = np.array([]) #measuring that set of parameters that constitute the basis of parameter space in each case
     self.mean=self.construct_state(initial_amplitude, initial_field_coeffs)
-    self.observables = self.construct_observables_state(initial_amplitude, initial_field_coeffs) # additional quantities to record: none in base class
+    self.observables = self.construct_observables_state(initial_amplitude, initial_field_coeffs) 
     self.observabes_names = ["amplitude_squared"]
     self.params_names = ["abs_amplitude"]
     self.params_names.extend(["abs_c"+str(i) for i in range(-self.max_field_coeffs, self.max_field_coeffs+1)]) 
@@ -609,54 +609,142 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     super().__init__(initial_field_coeffs=initial_field_coeffs, sampling_width=sampling_width, temp=temp,
                      covariance_matrix=covariance_matrix)
     #these text descriptions should match lists created in contruct_state, construct_observables_state functions
+    self.param_space_dims = len(initial_field_coeffs) + 1
+    if covariance_matrix is None:
+      self.covariance_matrix = .2* (np.identity(self.param_space_dims , dtype = 'complex128'))
+    self.m = self.param_space_dims
+    
+    #these text descriptions should match lists created in contruct_state, construct_observables_state functions
     self.params_names= ["amplitude"] # key to interpreting output: mean of parameters, covariance matrix
-    self.params_names.extend(["c_"+str(i) for i in self.keys_ordered])
-    self.observables_names = ["abs_amplitude", "amplitude_squared"]
-    self.observables_names.extend(["abs_c_"+str(i) for i in self.keys_ordered])
- 
+    self.params_names.extend(["c_"+str(i) for i in range(-self.max_field_coeffs, self.max_field_coeffs+1)])
+    self.observables_names = ["abs_amplitude"]
+    self.observables_names.extend(["abs_c_"+str(i) for i in range(-self.max_field_coeffs, self.max_field_coeffs+1)])
 
 
   def construct_state(self, amplitude, field_coeffs):
     """
-    helper function to construct position in parameter space as np array 
-    state is now a complex vector
+    should only be used once in init - we then pass the state in and out
     """
     state = [amplitude+0j] #amplitude as complex number, arbitrarily real
-    state.extend([field_coeffs[key] for key in self.keys_ordered])
+    state.extend([field_coeff for field_coeff in field_coeffs]) 
     return np.array(state)
 
-  def construct_observables_state(self, amplitude, field_coeffs):
-    """other things to measure the mean of.
-    vector of real numbers
+
+  def construct_observables_state(self, amplitude=None, field_coeffs=None):
+    """for arguments for compatibility of init with superclasses
     """
-    state = [abs(amplitude), amplitude**2]
-    state.extend([abs(field_coeffs[key]) for key in self.keys_ordered])
-    return np.array(state)
+    print("using wrong construct observables states if this happens more than once")
+    observables_state = np.array(list(map(abs, self.mean))) # overly compliated way so that type is real
+    return observables_state
 
+  def construct_observables_state2(self, state):
+    """ the one to use in rest of simulation
+    """
+    observables_state = abs(state) #should vectorized-apply if abs is a standard fct for np arrays
+    return observables_state
+
+  
+  def measure(self, state):
+    self.measure_step_counter +=1
+    old_mean = copy.copy(self.mean)
+    self.update_mean(state=state)
+    if self.measure_step_counter > 50: #down from recommendedation because when measurement is taken only every n steps
+                                  # from more statistically independent data I expect to get a more accurate estimate of cov matrix sooner
+      self.update_covariance_matrix(old_mean=old_mean, state=state)
+    # other parameters that are not the basis for cov matrix
+    state_observables = self.construct_observables_state2(state)
+    self.update_observables_mean(state_observables)
 
   def update_observables_mean(self, state_observables):
     self.observables *= (self.measure_step_counter - 1) / self.measure_step_counter
     self.observables += state_observables / self.measure_step_counter
+    #print("observables mean", type(self.observables[0]))
 
   def update_covariance_matrix(self, old_mean, state):
     i = self.measure_step_counter
     small_number = self.sampling_width ** 2 / i #stabilizes - coutnerintuitivelt causes nonzero estimated covariance for completely constant parameter at low stepcounts
-    #print("old_mean", old_mean, "mean", self.mean, "state", state, "smallnumber", small_number)
-    #print("added",  np.outer(old_mean,old_mean) - i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1) + small_number*np.identity(self.param_space_dims))
-    # print("multiplied", (i-2)/(i-1)*self.covariance_matrix)
-    #print("result",  (i-2)/(i-1)*self.covariance_matrix +  np.outer(old_mean,old_mean)- i/(i-1)*np.outer(self.mean,self.mean) + np.outer(state,state)/(i-1) + small_number*np.identity(self.param_space_dims))
     self.covariance_matrix *= (i - 2) / (i - 1)
     self.covariance_matrix += np.outer(old_mean, old_mean.conjugate()) - i / (i - 1) * np.outer(self.mean, self.mean.conjugate()) + np.outer(
-        state, state.conjugate()) / (i - 1) + small_number  *np.identity(self.param_space_dims)
+        state, state.conjugate()) / (i - 1) + small_number  *np.identity(self.param_space_dims, dtype = 'complex128') #complex version TODO check
 
 
-  def draw_field_coeff_from_proposal_distribution(self, field_coeff, index):
-    old_phase = cmath.phase(field_coeff)
-    amplitude = abs(field_coeff)
-    proposed_addition = random.gauss(0, self.sampling_width**2 * self.covariance_matrix[index, index])
-    proposed_field_coeff = self.modify_phase(amplitude + proposed_addition, old_phase)
-    return proposed_field_coeff
+  def step_fieldcoeffs(self, state, field_energy, system,
+                      amplitude_change=False):
+    """
+    """
+    proposed_state = self.draw_field_coeffs_from_proposal_distribution(state)
+    #print("proposed field coeffs", proposed_field_coeffs, "old", field_coeffs)
+    proposed_field_energy = system.calc_field_energy(state= state,
+                                                     amplitude_change=False)
+    accept= self.metropolis_decision(field_energy, proposed_field_energy)
+    #if self.field_step_counter%60==0:
+    #print("proposed field energy", proposed_field_energy, "old", field_energy)
+    #print("amplitude", amplitude, "field coeffs", field_coeffs)
+    if accept:
+      #if self.field_step_counter%60==0:
+      #print("accepted")
+      field_energy = proposed_field_energy
+      state = proposed_state
+    self.update_field_sigma(accept)
+    return state, field_energy
 
   def multivariate_normal_complex(self, mean, covariance_matrix):
-    pass
+    #placeholder drawing seperately; ignores cross-correlations
+    # add self.gaussian_complex(sigma) to each, with sigma from diagonal of cov matrix
+    #diagonal of covariance matrix as 1d np array
+    #print("in", mean, covariance_matrix)
+    covariances = np.diagonal(covariance_matrix)
+    #map self.gausian_complex over the list
+    additions = np.array(list(map(self.gaussian_complex, covariances)))
+    #print("additions", additions)
+    #add to mean
+    return mean + additions
 
+
+  def draw_field_coeffs_from_proposal_distribution(self, state):
+    old_amplitude = state[0]
+    proposed_state = self.multivariate_normal_complex(state,
+                                                      self.field_sampling_width ** 2 * self.covariance_matrix)
+    #return a full state amplitude + field coeffs, but with only field coeffs changed
+    proposed_state[0] = old_amplitude
+    return proposed_state
+
+
+
+  def step_amplitude(self, state, field_energy, surface_energy, system):
+    """
+    Stepping amplitude by metropolis algorithm.
+    :param amplitude:
+    :param field_coeffs:
+    :param surface_energy:
+    :param field_energy:
+    :param system:
+    :return:
+    """
+    amplitude = state[0]
+    proposed_amplitude = self.draw_amplitude_from_proposal_distriution(amplitude)
+    if abs(proposed_amplitude) >= 1:
+      # don't accept.
+      # like an infinite energy barrier to self-intersection.
+      # does not violate symmetric jump distribution, because this is like
+      # an energy-landscape-based decision after generation
+      self.update_amplitude_sigma(accept=False) #DO NOT have an effect on step length from this - leads to ever smaller steps that still get rejected half the time
+      #print("early return")
+      return state, surface_energy, field_energy
+    system.evaluate_integrals(proposed_amplitude)
+    new_surface_energy = system.calc_surface_energy(amplitude = proposed_amplitude, amplitude_change=False)
+    new_field_energy = system.calc_field_energy(state=state, amplitude_change=False) # will have the wrong amplitude at state[0] but that's ok if not used for change=False
+    accept = self.metropolis_decision((field_energy + surface_energy), (new_field_energy + new_surface_energy))
+    #print("old energy ", field_energy, surface_energy)
+    #print("proposed_ampltide", proposed_amplitude)
+    #print("new energys", new_field_energy, new_surface_energy)
+    if accept:
+      #print("accepted")
+      field_energy = new_field_energy
+      surface_energy = new_surface_energy
+      amplitude = proposed_amplitude
+    self.update_amplitude_sigma(accept)
+    #print("updated a sigma")
+    state[0]=amplitude
+    #print(state[0])
+    return state, surface_energy, field_energy

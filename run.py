@@ -86,7 +86,7 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
     for kb in kappa_range:
       # run
       kappa=kb
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir)
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(wvn)+"_kappa"+str(kappa))
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       print(names)
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
@@ -109,15 +109,18 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
   :param title:
   :return:
   """
-  print(results)
+  #print(results)
   #cut ranges to shape of data
   range1 = range1[-len(results):]
   range2 = range2[-len(results[0]):]
   df = pd.DataFrame(index=range1, columns=range2, data=results)
   df.to_csv(os.path.join(exp_dir, title + ".csv"))
-  sb.heatmap(df, cmap = "viridis")
-  plt.savefig(os.path.join(exp_dir, title + ".png"))
-  plt.close()
+  print(df.loc[range1[0], range2[0]],  not isinstance(df.loc[range1[0],range2[0]], complex))
+  if not isinstance(df.loc[range1[0],range2[0]], complex):
+    print("plotting png")
+    sb.heatmap(df, cmap = "viridis")
+    plt.savefig(os.path.join(exp_dir, title + ".png"))
+    plt.close()
 
 
 def run_experiment(exp_type,  range1, range2, n_steps, method):
@@ -149,6 +152,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method):
   elif exp_type == ("num_field_coeffs", "fieldsteps_per_ampstep"):
     results = loop_num_field_coeffs(num_field_coeff_range=range1, fieldstep_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
   #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
+  print(results)
   for name in results:
     plot_save(range1=range1, range2=range2, results=results[name], title=exp_type[0]+ "_"+name+"_", exp_dir=exp_dir)
 
@@ -188,8 +192,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     cov=None
 
   #use covariance from earlier files, optimize static covariance for speed
-  me = metropolis_engine.RealImgAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
-  field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
+  me = metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  state = me.construct_state(amplitude=amplitude, field_coeffs=field_coeffs)
+  se.evaluate_integrals(amplitude=amplitude)
+  field_energy = se.calc_field_energy(state=state, amplitude_change=False)
   surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
   ########### start of data collection ############
   amplitudes = []
@@ -211,20 +217,19 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   if method == "sequential":
     for i in range(n_steps):
       for j in range(measure_every):
-        amplitude, surface_energy, field_energy = me.step_amplitude(amplitude=amplitude,
-                                                              field_coeffs=field_coeffs,
+        state, surface_energy, field_energy = me.step_amplitude(state=state,
                                                               field_energy=field_energy, surface_energy=surface_energy,
                                                               system=se)
         #print("amplitude change", amplitude, surface_energy, field_energy)
         for ii in range(fieldsteps_per_ampstep):
           # all simultaneously since main saving is from not re-integrating
           # energy difference method for changing single field coeff is only an advantage at larger number of fieldcoeffs
-          field_coeffs, field_energy = me.step_fieldcoeffs(field_coeffs=field_coeffs, field_energy=field_energy, amplitude=amplitude, 
-              system=se, amplitude_change = False)
+          state, field_energy = me.step_fieldcoeffs(state=state, field_energy=field_energy, 
+              system=se)
           #print("field_energy",field_energy, me.field_sampling_width)
       print("measure", i, "sampling widths", me.field_sampling_width)#, me.amplitude_sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       #print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
-      me.measure(amplitude, field_coeffs) #update mean, covariance matrix, other parameters' mean by sampling this step
+      me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
        
       amplitudes.append(amplitude)
       field_sigmas.append(me.field_sampling_width)
@@ -239,8 +244,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       c0_cov.append(me.covariance_matrix[1,1])
       means.append(me.mean[0])
       step_sizes.append(me.steplength_c)
-      states.append(me.construct_state(amplitude, field_coeffs))
-      other_states.append(me.construct_observables_state(amplitude, field_coeffs))
+      states.append(state)
+      other_states.append(me.construct_observables_state2(state))
   elif method == "simultaneous":
     for i in range(n_steps):
       for j in range(measure_every):
@@ -265,24 +270,18 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       means.append(me.mean[0])
       step_sizes.append(me.steplength_c)
   elif method == "fixed-amplitude":
-    field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
     me.m -= 1
     for i in range(n_steps):
-      #print("field energy in", field_energy)
-      for index in field_coeffs:
-        field_coeffs, field_energy = me.step_fieldcoeff(field_coeff_index=index, amplitude=amplitude, field_coeffs=field_coeffs, field_energy=field_energy, system=se, amplitude_change=False)
-        #print("field_coeff phases after changing ", index, " :", [(key, cmath.phase(field_coeffs[key])) for key in field_coeffs])
-      me.step_counter+=1
+      for j in range(measure_every):
+        for ii in range(fieldsteps_per_ampstep):
+          state, field_energy = me.step_fieldcoeffs(state=state, field_energy=field_energy, system=se)
+      print("measure", i, "sampling widths", me.field_sampling_width)#, me.amplitude_sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       amplitudes.append(amplitude)
-      # print("amplitude", amplitude)
+      me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
       sigmas.append(me.sampling_width)
       step_sizes.append(me.steplength_c)
-      amplitude_cov.append(me.covariance_matrix[0,0])
-      c_0s.append(abs(field_coeffs[0]))
-      c0_phases.append(cmath.phase(field_coeffs[0]))
-      c1_phases.append(metropolis_engine.RelativePhasesAdaptiveMetropolisEngine.phase_diff(field_coeffs[1], field_coeffs[0]))
-      cm1_phases.append(metropolis_engine.RelativePhasesAdaptiveMetropolisEngine.phase_diff(field_coeffs[-1], field_coeffs[0]))
-      means.append(me.mean[1])
+      states.append(state)
+      other_states.append(me.construct_observables_state2(state))
   elif method == "no-field":
     field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
     #me = metropolis_engine.StaticCovarianceAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp) # no need ot calculate covariance matrix for amplitude-only run
@@ -303,6 +302,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       means.append(me.mean[1])
   if outdir is not None and os.path.isdir(outdir):
     df = pd.DataFrame(states)
+    print(outdir, title, me.params_names)
     df.to_csv(os.path.join(outdir, title + ".csv"), header=me.params_names)
     df_other = pd.DataFrame(other_states)
     df_other.to_csv(os.path.join(outdir, title + "_other.csv"), header = me.observables_names)
@@ -315,9 +315,9 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   plt.savefig("amplitude_proposal_dist.png")
   plt.close()
   plt.scatter(range(len(amplitudes)), amplitudes, label='amplitude')
-  plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
+  #plt.scatter(range(len(amplitudes)), c_0s, label='fieldcoeff 0')
   #plt.scatter(range(len(amplitudes)), c_1s, label='fieldcoeff 1')
-  plt.scatter(range(len(amplitudes)), c0_phases, label='fieldcoeff 0 phase', s=1)
+  #plt.scatter(range(len(amplitudes)), c0_phases, label='fieldcoeff 0 phase', s=1)
   #plt.scatter(range(len(amplitudes)), c1_phases, label='fieldcoeff 1 phase')
   #plt.scatter(range(len(amplitudes)), cm1_phases, label='fieldcoeff -1 relative phase')
   plt.legend()
@@ -329,7 +329,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   plt.legend()
   plt.savefig("amplitude_proposal_dist_2.png")
   plt.close()
-  plt.scatter(range(len(field_sigmas)), step_sizes, label = "adaptation step size",marker='.') 
+  #plt.scatter(range(len(field_sigmas)), step_sizes, label = "adaptation step size",marker='.') 
   plt.legend()
   plt.savefig("steplength_constant.png")
   plt.close()
@@ -352,40 +352,44 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   #print("flat", se.calc_surface_energy(.00001))
   #print("flat", se.calc_surface_energy(0))
   #print("from bending", se.calc_surface_energy(.00001, amplitude_change=False)-gamma*se.A_integrals[0].real)
-  result_means = np.concatenate((me.mean,me.observables))
+  result_means = list(me.mean)+list(me.observables) # change away from np array at this point because it is mixed complex and float type
   result_names = me.params_names
   result_names.extend(me.observables_names)
   return result_names, result_means , me.covariance_matrix
 
 # coefficients
 alpha = -1
-C = 1
+C = 0
 u = 1
-n = 1
+n = 0
 kappa = .1
 gamma = 1
 temp = 1
 
 # system dimensions
-initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
+initial_amplitude= 0.8  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = .4
+wavenumber = 1
 
 # simulation details
 num_field_coeffs = 1
 initial_sampling_width = .025
-measure_every = 20
-fieldsteps_per_ampstep = 10  #nly relevant for sequential
+measure_every = 1000
+fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
-notes = "TEST improves saving and plotting" #describe motivation for a simulation here!
+notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
 
 if __name__ == "__main__":
+
+
+  
+
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = range(7, 8, 1)
-  range2 = range(1, 17, 5)
-  n_steps = 500#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
-  method = "sequential"
+  range1 = np.arange(0, 7, 6)
+  range2 = np.arange(1, 2, 1)
+  n_steps = 100000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  method = "fixed-amplitude"
 
   assert (alpha <= 0)
 
