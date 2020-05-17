@@ -43,7 +43,7 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
       for name in var_dict:
         results_line[name+"_variance"].append(var_dict[name])
       for name in covar_dict:
-        results_line[name+"_covariance"].append(var_dict[name])
+        results_line[name+"_covariance"].append(covar_dict[name])
     for name in results_line:
       results[name].append(results_line[name])
   return results 
@@ -72,7 +72,7 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitud
       for name in var_dict:
         results_line[name+"_variance"].append(var_dict[name])
       for name in covar_dict:
-        results_line[name+"_covariance"].append(var_dict[name])
+        results_line[name+"_covariance"].append(covar_dict[name])
     for name in results_line:
       results[name].append(results_line[name])
   return results 
@@ -232,8 +232,12 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   else:
     sampling_width = .05
   if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
+    try:
       f = open('last_cov.pickle', 'rb')
       cov = pickle.load(f)
+      x = np.zeros(2* num_field_coeffs+2)* cov # to check if dimensions mathc
+    except ValueError:
+      cov=None
   else:
     cov=None
 
@@ -259,7 +263,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
           state, field_energy = me.step_fieldcoeffs(state=state, field_energy=field_energy, 
               system=se)
           #print("field_energy",field_energy, me.field_sampling_width)
-      print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      #print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
       states.append(state)
       other_states.append(me.construct_observables_state2(state))
@@ -305,7 +309,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     df_other = pd.DataFrame(other_states)
     df_other.to_csv(os.path.join(outdir, title + "_other.csv"), header = me.observables_names)
   #dump in files for order of magnitude estimate to start next simulation from
-  f = open('last_cov_2.pickle', 'wb')
+  f = open('last_cov.pickle', 'wb')
   pickle.dump(me.covariance_matrix, f)
   print("cov", np.round(me.covariance_matrix,3))
   f = open('last_sigma_2.pickle', 'wb')
@@ -320,17 +324,17 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
 
 # coefficients
 alpha = -1
-C = 0
+C = 1
 u = 1
-n = 0
-kappa = 0
+n = 1
+kappa = .1
 gamma = 1
 temp = 1
 
 # system dimensions
 initial_amplitude= 0.8  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = 1
+wavenumber = .4
 
 # simulation details
 num_field_coeffs = 0
@@ -348,13 +352,11 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("wavenumber", "alpha")
-  range1 = np.arange(0.05, 1.4, .2)
-  range2 = np.arange(0, -6, -1)
+  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
+  range1 = range(0,6, 1)
+  range2 = range(1, 16, 5)
   n_steps = 500#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
-
-  assert (alpha <= 0)
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
 
