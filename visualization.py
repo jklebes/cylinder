@@ -9,21 +9,29 @@ import matplotlib.animation as animation
 fig, ax = plt.subplots()
 
 x = np.arange(0, 2*np.pi, 0.01)
-line_field, = ax.plot(x, np.sin(x), color='b')
+line_field, = ax.plot(x, np.sin(x), color='b', label = "field magnitude")
+line_field_avg, = ax.plot(x, np.sin(x), color='black', label="running average")
 line_amplitude, = ax.plot(x, np.sin(x), color='g', linewidth=10)
 line_amplitude2, = ax.plot(x, np.sin(x), color='g', linewidth=10)
 
+running_avg = None
+stepcounter = 0
+
 def init():  # only required for blitting to give a clean slate.
+  global running_avg
   line_field.set_ydata([np.nan] * len(x))
+  running_avg = np.zeros(len(x))
+  line_field_avg.set_ydata([np.nan] * len(x))
   line_amplitude.set_ydata([np.nan] * len(x))
   line_amplitude2.set_ydata([np.nan] * len(x))
-  return line_field, line_amplitude, line_amplitude2
+  return line_field, line_field_avg, line_amplitude, line_amplitude2
 
 def animate(i):
   line_field.set_ydata(get_magnitude_line(i,x)) 
+  line_field_avg.set_ydata(get_avg_line(i,x)) 
   line_amplitude.set_ydata(get_amplitude_line(i,x))  
   line_amplitude2.set_ydata(get_amplitude_line2(i,x))  
-  return line_field, line_amplitude, line_amplitude2
+  return line_field, line_field_avg, line_amplitude, line_amplitude2
 
 def file_to_df(data_file):
   df = pd.read_csv(data_file, index_col=0)
@@ -34,7 +42,12 @@ def get_amplitude_line(i,zs):
 def get_amplitude_line2(i,zs):
   return [-3.2-amplitude_series[i]*math.sin(z) for z in zs]
 
+def get_avg_line(i,zs):
+  return running_avg
+
 def get_magnitude_line(i, zs):
+  global running_avg
+  global stepcounter
   complex_snapshot=dict([])
   for key in complex_series:
     complex_snapshot[key] = complex_series[key][i]
@@ -46,6 +59,9 @@ def get_magnitude_line(i, zs):
       #if z==.01:
         #print(index, math.cos(index*0.01), complex_snapshot[index], f.imag)
     line.append(abs(f))
+  stepcounter +=1
+  running_avg *= (stepcounter -1) / float(stepcounter)
+  running_avg += np.array(line)/float(stepcounter) 
   return line
 
 
@@ -98,7 +114,7 @@ def visualize_snapshot(complex_snapshot):
 
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "exp-2020-05-15-09-30-49")
+  data_dir = os.path.join("out", "nc6-on-frozen")
   data_file = os.path.join(data_dir, "ncoeffs6_fsteps1.csv")
   data = file_to_df(data_file)
   complex_series, amplitude_series = get_complex_series(data)
@@ -110,8 +126,9 @@ if __name__=="__main__":
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   x = np.arange(0, 2*np.pi, 0.01)
   ani = animation.FuncAnimation(fig, animate, init_func=init, interval=5, blit=True, save_count=50)
-  ax.set_ylim([-4.3,5])
+  ax.set_ylim([-4.3,2])
   ax.set_xlim([-.2, 2*math.pi+.2])
   plt.plot([-1,2*math.pi+1], [0]*2, color='black')
   plt.yticks([0,1,2])
+  plt.legend()
   plt.show()

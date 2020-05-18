@@ -198,8 +198,8 @@ def run_experiment(exp_type,  range1, range2, n_steps, method):
     results = loop_amplitude_C(amplitude_range=range1, C_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
   elif exp_type == ("num_field_coeffs", "fieldsteps_per_ampstep"):
     results = loop_num_field_coeffs(num_field_coeff_range=range1, fieldstep_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
-  #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
-  print(results)
+    #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
+    print(results)
   for name in results:
     plot_save(range1=range1, range2=range2, results=results[name], title=exp_type[0]+ "_"+name+"_", exp_dir=exp_dir)
 
@@ -324,12 +324,12 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
 
 # coefficients
 alpha = -1
-C = 1
+C = 0
 u = 1
 n = 1
-kappa = .1
+kappa = 0
 gamma = 1
-temp = 1
+temp = .1
 
 # system dimensions
 initial_amplitude= 0.8  #also fixed system amplitude for when amplitude is static
@@ -352,10 +352,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = range(8,13, 2)
-  range2 = range(1, 7, 5)
-  n_steps = 500#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  loop_type = ("wavenumber", "alpha")
+  range1 = np.arange(.5,1.41, .1)
+  range2 = np.arange(0, -5.1, -.6)
+  n_steps = 800#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")

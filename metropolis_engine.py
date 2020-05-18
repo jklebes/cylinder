@@ -633,7 +633,6 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
   def construct_observables_state(self, amplitude=None, field_coeffs=None):
     """for arguments for compatibility of init with superclasses
     """
-    print("using wrong construct observables states if this happens more than once")
     observables_state = np.array(list(map(abs, self.mean))) # overly compliated way so that type is real
     return observables_state
 

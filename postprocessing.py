@@ -2,36 +2,49 @@ import os
 import pandas as pd
 import seaborn as sb
 import matplotlib.pyplot as plt
+import cmath
+
+def phase_histogram(data):
+  pass
 
 #plot a time series
-def plot_timeseries(data):
+def plot_timeseries(data, data2, title="timeseries.png"):
   xs = list(data.index)
   colnames = list(data.columns.values)
+  colnames2 = list(data2.columns.values)
   print(colnames)
-  colnames = [ "abs_c_1", "abs_c_-1"]#, "abs_amplitude"]
+  select = ['c_0']
+  for name in colnames2:
+    if any([i in name for i in select]):
+      print(xs[35], data2.loc[35, name])
+      plt.scatter(xs, data2.loc[:,name], label=name)
   for name in colnames:
-    #print(xs, data.loc[:name])
-    plt.plot(xs, data.loc[:,name], label=name)
-  #plt.xscale('log')
+    if any([i in name for i in select]):
+      #print([complex(x).real for x in data.loc[:,name]])
+      plt.scatter(xs, [cmath.phase(complex(x)) for x in data.loc[:,name]], label=name+'_phase')
   plt.legend()
   plt.show()
+  #plt.savefig(title)
 
 #statistics of a time series
 
 #replot heatmap
 def replot_heatmap(data, outdir, title):
-  ax=sb.heatmap(data, xticklabels=3, yticklabels=3,cmap ="hot") #viridis and hot
-  plt.title("variance field Fourier component 0")
-  plt.xlabel("C")
-  plt.ylabel("amplitude of surface curve")
-  ax.invert_yaxis()
+  ax=sb.heatmap(data, xticklabels=1, yticklabels=1,cmap ="hot") #viridis and hot
+  plt.title("variance amplitude")
+  plt.xlabel("alpha")
+  plt.ylabel("wavenumber/r_0")
+  #ax.invert_yaxis()
   plt.savefig(os.path.join(outdir, title))
 
 if __name__=="__main__":
 
-  dir_ = os.path.join("out","fixed-amplitude-nc1-withabs-relphase" )
-  file_ = "amplitude_C_cov_c0_.csv"
+  dir_ = os.path.join("out","wavenumber-alpha-best" )
+  file_ = "wavenumber_amplitude_variance_.csv"
+  #file2_ = "ncoeffs6_fsteps1_other.csv"
 
   data = pd.read_csv(os.path.join(dir_,file_), index_col=0)
+  data = data.applymap(lambda x : complex(x).real)
+  #data2 = pd.read_csv(os.path.join(dir_,file2_), index_col=0)
   print(data)
-  replot_heatmap(data=data,outdir=dir_, title = "cov_c0.png")
+  replot_heatmap(data=data,outdir=dir_, title = "variance_a.png")
