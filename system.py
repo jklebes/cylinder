@@ -23,6 +23,9 @@ class System():
     self.B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
     self.A_matrix = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) #initialize np complex array nxn
     self.D_matrix = np.zeros((self.len_arrays, self.len_arrays, self.len_arrays, self.len_arrays),dtype=complex) # same 4D
+    #debug
+    self.energies=[]
+    self.coeffs=[]
 
   ######## common terms in integrals ###########
 
@@ -77,7 +80,13 @@ class System():
       z_part = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.sqrt_g_theta(amplitude, z) *
                 self.sqrt_g_z(amplitude, z))
-      return (z_part)
+      theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
+                    self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) annd with 1/g_zz normalizing A_theta^2
+                    ## index raise in theta direction?
+                    #1.0 / self.sqrt_g_theta(amplitude, z))  # sqrt(g_thth) and g^thth
+                    1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
+                    math.sin((i-j)*self.wavenumber*z))
+      return (z_part+theta_part)
 
   def B_integrand_real_part(self, i, j, amplitude, z):
     if amplitude == 0:
@@ -92,9 +101,11 @@ class System():
                 # 1/self.sqrt_g_z(radius, amplitude, wavenumber, z))  # and 1/sqrt(g_zz) from metric ddeterminant, index raising g^zz
                 self.sqrt_g_z(amplitude, z))
       theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
-                    1.0 / self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) annd with 1/g_zz normalizing A_theta^2
+                    self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) annd with 1/g_zz normalizing A_theta^2
                     ## index raise in theta direction?
-                    1.0 / self.sqrt_g_theta(amplitude, z))  # sqrt(g_thth) and g^thth
+                    #1.0 / self.sqrt_g_theta(amplitude, z))  # sqrt(g_thth) and g^thth
+                    1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
+                    math.cos((i-j)*self.wavenumber*z))
       # self.sqrt_g_theta(radius, amplitude, wavenumber, z))
       return (z_part + theta_part)
   
@@ -144,6 +155,7 @@ class System():
                                          0, 2 * math.pi / self.wavenumber)
         real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, amplitude, z),
                                           0, 2 * math.pi / self.wavenumber) # integrands demand coefficient's indices in range -n to n
+        #print("evaluated with i ", i , "j ", j , "and put it at Bintegrals ", i+self.num_field_coeffs, j+self.num_field_coeffs)
         self.B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
 
   ############# calc energy ################
@@ -164,7 +176,8 @@ class System():
     #Matrix products of the form c_i A_ij c*_j
     A_complex_energy = np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
                                                                               # because its the faster way to construct them
-    B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals, field_coeffs, field_coeffs.conjugate()) # B is filled directly with outcomes of B_integrals, not transposed
+    B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals, field_coeffs.conjugate(), field_coeffs) # B is filled directly with outcomes of B_integrals, not transposed
+    #print(field_coeffs)
     D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
     D_complex_energy2= 0+0j
     #for (i,ci) in enumerate(field_coeffs.conjugate()):
@@ -185,6 +198,19 @@ class System():
     #print("D part", self.u, D_complex_energy.real)
     #print(self.A_matrix, self.D_matrix[1,1,:,:])
     # print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
+    #debug
+    """ 
+    l=[]
+    for start in np.arange(0, 2*math.pi, 0.1):
+      img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(1, -1, amplitude, z),
+                                         0, 2 * math.pi / self.wavenumber)
+      real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(1, -1, amplitude, z),
+                                          start, start+1) # integrands demand coefficient's indices in range -n to n
+      l.append(complex(real_part, img_part)*field_coeffs[0]*field_coeffs[-1].conjugate())
+    self.energies.append(l)
+    
+    self.coeffs.append(field_coeffs)
+    """
     return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
   def calc_field_energy_loop(self, field_coeffs, amplitude, amplitude_change=False):

@@ -695,7 +695,6 @@ class ComplexAdaptiveMetropolisEngine(RobbinsMonroAdaptiveMetropolisEngine):
     covariances = np.diagonal(covariance_matrix)
     #map self.gausian_complex over the list
     additions = np.array(list(map(self.gaussian_complex, covariances)))
-    #print("additions", additions)
     #add to mean
     return mean + additions
 

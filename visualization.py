@@ -10,6 +10,8 @@ fig, ax = plt.subplots()
 
 x = np.arange(0, 2*np.pi, 0.01)
 line_field, = ax.plot(x, np.sin(x), color='b', label = "field magnitude")
+#line_field_component, = ax.plot(x, np.sin(x), color='brown', label = "field component real")
+#line_field_component_img, = ax.plot(x, np.sin(x), color='orange', label = "field component img")
 line_field_avg, = ax.plot(x, np.sin(x), color='black', label="running average")
 line_amplitude, = ax.plot(x, np.sin(x), color='g', linewidth=10)
 line_amplitude2, = ax.plot(x, np.sin(x), color='g', linewidth=10)
@@ -22,16 +24,24 @@ def init():  # only required for blitting to give a clean slate.
   line_field.set_ydata([np.nan] * len(x))
   running_avg = np.zeros(len(x))
   line_field_avg.set_ydata([np.nan] * len(x))
+  #line_field_component.set_ydata([np.nan] * len(x))
+  #line_field_component_img.set_ydata([np.nan] * len(x))
   line_amplitude.set_ydata([np.nan] * len(x))
   line_amplitude2.set_ydata([np.nan] * len(x))
   return line_field, line_field_avg, line_amplitude, line_amplitude2
+  #return line_field, line_field_component, line_field_component_img, line_field_avg, line_amplitude, line_amplitude2
+  #return line_field, line_amplitude, line_amplitude2
 
 def animate(i):
   line_field.set_ydata(get_magnitude_line(i,x)) 
+  #line_field_component.set_ydata(get_component_line(i,x,1)) 
+  #line_field_component_img.set_ydata(get_component_line_img(i,x,1)) 
   line_field_avg.set_ydata(get_avg_line(i,x)) 
   line_amplitude.set_ydata(get_amplitude_line(i,x))  
   line_amplitude2.set_ydata(get_amplitude_line2(i,x))  
   return line_field, line_field_avg, line_amplitude, line_amplitude2
+  #return line_field, line_field_component, line_field_component_img, line_field_avg, line_amplitude, line_amplitude2
+  #return line_field, line_amplitude, line_amplitude2
 
 def file_to_df(data_file):
   df = pd.read_csv(data_file, index_col=0)
@@ -44,6 +54,30 @@ def get_amplitude_line2(i,zs):
 
 def get_avg_line(i,zs):
   return running_avg
+
+
+
+def get_component_line_img(i, zs, key):
+  global running_avg
+  global stepcounter
+  complex_snapshot= complex_series[key][i]
+  line = []
+  for z in zs:
+    f= complex_snapshot*(math.cos(key*z)+ math.sin(key*z)*1j)
+    line.append(f.imag)
+  stepcounter +=1
+  return line
+
+def get_component_line(i, zs, key):
+  global running_avg
+  global stepcounter
+  complex_snapshot= complex_series[key][i]
+  line = []
+  for z in zs:
+    f= complex_snapshot*(math.cos(key*z)+ math.sin(key*z)*1j)
+    line.append(f.real)
+  stepcounter +=1
+  return line
 
 def get_magnitude_line(i, zs):
   global running_avg
@@ -114,8 +148,8 @@ def visualize_snapshot(complex_snapshot):
 
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "nc6-on-frozen")
-  data_file = os.path.join(data_dir, "ncoeffs6_fsteps1.csv")
+  data_dir = os.path.join("out", "external-index-raise3")
+  data_file = os.path.join(data_dir, "amplitude-0.8_C1.0.csv")
   data = file_to_df(data_file)
   complex_series, amplitude_series = get_complex_series(data)
   #print(complex_series)
@@ -125,10 +159,12 @@ if __name__=="__main__":
   #print(complex_snapshot)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   x = np.arange(0, 2*np.pi, 0.01)
-  ani = animation.FuncAnimation(fig, animate, init_func=init, interval=5, blit=True, save_count=50)
+  ani = animation.FuncAnimation(fig, animate, init_func=init, interval=40, blit=True, save_count=50)
   ax.set_ylim([-4.3,2])
   ax.set_xlim([-.2, 2*math.pi+.2])
   plt.plot([-1,2*math.pi+1], [0]*2, color='black')
-  plt.yticks([0,1,2])
-  plt.legend()
+  plt.yticks([0,0.5,1, 1.5, 2])
+  plt.legend(loc=3)
+  plt.xlabel('z')
   plt.show()
+  #ani.save("kept_for_animation.mp4")

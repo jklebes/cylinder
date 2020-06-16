@@ -63,7 +63,7 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitud
     results_line = collections.defaultdict(list)
     for c in C_range:
       C=c
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir)
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir,title = "amplitude"+str(a)+"_C"+str(C))
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
       covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
@@ -95,7 +95,6 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
       kappa=kb
       names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(wvn)+"_kappa"+str(kappa))
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
-      print(names)
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
       print(kappa, wavenumber, means_dict["abs_amplitude"])
       covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
@@ -159,7 +158,6 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
   range2 = range2[-len(results[0]):]
   df = pd.DataFrame(index=range1, columns=range2, data=results)
   df.to_csv(os.path.join(exp_dir, title + ".csv"))
-  print(df.loc[range1[0], range2[0]],  not isinstance(df.loc[range1[0],range2[0]], complex))
   if not isinstance(df.loc[range1[0],range2[0]], complex):
     print("plotting png")
     sb.heatmap(df, cmap = "viridis")
@@ -200,6 +198,8 @@ def run_experiment(exp_type,  range1, range2, n_steps, method):
     results = loop_num_field_coeffs(num_field_coeff_range=range1, fieldstep_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
     #save results spreadsheets and plots - mainly mean abs(amplitude) and its variance
     print(results)
+  else:
+    print("experiment type not found: ", exp_type)
   for name in results:
     plot_save(range1=range1, range2=range2, results=results[name], title=exp_type[0]+ "_"+name+"_", exp_dir=exp_dir)
 
@@ -219,6 +219,8 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     #field_coeffs = dict([(i, metropolis_engine.MetropolisEngine.gaussian_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     #switch to nparray version
     field_coeffs = np.array(list(map(lambda x: metropolis_engine.MetropolisEngine.gaussian_complex(),range(0,2*num_field_coeffs+1))))
+    #field_coeffs = np.array(list(map(lambda x: 0+0j ,range(0,2*num_field_coeffs+1))))
+    print("initialized random complex coeffs", field_coeffs)
   if amplitude is None:
     global initial_amplitude
     amplitude = initial_amplitude #take from global
@@ -263,7 +265,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
           state, field_energy = me.step_fieldcoeffs(state=state, field_energy=field_energy, 
               system=se)
           #print("field_energy",field_energy, me.field_sampling_width)
-      #print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
       states.append(state)
       other_states.append(me.construct_observables_state2(state))
@@ -274,12 +276,13 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
                                                               field_coeffs=field_coeffs,
                                                               field_energy=field_energy, surface_energy=surface_energy,
                                                               system=se) #this doesnt measure mean, cov; update cov for sampling
-      print("measure", i, "sampling widths", me.sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("measure", i, "sampling widths", me.sampling_width, "cov")#, me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
       me.measure(amplitude, field_coeffs) #update mean, covariance matrix, other parameters' mean by sampling this step
       # TODO collect to states, other_states    
   elif method == "fixed-amplitude":
     me.m -= 1
+    print("initial field coeffs", state)
     for i in range(n_steps):
       for j in range(measure_every):
         for ii in range(fieldsteps_per_ampstep):
@@ -320,26 +323,49 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   result_means = list(me.mean)+list(me.observables) # change away from np array at this point because it is mixed complex and float type
   result_names = me.params_names
   result_names.extend(me.observables_names)
+  xs = np.arange(0, 2*math.pi, .01)
+  """
+  B_integrand_real = [se.B_integrand_real_part(0,0, -0.8, x) for x in xs]
+  B_integrand_img = [se.B_integrand_img_part(0,0, -0.8, x) for x in xs]
+  B_integrand_dz = [(0* se.wavenumber ** 2 * math.cos((0) * se.wavenumber * x) *  # |d e^... |^2
+                se.sqrt_g_theta(-.8, x) *
+                se.sqrt_g_z(-.8, x)) for x in xs]
+  B_integrand_justAtheta = [(se.n_A_theta_squared(-.8, x)) for x in xs ] # part of n_A_theta^2
+  B_integrand_gzz = [se.sqrt_g_z(-.8, x) for x in xs]  # part of n_A_theta^2
+  B_integrand_gthth = [1.0/se.sqrt_g_theta(-.8,x) for x in xs]  # part of n_A_theta^2
+  plt.plot(xs, B_integrand_real, label = "real")
+  plt.plot(xs, B_integrand_img, label = "img")
+  plt.plot(xs, B_integrand_justAtheta, label = "just A_theta^2")
+  plt.plot(xs, B_integrand_gzz, label = "sqrtgzz")
+  plt.plot(xs, B_integrand_gthth, label = "1/sqrtgthth")
+  plt.plot(xs, B_integrand_dz, label = "dz^2")
+  plt.legend()
+  plt.savefig("Bintegrans00.png")
+  df = pd.DataFrame(se.energies)
+  df2=pd.DataFrame(se.coeffs)
+  df.to_csv("Benergies")
+  df2.to_csv("coeffs")
+  """
   return result_names, result_means , me.covariance_matrix
 
 # coefficients
 alpha = -1
-C = 0
+C = 1
 u = 1
 n = 1
-kappa = 0
+kappa = 1
 gamma = 1
 temp = .1
 
 # system dimensions
 initial_amplitude= 0.8  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = .4
+wavenumber = 1
 
 # simulation details
-num_field_coeffs = 0
+num_field_coeffs = 1
 initial_sampling_width = .025
-measure_every = 20
+measure_every =10
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
 #notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
@@ -352,10 +378,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("wavenumber", "alpha")
-  range1 = np.arange(.5,1.41, .1)
-  range2 = np.arange(0, -5.1, -.6)
-  n_steps = 800#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  loop_type = ("wavenumber", "kappa")
+  range1 = np.arange(1.4, 1.5, 1)
+  range2 = np.arange(1, 1.1, 1)
+  n_steps = 200#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
