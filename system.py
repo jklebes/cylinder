@@ -23,9 +23,6 @@ class System():
     self.B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
     self.A_matrix = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) #initialize np complex array nxn
     self.D_matrix = np.zeros((self.len_arrays, self.len_arrays, self.len_arrays, self.len_arrays),dtype=complex) # same 4D
-    #debug
-    self.energies=[]
-    self.coeffs=[]
 
   ######## common terms in integrals ###########
 
@@ -40,7 +37,7 @@ class System():
 
   def n_A_theta_squared(self, amplitude, z):
     return (self.n * self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(
-      self.wavenumber * z)) ** 2  # without: /self.sqrt_g_z(radius,amplitude, wavenumber, z)
+      self.wavenumber * z) /self.sqrt_g_z(radius,amplitude, wavenumber, z) **2 
 
   ########## evaluates integrals ##########
   def A_integrand_img_part(self, diff, amplitude, z):
@@ -81,9 +78,7 @@ class System():
                 self.sqrt_g_theta(amplitude, z) *
                 self.sqrt_g_z(amplitude, z))
       theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
-                    self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) annd with 1/g_zz normalizing A_theta^2
-                    ## index raise in theta direction?
-                    #1.0 / self.sqrt_g_theta(amplitude, z))  # sqrt(g_thth) and g^thth
+                    self.sqrt_g_z(amplitude, z) * 
                     1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
                     math.sin((i-j)*self.wavenumber*z))
       return (z_part+theta_part)
@@ -92,7 +87,6 @@ class System():
     if amplitude == 0:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
-      # and 1/sqrt(g_zz) =1
       return (z_part)
     else:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
@@ -101,12 +95,9 @@ class System():
                 # 1/self.sqrt_g_z(radius, amplitude, wavenumber, z))  # and 1/sqrt(g_zz) from metric ddeterminant, index raising g^zz
                 self.sqrt_g_z(amplitude, z))
       theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
-                    self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) annd with 1/g_zz normalizing A_theta^2
-                    ## index raise in theta direction?
-                    #1.0 / self.sqrt_g_theta(amplitude, z))  # sqrt(g_thth) and g^thth
-                    1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
+                    self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) from metric
+                    1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) from metric and g^thth = 1/g_thth index raising
                     math.cos((i-j)*self.wavenumber*z))
-      # self.sqrt_g_theta(radius, amplitude, wavenumber, z))
       return (z_part + theta_part)
   
   def Kthth_integrand(self, amplitude, z):

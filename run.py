@@ -159,6 +159,7 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
   df = pd.DataFrame(index=range1, columns=range2, data=results)
   df.to_csv(os.path.join(exp_dir, title + ".csv"))
   if not isinstance(df.loc[range1[0],range2[0]], complex):
+    # plot only mean parameters that are real values, such as mean abs(somethign)
     print("plotting png")
     sb.heatmap(df, cmap = "viridis")
     plt.savefig(os.path.join(exp_dir, title + ".png"))
@@ -324,28 +325,6 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   result_names = me.params_names
   result_names.extend(me.observables_names)
   xs = np.arange(0, 2*math.pi, .01)
-  """
-  B_integrand_real = [se.B_integrand_real_part(0,0, -0.8, x) for x in xs]
-  B_integrand_img = [se.B_integrand_img_part(0,0, -0.8, x) for x in xs]
-  B_integrand_dz = [(0* se.wavenumber ** 2 * math.cos((0) * se.wavenumber * x) *  # |d e^... |^2
-                se.sqrt_g_theta(-.8, x) *
-                se.sqrt_g_z(-.8, x)) for x in xs]
-  B_integrand_justAtheta = [(se.n_A_theta_squared(-.8, x)) for x in xs ] # part of n_A_theta^2
-  B_integrand_gzz = [se.sqrt_g_z(-.8, x) for x in xs]  # part of n_A_theta^2
-  B_integrand_gthth = [1.0/se.sqrt_g_theta(-.8,x) for x in xs]  # part of n_A_theta^2
-  plt.plot(xs, B_integrand_real, label = "real")
-  plt.plot(xs, B_integrand_img, label = "img")
-  plt.plot(xs, B_integrand_justAtheta, label = "just A_theta^2")
-  plt.plot(xs, B_integrand_gzz, label = "sqrtgzz")
-  plt.plot(xs, B_integrand_gthth, label = "1/sqrtgthth")
-  plt.plot(xs, B_integrand_dz, label = "dz^2")
-  plt.legend()
-  plt.savefig("Bintegrans00.png")
-  df = pd.DataFrame(se.energies)
-  df2=pd.DataFrame(se.coeffs)
-  df.to_csv("Benergies")
-  df2.to_csv("coeffs")
-  """
   return result_names, result_means , me.covariance_matrix
 
 # coefficients
@@ -353,14 +332,14 @@ alpha = -1
 C = 1
 u = 1
 n = 1
-kappa = 1
+kappa = .1
 gamma = 1
 temp = .1
 
 # system dimensions
 initial_amplitude= 0.8  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = 1
+wavenumber = .4
 
 # simulation details
 num_field_coeffs = 1
