@@ -6,13 +6,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import system as ce #TODO: refactor name
-import metropolis_engine
 import scipy.integrate as integrate
 import math
 import collections
 import timeit
 import seaborn as sb
 import argparse
+import metropolisengine
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
   """
@@ -219,7 +219,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   if field_coeffs is None:
     #field_coeffs = dict([(i, metropolis_engine.MetropolisEngine.gaussian_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
     #switch to nparray version
-    field_coeffs = np.array(list(map(lambda x: metropolis_engine.MetropolisEngine.gaussian_complex(),range(0,2*num_field_coeffs+1))))
+    field_coeffs = np.array(list(map(lambda x: metropolisengine.MetropolisEngine.gaussian_complex(),range(0,2*num_field_coeffs+1))))
     #field_coeffs = np.array(list(map(lambda x: 0+0j ,range(0,2*num_field_coeffs+1))))
     print("initialized random complex coeffs", field_coeffs)
   if amplitude is None:
@@ -245,7 +245,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     cov=None
 
   #use covariance from earlier files, optimize static covariance for speed
-  me = metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
+  me = metropolisengine.metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
   state = me.construct_state(amplitude=amplitude, field_coeffs=field_coeffs)
   se.evaluate_integrals(amplitude=amplitude)
   field_energy = se.calc_field_energy(state=state, amplitude_change=False)

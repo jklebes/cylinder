@@ -36,8 +36,7 @@ class System():
     return self.radius / math.sqrt(1 + amplitude ** 2 / 2.0)
 
   def n_A_theta_squared(self, amplitude, z):
-    return (self.n * self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(
-      self.wavenumber * z) /self.sqrt_g_z(radius,amplitude, wavenumber, z) **2 
+    return (self.n * self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(self.wavenumber * z) /self.sqrt_g_z(amplitude, z)) **2 
 
   ########## evaluates integrals ##########
   def A_integrand_img_part(self, diff, amplitude, z):
