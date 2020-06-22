@@ -295,8 +295,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   elif method == "no-field":
     # TODO - we could not calculate field?
     field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
-    surface_energy = se.calc_surface_energy(amplitude, amplitude_change=True)
-    field_energy = se.calc_field_energy(field_coeffs, amplitude, amplitude_change=True)
+    state = me.construct_state(amplitude=amplitude, field_coeffs=field_coeffs)
+    se.evaluate_integrals(amplitude=amplitude)
+    field_energy = se.calc_field_energy(state=state, amplitude_change=False)
+    surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
     me.m = 1 #number of dimensions of parameter space for adaptive purposes such as target acceptance rate.  actually just 1 degree of freedom for amplitude-only run.
     for i in range(n_steps):
       for j in range(measure_every):
@@ -337,14 +339,14 @@ gamma = 1
 temp = .1
 
 # system dimensions
-initial_amplitude= 0.8  #also fixed system amplitude for when amplitude is static
+initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
 radius = 1
 wavenumber = .4
 
 # simulation details
 num_field_coeffs = 1
 initial_sampling_width = .025
-measure_every =10
+measure_every =100
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
 #notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
@@ -358,10 +360,10 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(1.4, 1.5, 1)
-  range2 = np.arange(1, 1.1, 1)
-  n_steps = 200#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
-  method = "sequential"
+  range1 = np.arange(0.005, 1.5, .05)
+  range2 = np.arange(0, 4, .05)
+  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  method = "no-field"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
 
