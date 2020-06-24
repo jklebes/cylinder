@@ -156,7 +156,7 @@ class System():
     :param field_coeffs: list of complex values as np array from lowest to highest index, i. e. [c_-n, ..., c_0 , ... c_n] value at index 0 is c_-n
     A, B, D matrices are orderd on the same scheme - because np array is faster than dict explcitly stating indices -n .. 0 .. n for matrix muktiplication
     """
-    amplitude = state[0].real
+    #amplitude = state[0].real
     assert(state[0].imag == 0)
     field_coeffs = state[1:]
     if amplitude_change: #TODO: optimize further -
@@ -169,7 +169,7 @@ class System():
     B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals, field_coeffs.conjugate(), field_coeffs) # B is filled directly with outcomes of B_integrals, not transposed
     #print(field_coeffs)
     D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
-    D_complex_energy2= 0+0j
+    #D_complex_energy2= 0+0j
     #for (i,ci) in enumerate(field_coeffs.conjugate()):
     #  for (j,cj) in enumerate(field_coeffs.conjugate()):
     #    for (k,ck) in enumerate(field_coeffs):

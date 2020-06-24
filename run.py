@@ -93,7 +93,7 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
     for kb in kappa_range:
       # run
       kappa=kb
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(wvn)+"_kappa"+str(kappa))
+      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(wvn,3))+"_kappa"+str(round(kappa,3)))
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
       print(kappa, wavenumber, means_dict["abs_amplitude"])
@@ -294,17 +294,19 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       other_states.append(me.construct_observables_state2(state))
   elif method == "no-field":
     # TODO - we could not calculate field?
-    field_coeffs = dict([(i, 0+0j) for i in range(-num_field_coeffs, num_field_coeffs+1)])
+    field_coeffs = [0+0j for i in range(-num_field_coeffs, num_field_coeffs+1)]
     state = me.construct_state(amplitude=amplitude, field_coeffs=field_coeffs)
+    amplitude=state[0]
     se.evaluate_integrals(amplitude=amplitude)
     field_energy = se.calc_field_energy(state=state, amplitude_change=False)
     surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
     me.m = 1 #number of dimensions of parameter space for adaptive purposes such as target acceptance rate.  actually just 1 degree of freedom for amplitude-only run.
     for i in range(n_steps):
       for j in range(measure_every):
-        state, surface_energy, field_energy = me.step_amplitude(state=state,
-                                                              field_energy=field_energy, surface_energy=surface_energy,
+        amplitude, surface_energy = me.step_amplitude_no_field(amplitude=amplitude,
+                                                              surface_energy=surface_energy,
                                                               system=se)
+      state[0] = amplitude
       me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
       states.append(state)
       other_states.append(me.construct_observables_state2(state))
@@ -344,9 +346,9 @@ radius = 1
 wavenumber = .4
 
 # simulation details
-num_field_coeffs = 1
+num_field_coeffs = 0
 initial_sampling_width = .025
-measure_every =100
+measure_every =10
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
 #notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
@@ -360,8 +362,8 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.005, 1.5, .05)
-  range2 = np.arange(0, 4, .05)
+  range1 = np.arange(0.005, 1.5, .5)
+  range2 = np.arange(0, .51, .05)
   n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "no-field"
 
