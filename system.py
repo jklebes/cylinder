@@ -149,21 +149,13 @@ class System():
         self.B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
 
   ############# calc energy ################
-  def calc_field_energy(self, state, amplitude_change=False):
+  def calc_field_energy(self, field_coeffs):
     """ einsum is (at least 10x) faster than loops! even with constructing matrix A from list
     same for D part even though 4d matrix is constructed from list every time: 10x faster at 3(-1to1) coeffs
     much more for longer set of coeffs
     :param field_coeffs: list of complex values as np array from lowest to highest index, i. e. [c_-n, ..., c_0 , ... c_n] value at index 0 is c_-n
     A, B, D matrices are orderd on the same scheme - because np array is faster than dict explcitly stating indices -n .. 0 .. n for matrix muktiplication
     """
-    #amplitude = state[0].real
-    assert(state[0].imag == 0)
-    field_coeffs = state[1:]
-    if amplitude_change: #TODO: optimize further -
-                          # don't check truth value every time
-                          # separate out fct to recacl matrices and call externally
-      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals externally")
-    #Matrix products of the form c_i A_ij c*_j
     A_complex_energy = np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
                                                                               # because its the faster way to construct them
     B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals, field_coeffs.conjugate(), field_coeffs) # B is filled directly with outcomes of B_integrals, not transposed
@@ -326,12 +318,8 @@ class System():
     self.evaluate_A_integrals(amplitude, self.num_field_coeffs)
     self.evaluate_B_integrals(amplitude, self.num_field_coeffs)
 
-  def calc_surface_energy(self, amplitude, amplitude_change=True):
+  def calc_surface_energy(self, amplitude):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
-    if amplitude_change:
-      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals")
-    #print("A integral 0", self.A_integrals[0].real)
-    # A_integrals[0] is just surface area
     return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)

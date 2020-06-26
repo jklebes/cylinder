@@ -241,13 +241,13 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   ########### setup system, metropolis engine, link energy functions #############
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #function [real values], [complex values] -> energy 
-  energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(*real_params, complex_params)
-  energy_fct_surface_term = lambda real_params : se.calc_surface_energy(*real_params)
+  energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(complex_params)
+  energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params)
   #energy terms (functions) assigned names in a dict
-  energy_terms = {"field": energy_fct_field_term, "surface": "energy_fct_surface_term"}
+  energy_terms = {"field": energy_fct_field_term, "surface": energy_fct_surface_term}
   #describe which arguments each energy term takes - complex and/or real group of params
-  energy_term_dependencies{"field": ["real"], "surface":["complex", "real"] }
-  me = metropolisengine.MetropolisEngine(energy_functions = energy_terms, energy_term_depndencies = energy_term_dependencies, initial_complex_params=field_coeffs, initial_real_params = [amplitude], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
+  energy_term_dependencies={"field": ["complex"], "surface":["real"] } # field part indirectly depends on current amplitude - this is handled by triggering reevaluation of integrals at appropriate times
+  me = metropolisengine.MetropolisEngine(energy_function = energy_terms, energy_term_dependencies = energy_term_dependencies, initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
   #also input system constraint : steps with |amplitude| > 1 to be rejected
   me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=1 )  
 
@@ -258,18 +258,18 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   if method == "sequential":
     for i in range(n_steps):
       for j in range(measure_every):
-        accepted = me.step_amplitude() #use outputted flag to trigger numerical integration in System on amplitude change
-        if accepted: se.evaluate_integrals()
+        accepted = me.step_real_group() #use outputted flag to trigger numerical integration in System on amplitude change
+        if accepted: se.evaluate_integrals(*me.real_params)
         for ii in range(fieldsteps_per_ampstep):
-          me.step_fieldcoeffs() # no need to save and look at "accept" flag when only field coeffs change
-          #print("field_energy",field_energy, me.field_sampling_width)
+          me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
+          print("field_coeffs", me.complex_params)
       #print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_all()
-        if accepted: se.evaluate_integrals()
+        if accepted: se.evaluate_integrals(*me.real_params)
       #print("measure", i, "sampling widths", me.sampling_width, "cov")#, me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       #print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
@@ -286,7 +286,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_real_group()
-        if accepted: se.evaluate_integrals()
+        if accepted: se.evaluate_integrals(*me.real_params)
       me.measure(state) #update mean, covariance matrix, other parameters' mean by sampling this step
   if outdir is not None and os.path.isdir(outdir):
     df = me.time_series #pd.DataFrame()
@@ -340,7 +340,7 @@ if __name__ == "__main__":
   range1 = np.arange(0.005, 1.5, 5)
   range2 = np.arange(0, .51, .1)
   n_steps = 600#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
-  method = "no-field"
+  method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
 
