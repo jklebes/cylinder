@@ -35,8 +35,10 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
       names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep))
       time = timeit.default_timer() - start_time
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
-      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
-      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
+      print(cov_matrix)
+      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[1:2+2*num_field_coeffs])])
+      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[1:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[1:2+2*num_field_coeffs]) if i!= j])
+      print(means_dict)
       for name in names:
         results_line[name+"_mean"].append(means_dict[name])
       results_line["time_per_experiment"].append(time)
@@ -229,11 +231,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   else:
     sampling_width = .05
   if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
-    try:
-      f = open('last_cov.pickle', 'rb')
-      cov = pickle.load(f)
-      x = np.zeros(2* num_field_coeffs+2)* cov # to check if dimensions mathc
-    except ValueError:  # if matrix saved from last experiment doesnt have right dimensions, start over
+    f = open('last_cov.pickle', 'rb')
+    cov = pickle.load(f)
+    if len(cov) != 2*num_field_coeffs+1:
+      print("rejected because dimensions are wrong")
       cov=None
   else:
     cov=None
@@ -296,16 +297,19 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   #dump in files for order of magnitude estimate to start next simulation from
   f = open('last_cov.pickle', 'wb')
   pickle.dump(me.covariance_matrix_complex, f)
-  print("cov", np.round(me.covariance_matrix,3))
+  print("cov", np.round(me.covariance_matrix_complex,3))
   f = open('last_sigma_2.pickle', 'wb')
   if method == "sequential":
     pickle.dump([me.real_group_sampling_width, me.complex_group_sampling_width], f)
   else:
     pickle.dump(me.sampling_width, f)
-  result_means = None # list(me.mean)+list(me.observables) # change away from np array at this point because it is mixed complex and float type
   result_names = me.params_names
   result_names.extend(me.observables_names)
-  return result_names, result_means , me.covariance_matrix
+  print(result_names)
+  result_means = [i for i in me.real_mean]
+  result_means.extend([i for i in me.complex_mean])
+  result_means.extend([i for i in me.observables_mean])
+  return result_names, result_means , me.covariance_matrix_complex
 
 # coefficients
 alpha = -1
@@ -337,10 +341,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.005, 1.5, 5)
-  range2 = np.arange(0, .51, .1)
-  n_steps = 600#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
+  range1 = range(0, 5, 1)
+  range2 = range(1, 10, 10)
+  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
