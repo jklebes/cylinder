@@ -216,19 +216,13 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   :return:
   """
   ########### initial values ##############
+  # read from files or generate
   if field_coeffs is None:
-    #field_coeffs = dict([(i, metropolis_engine.MetropolisEngine.gaussian_complex()) for i in range(-1 * num_field_coeffs, num_field_coeffs + 1)])
-    #switch to nparray version
     field_coeffs = np.array(list(map(lambda x: metropolisengine.MetropolisEngine.gaussian_complex(),range(0,2*num_field_coeffs+1))))
-    #field_coeffs = np.array(list(map(lambda x: 0+0j ,range(0,2*num_field_coeffs+1))))
     print("initialized random complex coeffs", field_coeffs)
   if amplitude is None:
     global initial_amplitude
     amplitude = initial_amplitude #take from global
-  ########### setup #############
-  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
-  #print("alpha", se.alpha)  
-  #try getting last results from files
   if os.path.isfile("./last_sigma_2.pickle") and os.path.getsize("./last_sigma_2.pickle"):
     f = open('last_sigma_2.pickle', 'rb')
     sampling_width = pickle.load(f)
@@ -239,96 +233,77 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
       f = open('last_cov.pickle', 'rb')
       cov = pickle.load(f)
       x = np.zeros(2* num_field_coeffs+2)* cov # to check if dimensions mathc
-    except ValueError:
+    except ValueError:  # if matrix saved from last experiment doesnt have right dimensions, start over
       cov=None
   else:
     cov=None
 
-  #use covariance from earlier files, optimize static covariance for speed
-  me = metropolisengine.metropolis_engine.ComplexAdaptiveMetropolisEngine(initial_field_coeffs=field_coeffs, covariance_matrix=cov,sampling_width=sampling_width,  initial_amplitude=amplitude, temp=temp)
-  state = me.construct_state(amplitude=amplitude, field_coeffs=field_coeffs)
-  se.evaluate_integrals(amplitude=amplitude)
-  field_energy = se.calc_field_energy(state=state, amplitude_change=False)
-  surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
+  ########### setup system, metropolis engine, link energy functions #############
+  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
+  #function [real values], [complex values] -> energy 
+  energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(*real_params, complex_params)
+  energy_fct_surface_term = lambda real_params : se.calc_surface_energy(*real_params)
+  #energy terms (functions) assigned names in a dict
+  energy_terms = {"field": energy_fct_field_term, "surface": "energy_fct_surface_term"}
+  #describe which arguments each energy term takes - complex and/or real group of params
+  energy_term_dependencies{"field": ["real"], "surface":["complex", "real"] }
+  me = metropolisengine.MetropolisEngine(energy_functions = energy_terms, energy_term_depndencies = energy_term_dependencies, initial_complex_params=field_coeffs, initial_real_params = [amplitude], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
+  #also input system constraint : steps with |amplitude| > 1 to be rejected
+  me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=1 )  
+
+ 
   ########### start of data collection ############
   states=[]
   other_states = []
   if method == "sequential":
     for i in range(n_steps):
       for j in range(measure_every):
-        state, surface_energy, field_energy = me.step_amplitude(state=state,
-                                                              field_energy=field_energy, surface_energy=surface_energy,
-                                                              system=se)
-        #print("amplitude change", amplitude, surface_energy, field_energy)
+        accepted = me.step_amplitude() #use outputted flag to trigger numerical integration in System on amplitude change
+        if accepted: se.evaluate_integrals()
         for ii in range(fieldsteps_per_ampstep):
-          # all simultaneously since main saving is from not re-integrating
-          # energy difference method for changing single field coeff is only an advantage at larger number of fieldcoeffs
-          state, field_energy = me.step_fieldcoeffs(state=state, field_energy=field_energy, 
-              system=se)
+          me.step_fieldcoeffs() # no need to save and look at "accept" flag when only field coeffs change
           #print("field_energy",field_energy, me.field_sampling_width)
-      print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
-      me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
-      states.append(state)
-      other_states.append(me.construct_observables_state2(state))
+      #print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
       for j in range(measure_every):
-        amplitude, field_coeffs, surface_energy, field_energy = me.step_all(amplitude=amplitude,
-                                                              field_coeffs=field_coeffs,
-                                                              field_energy=field_energy, surface_energy=surface_energy,
-                                                              system=se) #this doesnt measure mean, cov; update cov for sampling
-      print("measure", i, "sampling widths", me.sampling_width, "cov")#, me.covariance_matrix[0,0], me.covariance_matrix[1,1])
-      print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
-      me.measure(amplitude, field_coeffs) #update mean, covariance matrix, other parameters' mean by sampling this step
-      # TODO collect to states, other_states    
+        accepted = me.step_all()
+        if accepted: se.evaluate_integrals()
+      #print("measure", i, "sampling widths", me.sampling_width, "cov")#, me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      #print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
+      me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
+      # TODO save time series data in metropolis enigne on calling measure()
   elif method == "fixed-amplitude":
     me.m -= 1
-    print("initial field coeffs", state)
     for i in range(n_steps):
       for j in range(measure_every):
         for ii in range(fieldsteps_per_ampstep):
-          state, field_energy = me.step_fieldcoeffs(state=state, field_energy=field_energy, system=se)
-      print("measure", i, "sampling widths", me.field_sampling_width)#, me.amplitude_sampling_width, "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
-      me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
-      states.append(state)
-      other_states.append(me.construct_observables_state2(state))
+          me.step_complex_group()
+      me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "no-field":
-    # TODO - we could not calculate field?
-    field_coeffs = [0+0j for i in range(-num_field_coeffs, num_field_coeffs+1)]
-    state = me.construct_state(amplitude=amplitude, field_coeffs=field_coeffs)
-    amplitude=state[0]
-    se.evaluate_integrals(amplitude=amplitude)
-    field_energy = se.calc_field_energy(state=state, amplitude_change=False)
-    surface_energy = se.calc_surface_energy(amplitude, amplitude_change=False)
     me.m = 1 #number of dimensions of parameter space for adaptive purposes such as target acceptance rate.  actually just 1 degree of freedom for amplitude-only run.
     for i in range(n_steps):
       for j in range(measure_every):
-        amplitude, surface_energy = me.step_amplitude_no_field(amplitude=amplitude,
-                                                              surface_energy=surface_energy,
-                                                              system=se)
-      state[0] = amplitude
-      me.measure(state=state) #update mean, covariance matrix, other parameters' mean by sampling this step
-      states.append(state)
-      other_states.append(me.construct_observables_state2(state))
+        accepted = me.step_real_group()
+        if accepted: se.evaluate_integrals()
+      me.measure(state) #update mean, covariance matrix, other parameters' mean by sampling this step
   if outdir is not None and os.path.isdir(outdir):
-    df = pd.DataFrame(states)
-    print(outdir, title, me.params_names)
-    df.to_csv(os.path.join(outdir, title + ".csv"), header=me.params_names)
-    df_other = pd.DataFrame(other_states)
-    df_other.to_csv(os.path.join(outdir, title + "_other.csv"), header = me.observables_names)
+    df = me.time_series #pd.DataFrame()
+    #print(outdir, title, me.params_names, states)
+    df.to_csv(os.path.join(outdir, title + ".csv"))
   #dump in files for order of magnitude estimate to start next simulation from
   f = open('last_cov.pickle', 'wb')
-  pickle.dump(me.covariance_matrix, f)
+  pickle.dump(me.covariance_matrix_complex, f)
   print("cov", np.round(me.covariance_matrix,3))
   f = open('last_sigma_2.pickle', 'wb')
   if method == "sequential":
-    pickle.dump([me.field_sampling_width, me.amplitude_sampling_width], f)
+    pickle.dump([me.real_group_sampling_width, me.complex_group_sampling_width], f)
   else:
     pickle.dump(me.sampling_width, f)
-  result_means = list(me.mean)+list(me.observables) # change away from np array at this point because it is mixed complex and float type
+  result_means = None # list(me.mean)+list(me.observables) # change away from np array at this point because it is mixed complex and float type
   result_names = me.params_names
   result_names.extend(me.observables_names)
-  xs = np.arange(0, 2*math.pi, .01)
   return result_names, result_means , me.covariance_matrix
 
 # coefficients
@@ -362,9 +337,9 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.005, 1.5, .5)
-  range2 = np.arange(0, .51, .05)
-  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  range1 = np.arange(0.005, 1.5, 5)
+  range2 = np.arange(0, .51, .1)
+  n_steps = 600#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "no-field"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
