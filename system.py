@@ -18,11 +18,15 @@ class System():
     self.num_field_coeffs = num_field_coeffs
     self.len_arrays = 2*self.num_field_coeffs+1
     # memoization of integration results
-    self.A_integrals = np.zeros(4*self.len_arrays-3, dtype=complex) #initialize 1D np array of complex 
+    self.tmp_A_integrals = np.zeros(4*self.len_arrays-3, dtype=complex) #initialize 1D np array of complex 
     #A_integrals list is longer than others because it covers range of possible differences in index between 2 or 4 field coeffs 
     self.B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
     self.A_matrix = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) #initialize np complex array nxn
     self.D_matrix = np.zeros((self.len_arrays, self.len_arrays, self.len_arrays, self.len_arrays),dtype=complex) # same 4D
+    self.tmp_B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
+    self.tmp_A_matrix = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) #initialize np complex array nxn
+    self.tmp_D_matrix = np.zeros((self.len_arrays, self.len_arrays, self.len_arrays, self.len_arrays),dtype=complex) # same 4D
+    self.tmp_A_integrals_0 = 0
 
   ######## common terms in integrals ###########
 
@@ -110,43 +114,47 @@ class System():
       (self.sqrt_g_z(amplitude,z))**5)
   
 
-  def evaluate_A_integrals(self, amplitude, num_field_coeffs):
+  def evaluate_A_integrals(self, amplitude):
     for diff in range(-4*self.num_field_coeffs,  4*self.num_field_coeffs+1):
       img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(diff, amplitude, z),
                                        0, 2 * math.pi / self.wavenumber)
       real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(diff, amplitude, z),
                                         0, 2 * math.pi / self.wavenumber)
-      self.A_integrals[diff+4*self.num_field_coeffs] = complex(real_part, img_part) # in A_integrals list results are stored by diff between coefficient indices from -n to n
+      self.tmp_A_integrals[diff+4*self.num_field_coeffs] = complex(real_part, img_part) # in A_integrals list results are stored by diff between coefficient indices from -n to n
                                                             # places 0 to _ in list correspond to differences -2n+1 to 2n-1 (incl)
     ## fill matrix A[i,j] from list A[diff], where i j k are matrix indices from 0 to 2n (corresponding to ordered list of coefficient's indices from -n to n)
     ## fill matrix D[i,j,k,l] where D[i+j-l-k]=A[diff]
     l = self.len_arrays
+    # save to tmp location when first calcualted with new amplitude - gets transferred to permanent matrices accesed by calc_field_energy when amplitude is accepted
     for i in range(l): 
-      self.A_matrix[i] = self.A_integrals[2*l-i-2:3*l-2-i]
+      self.tmp_A_matrix[i] = self.tmp_A_integrals[2*l-i-2:3*l-2-i]
       #print(i,self.A_integrals[-i+0+4*self.num_field_coeffs], "filled", self.A_matrix[i,0])
       for j in range(l):
         for k in range(l):
-          self.D_matrix[i,j,k] =  self.A_integrals[k-i-j+2*l-2:k-i-j+3*l-2] 
+          self.tmp_D_matrix[i,j,k] =  self.tmp_A_integrals[k-i-j+2*l-2:k-i-j+3*l-2] 
           #print(i,j,k,self.A_integrals[-i-j+k+0+4*self.num_field_coeffs], "filled", self.D_matrix[i,j,k,0])
+    self.tmp_A_integrals_0 = self.tmp_A_integrals[0]
 
-
+  """
   def evaluate_A_integral_0(self, amplitude):
+    #useful in no-field simulations
     img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(0, amplitude, z),
                                      0, 2 * math.pi / self.wavenumber)
     assert (math.isclose(img_part, 0, abs_tol=1e-9))
     real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(0, amplitude, z),
                                       0, 2 * math.pi / self.wavenumber)
     self.A_integrals[0] = complex(real_part, img_part) # this is usually done for surface area - no need to fill into A_matrix
-
-  def evaluate_B_integrals(self, amplitude, num_field_coeffs):
-    for i in range(-num_field_coeffs, num_field_coeffs + 1):
-      for j in range(-num_field_coeffs, num_field_coeffs + 1):
+    self.tmp_A_integrals_ 0 = complex(real_part, img_part)
+  """
+  def evaluate_B_integrals(self, amplitude):
+    for i in range(-self.num_field_coeffs, self.num_field_coeffs + 1):
+      for j in range(-self.num_field_coeffs, self.num_field_coeffs + 1):
         img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, amplitude, z),
                                          0, 2 * math.pi / self.wavenumber)
         real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, amplitude, z),
                                           0, 2 * math.pi / self.wavenumber) # integrands demand coefficient's indices in range -n to n
         #print("evaluated with i ", i , "j ", j , "and put it at Bintegrals ", i+self.num_field_coeffs, j+self.num_field_coeffs)
-        self.B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
+        self.tmp_B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
 
   ############# calc energy ################
   def calc_field_energy(self, field_coeffs):
@@ -314,12 +322,25 @@ class System():
       Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
       return (Kzz_integral + Kthth_integral)
 
-  def evaluate_integrals(self, amplitude):
-    self.evaluate_A_integrals(amplitude, self.num_field_coeffs)
-    self.evaluate_B_integrals(amplitude, self.num_field_coeffs)
+  def save_temporary_matrices(self):
+    #if accepted, save results of evaluation with proposed amplitude to more permanent location
+    self.A_matrix = self.tmp_A_matrix
+    self.D_matrix = self.tmp_D_matrix
+    self.B_integrals = self.tmp_B_integrals
 
-  def calc_surface_energy(self, amplitude):
+  def calc_surface_energy(self, amplitude, field_coeffs):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
-    return self.gamma * self.A_integrals[0].real + self.kappa * self.calc_bending_energy(amplitude)
+    self.evaluate_A_integrals(amplitude)
+    self.evaluate_B_integrals(amplitude)
+    surface_energy =  self.gamma * self.tmp_A_integrals_0.real + self.kappa * self.calc_bending_energy(amplitude)
+    #calculate effect on current field with temporary(!) matrix elements from proposed(!) amplitude
+    A_complex_energy = np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
+    B_complex_energy = np.einsum("ij, i, j -> ", self.tmp_B_integrals, field_coeffs.conjugate(), field_coeffs) 
+    D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
+    assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
+    assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
+    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) 
+    field_energy =  self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
+    return surface_energy + field_energy

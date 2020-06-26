@@ -242,7 +242,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #function [real values], [complex values] -> energy 
   energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(complex_params)
-  energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params)
+  energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params, complex_params)
   #energy terms (functions) assigned names in a dict
   energy_terms = {"field": energy_fct_field_term, "surface": energy_fct_surface_term}
   #describe which arguments each energy term takes - complex and/or real group of params
@@ -259,17 +259,17 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_real_group() #use outputted flag to trigger numerical integration in System on amplitude change
-        if accepted: se.evaluate_integrals(*me.real_params)
+        if accepted: se.save_temporary_matrices()
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
-          print("field_coeffs", me.complex_params)
-      #print("measure", i, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+          #print("field_coeffs", me.complex_params)
+      print("measure", i)#, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_all()
-        if accepted: se.evaluate_integrals(*me.real_params)
+        if accepted: se.save_temporary_matrices()
       #print("measure", i, "sampling widths", me.sampling_width, "cov")#, me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       #print("step counters", me.measure_step_counter, me.field_step_counter, me.amplitude_step_counter)
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
@@ -286,10 +286,11 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_real_group()
-        if accepted: se.evaluate_integrals(*me.real_params)
+        if accepted: se.save_temporary_matrices
       me.measure(state) #update mean, covariance matrix, other parameters' mean by sampling this step
+  me.save_time_series()
   if outdir is not None and os.path.isdir(outdir):
-    df = me.time_series #pd.DataFrame()
+    df = me.df #pd.DataFrame()
     #print(outdir, title, me.params_names, states)
     df.to_csv(os.path.join(outdir, title + ".csv"))
   #dump in files for order of magnitude estimate to start next simulation from
