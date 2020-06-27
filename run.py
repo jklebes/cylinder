@@ -245,10 +245,11 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(complex_params)
   energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot 
   energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,complex_params)
-  energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}}
-  me = metropolisengine.MetropolisEngine(energy_function = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
+  energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term_alt, "surface":energy_fct_field_term_alt}}
+  me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
   #also input system constraint : steps with |amplitude| > 1 to be rejected
   me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=1 )  
+  se.save_temporary_matrices()
 
  
   ########### start of data collection ############

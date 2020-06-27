@@ -335,7 +335,7 @@ class System():
     self.evaluate_A_integral_0(amplitude) # diff=0 element of A integrals can be identified with surface area
     return  self.gamma * self.tmp_A_integrals_0.real + self.kappa * self.calc_bending_energy(amplitude)
  
-  def calc_field_energy_amplitude_change(self, amplitude, field_coeffs)  
+  def calc_field_energy_amplitude_change(self, amplitude, field_coeffs):
     """
     to be used on steps where amplitude change is proposed,
     to get resulting proposed energy of (same) field on proposed surface shape
