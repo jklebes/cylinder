@@ -243,12 +243,10 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #function [real values], [complex values] -> energy 
   energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(complex_params)
-  energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params, complex_params)
-  #energy terms (functions) assigned names in a dict
-  energy_terms = {"field": energy_fct_field_term, "surface": energy_fct_surface_term}
-  #describe which arguments each energy term takes - complex and/or real group of params
-  energy_term_dependencies={"field": ["complex"], "surface":["real"] } # field part indirectly depends on current amplitude - this is handled by triggering reevaluation of integrals at appropriate times
-  me = metropolisengine.MetropolisEngine(energy_function = energy_terms, energy_term_dependencies = energy_term_dependencies, initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
+  energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot 
+  energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,complex_params)
+  energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}}
+  me = metropolisengine.MetropolisEngine(energy_function = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
   #also input system constraint : steps with |amplitude| > 1 to be rejected
   me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=1 )  
 

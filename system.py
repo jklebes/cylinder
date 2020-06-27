@@ -135,7 +135,7 @@ class System():
           #print(i,j,k,self.A_integrals[-i-j+k+0+4*self.num_field_coeffs], "filled", self.D_matrix[i,j,k,0])
     self.tmp_A_integrals_0 = self.tmp_A_integrals[0]
 
-  """
+
   def evaluate_A_integral_0(self, amplitude):
     #useful in no-field simulations
     img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(0, amplitude, z),
@@ -143,9 +143,9 @@ class System():
     assert (math.isclose(img_part, 0, abs_tol=1e-9))
     real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(0, amplitude, z),
                                       0, 2 * math.pi / self.wavenumber)
-    self.A_integrals[0] = complex(real_part, img_part) # this is usually done for surface area - no need to fill into A_matrix
-    self.tmp_A_integrals_ 0 = complex(real_part, img_part)
-  """
+    # this is usually done for surface area - no need to fill into A_matrix
+    self.tmp_A_integrals_0 = complex(real_part, img_part)
+  
   def evaluate_B_integrals(self, amplitude):
     for i in range(-self.num_field_coeffs, self.num_field_coeffs + 1):
       for j in range(-self.num_field_coeffs, self.num_field_coeffs + 1):
@@ -328,19 +328,25 @@ class System():
     self.D_matrix = self.tmp_D_matrix
     self.B_integrals = self.tmp_B_integrals
 
-  def calc_surface_energy(self, amplitude, field_coeffs):
+  def calc_surface_energy(self, amplitude):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
+    self.evaluate_A_integral_0(amplitude) # diff=0 element of A integrals can be identified with surface area
+    return  self.gamma * self.tmp_A_integrals_0.real + self.kappa * self.calc_bending_energy(amplitude)
+ 
+  def calc_field_energy_amplitude_change(self, amplitude, field_coeffs)  
+    """
+    to be used on steps where amplitude change is proposed,
+    to get resulting proposed energy of (same) field on proposed surface shape
+    """
     self.evaluate_A_integrals(amplitude)
-    self.evaluate_B_integrals(amplitude)
-    surface_energy =  self.gamma * self.tmp_A_integrals_0.real + self.kappa * self.calc_bending_energy(amplitude)
-    #calculate effect on current field with temporary(!) matrix elements from proposed(!) amplitude
+    self.evaluate_B_integrals(amplitude) #only evaluates with new amplitude -> tmp storage location
+    # then draw from tmp storage location
     A_complex_energy = np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
     B_complex_energy = np.einsum("ij, i, j -> ", self.tmp_B_integrals, field_coeffs.conjugate(), field_coeffs) 
     D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) 
-    field_energy =  self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
-    return surface_energy + field_energy
+    return  self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
