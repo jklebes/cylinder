@@ -341,7 +341,7 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = range(0, 5, 1)
+  range1 = range(0, 9, 1)
   range2 = range(1, 10, 10)
   n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
