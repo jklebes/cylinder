@@ -259,7 +259,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_real_group() #use outputted flag to trigger numerical integration in System on amplitude change
-        #print("step real group", accepted)        
+        print("step real group", accepted, me.real_params)        
         if accepted: se.save_temporary_matrices()
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
@@ -342,7 +342,7 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = range(0, 5, 1)
+  range1 = range(0, 2, 1)
   range2 = range(1, 10, 10)
   n_steps = 100#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"

@@ -15,25 +15,17 @@ class System():
     self.n = n
     self.kappa = kappa
     self.gamma = gamma
-    self.num_field_coeffs_z, self.num_field_coeffs_theta = num_field_coeffs
-    self.len_arrays_z = 2*self.num_field_coeffs_z+1
-    self.len_arrays_theta = 2*self.num_field_coeffs_theta+1
-    ############ change to 2D : A and D matrices ########################
-    # even though A matrix (->D matrix) is now 4D A_{jj'beta beta'}, still only calculate and save matrix A_{jj'}.  We don't need to store all the values
-    # we get for different combinations of beta, beta' in a matrix because they are mostly zero, 
-    #  A_{jj'beta beta'} = (2 pi A_{j j'} if beta == beta' else 0)
-    #  instead implement this selection rule later
-    ############## change to 2D : B matrices ###########################
-    # fill the 4D object B_{j j beta beta'}
-
-    self.tmp_A_integrals = np.zeros(4*self.len_arrays_z-3, dtype=complex) #initialize 1D np array of complex 
+    self.num_field_coeffs = num_field_coeffs
+    self.len_arrays = 2*self.num_field_coeffs+1
+    # memoization of integration results
+    self.tmp_A_integrals = np.zeros(4*self.len_arrays-3, dtype=complex) #initialize 1D np array of complex 
     #A_integrals list is longer than others because it covers range of possible differences in index between 2 or 4 field coeffs 
     self.B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
-    self.A_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z), dtype=complex) #initialize np complex array nxn
-    self.D_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_z, self.len_arrays_z),dtype=complex) # same 4D
+    self.A_matrix = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) #initialize np complex array nxn
+    self.D_matrix = np.zeros((self.len_arrays, self.len_arrays, self.len_arrays, self.len_arrays),dtype=complex) # same 4D
     self.tmp_B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
-    self.tmp_A_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z), dtype=complex) #initialize np complex array nxn
-    self.tmp_D_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_z, self.len_arrays_z),dtype=complex) # same 4D
+    self.tmp_A_matrix = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) #initialize np complex array nxn
+    self.tmp_D_matrix = np.zeros((self.len_arrays, self.len_arrays, self.len_arrays, self.len_arrays),dtype=complex) # same 4D
     self.tmp_A_integrals_0 = 0
 
   ######## common terms in integrals ###########
@@ -78,35 +70,23 @@ class System():
               self.sqrt_g_theta(amplitude, z) *
               self.sqrt_g_z(amplitude, z))
 
-  def B_integrand_img_part(self, i, j, beta, beta2, amplitude, z):
-    if amplitude == 0: #shortcut unperturbed case
-      z_bending = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
+  def B_integrand_img_part(self, i, j, amplitude, z):
+    if amplitude == 0:
+      z_part = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
       # and 1/sqrt(g_zz) =1
-      return z_bending+theta_bending
+      return (z_part)
     else:
-      if beta==beta2: #selection rule: other terms are 0 or, if beta=beta',  2piB_{jj'}
-        B_integrand = 0 # (-4*math.pi*self.n*beta * #cross term-  img part 0
-                      # A_theta(amplitude, z) * 
-                      #1.0/self.sqrt_g_theta(amplitude, z) * self.sqrt_g_z(amplitude, z)) #index raise and  metric tensor
-        # z bending |d_z Psi|^2 and surface curvature |-in A_theta Psi|^2 parts as in 1D case
-        z_bending = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
-                  self.sqrt_g_theta(amplitude, z) *
-                  self.sqrt_g_z(amplitude, z))
-        surface_curvature = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
-                      self.sqrt_g_z(amplitude, z) * 
-                      1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
-        #new for beta, beta' != 0 modes: theta bending part |d_theta Psi|^2
-        # img part zero because includes integral of (sin 0) dtheta (no toher theta-depnedednt part in integrand), even when beta=beta'
-        #theta_bending = (beta*beta2 * math.sin((beta-beta2))* #img part of d_theta e^(i (beta - beta) theta)
-        #                1.0/self.sqrt_g_theta(amplitude, z) * #sqrt_g_theta combined with index raising 1/g_theta: 
-        #                                        #eta^{theta theta}  - element of inv metric tensor of cylindrial coord system -
-        #                                        #is 1/r^2(z), same as 1/(sqrt(g_theta)^2)
-        #                self.sqrt_g_z(amplitude, z)) # rest of metric determinant sqrt(g) part of itegral
-        B_integrand += 2*pi* (z_bending + surface_curvature)
-      return B_integrand
+      z_part = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
+                self.sqrt_g_theta(amplitude, z) *
+                self.sqrt_g_z(amplitude, z))
+      theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
+                    self.sqrt_g_z(amplitude, z) * 
+                    1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
+                    math.sin((i-j)*self.wavenumber*z))
+      return (z_part+theta_part)
 
-  def B_integrand_real_part(self, i, j, beta, beta2, amplitude, z):
+  def B_integrand_real_part(self, i, j, amplitude, z):
     if amplitude == 0:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
@@ -114,7 +94,7 @@ class System():
     else:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.sqrt_g_theta(amplitude, z) *
-                ## don't index raise in z direction # because metric tensor eta (cylindrical <-> cartesian coordinate system) has 1 here, e_z=e_z
+                ## don't index raise in z direction
                 # 1/self.sqrt_g_z(radius, amplitude, wavenumber, z))  # and 1/sqrt(g_zz) from metric ddeterminant, index raising g^zz
                 self.sqrt_g_z(amplitude, z))
       theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
@@ -167,7 +147,6 @@ class System():
     self.tmp_A_integrals_0 = complex(real_part, img_part)
   
   def evaluate_B_integrals(self, amplitude):
-    # calculate 3D array for all different values i, j, beta=beta'
     for i in range(-self.num_field_coeffs, self.num_field_coeffs + 1):
       for j in range(-self.num_field_coeffs, self.num_field_coeffs + 1):
         img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, amplitude, z),
@@ -176,7 +155,6 @@ class System():
                                           0, 2 * math.pi / self.wavenumber) # integrands demand coefficient's indices in range -n to n
         #print("evaluated with i ", i , "j ", j , "and put it at Bintegrals ", i+self.num_field_coeffs, j+self.num_field_coeffs)
         self.tmp_B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
-   #use calculated values to fill 4D array in i, j, beta, beta' - mostly 0 where beta!=beta'
 
   ############# calc energy ################
   def calc_field_energy(self, field_coeffs):
@@ -225,6 +203,113 @@ class System():
     """
     return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
+  def calc_field_energy_loop(self, field_coeffs, amplitude, amplitude_change=False):
+    """
+    :param amplitude_change: True by default as this function is often called in simultaneous update of field and amplitude
+    old version of cacl_field_energy with loop, dict lookups
+    """
+    # some memoization: use previously calculated A integrals (=D integrals) and B integrals
+    # reevaluate only on  amplitude change
+    # TODO : initialize on System object creation, instead of checking if empty every time
+    if amplitude_change:
+      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals")
+      num_field_coeffs = max(field_coeffs)
+      self.evaluate_A_integrals(amplitude, num_field_coeffs)
+      self.evaluate_B_integrals(amplitude, num_field_coeffs)
+
+    A_complex_energy = 0 + 0j
+    B_complex_energy = 0 + 0j
+    D_complex_energy = 0 + 0j  # identity of complex sum
+    for i1 in field_coeffs:
+      for j1 in field_coeffs:
+        A_complex_energy += field_coeffs[i1] * field_coeffs[j1].conjugate() * self.A_integrals[i1 - j1]
+        B_complex_energy += field_coeffs[i1] * field_coeffs[j1].conjugate() * self.B_integrals[(i1, j1)]
+        for i2 in field_coeffs:
+          for j2 in field_coeffs:
+            D_complex_energy += (field_coeffs[i1] * field_coeffs[i2] *
+                                 field_coeffs[j1].conjugate() * field_coeffs[j2].conjugate() *
+                                 self.A_integrals[(i1 + i2 - j1 - j2)])
+    assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
+    assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
+    #print(field_coeffs)
+    #print(D_complex_energy)
+    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
+    # print("total")
+    #print(self.C, B_complex_energy.real)
+    # print(self.alpha, A_complex_energy.real)
+    # print(self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real)
+    return self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
+
+
+  def calc_field_energy_diff_ABpart(self, index, new_field_coeff, old_field_coeffs):
+    old_field_coeff = old_field_coeffs[index]
+    diff = new_field_coeff - old_field_coeff
+    A_complex_energy_diff = 0 + 0j
+    B_complex_energy_diff = 0 + 0j
+    for i in old_field_coeffs:
+      A_complex_energy_diff += diff * old_field_coeffs[i].conjugate() * self.A_integrals[index - i]
+      A_complex_energy_diff += old_field_coeffs[i] * diff.conjugate() * self.A_integrals[i - index]
+      B_complex_energy_diff += diff * old_field_coeffs[i].conjugate() * self.B_integrals[index, i]
+      B_complex_energy_diff += old_field_coeffs[i] * diff.conjugate() * self.B_integrals[i, index]
+    # undoing the change we did (with partially old value) where i=index above ,
+    # + changing the point (index, i=index) correctly works out to this addition
+    A_complex_energy_diff += diff * diff.conjugate() * self.A_integrals[0]
+    B_complex_energy_diff += diff * diff.conjugate() * self.B_integrals[index, index]
+    assert (math.isclose(B_complex_energy_diff.imag, 0, abs_tol=1e-7))
+    #print("diff A B parts")
+    #print("B integral 0", self.B_integrals[(0,0)])
+    #print("A:", A_complex_energy_diff.real, "B:", B_complex_energy_diff.real)
+    return A_complex_energy_diff.real, B_complex_energy_diff.real
+  
+  def calc_field_energy_diff_Dpart(self, index, new_field_coeff, old_field_coeffs):
+    old_field_coeff = old_field_coeffs[index]
+    diff = new_field_coeff - old_field_coeff
+    D_complex_energy_diff = 0 + 0j
+    for i in old_field_coeffs:
+      if i != index:
+        for j in old_field_coeffs:
+          if j!= index:
+            for k in old_field_coeffs:
+              if k!= index:
+                #replacing parts of the sum where c_index or c_index^* occured once
+                D_complex_energy_diff += 2*diff * old_field_coeffs[i] * old_field_coeffs[j].conjugate() * old_field_coeffs[k].conjugate() * self.A_integrals[index + i - j-k ]
+                D_complex_energy_diff += 2*old_field_coeffs[i] *old_field_coeffs[j] * diff.conjugate() * old_field_coeffs[k].conjugate() * self.A_integrals[i+j-index-k]
+                #print("changed", "c_index", " * coeff[", i, j, k,"]")
+                #print("diff", D_complex_energy_diff)
+            #twice
+            D_complex_energy_diff -= old_field_coeff**2 * old_field_coeffs[j].conjugate() * old_field_coeffs[i].conjugate() *self.A_integrals[index+index-i-j]
+            D_complex_energy_diff += new_field_coeff**2 * old_field_coeffs[j].conjugate() * old_field_coeffs[i].conjugate() *self.A_integrals[index+index-i-j]
+            D_complex_energy_diff -= old_field_coeff.conjugate()**2 * old_field_coeffs[j] * old_field_coeffs[i] *self.A_integrals[i+j-index-index]
+            D_complex_energy_diff += new_field_coeff.conjugate()**2 * old_field_coeffs[j] * old_field_coeffs[i] *self.A_integrals[i+j-index-index]
+            D_complex_energy_diff -= 4*old_field_coeff*old_field_coeff.conjugate() * old_field_coeffs[i]* old_field_coeffs[j].conjugate() *self.A_integrals[index+i-index-j]
+            D_complex_energy_diff += 4*new_field_coeff*new_field_coeff.conjugate() * old_field_coeffs[i]* old_field_coeffs[j].conjugate() *self.A_integrals[index+i-index-j]
+        #three times
+        D_complex_energy_diff -=  2*old_field_coeff**2 * old_field_coeff.conjugate() * old_field_coeffs[i].conjugate()*self.A_integrals[index-i]
+        D_complex_energy_diff +=  2*new_field_coeff**2 * new_field_coeff.conjugate() * old_field_coeffs[i].conjugate()*self.A_integrals[index-i]
+        D_complex_energy_diff -= 2*old_field_coeff *old_field_coeffs[i]* old_field_coeff.conjugate()**2 * self.A_integrals[i-index]
+        D_complex_energy_diff += 2*new_field_coeff *old_field_coeffs[i]* new_field_coeff.conjugate()**2 * self.A_integrals[i-index]
+    #replacing the point where c_index occured 4 times
+    D_complex_energy_diff -= old_field_coeff**2 * old_field_coeff.conjugate()**2*self.A_integrals[0]
+    D_complex_energy_diff += new_field_coeff**2 * new_field_coeff.conjugate()**2*self.A_integrals[0]
+    #try:
+    assert (math.isclose(D_complex_energy_diff.imag, 0, abs_tol=1e-7))
+    #except AssertionError:
+      #print("failed assertion imag part of D_diff = 0.  D_complex_energy_diff: ", D_complex_energy_diff)
+    #print("diff D parts")
+    #print("D:", D_complex_energy_diff.real)
+    return D_complex_energy_diff.real
+
+  def calc_field_energy_diff(self, index, new_field_coeff, old_field_coeffs, amplitude, amplitude_change=False):
+    if amplitude_change:
+      
+      print("if you mean to reevaluate integrals on amplitude change, call evaluate_integrals")
+      num_field_coeffs = max(old_field_coeffs)
+      self.evaluate_A_integrals(amplitude, num_field_coeffs)
+      self.evaluate_B_integrals(amplitude, num_field_coeffs)
+    A_energy_diff, B_energy_diff = self.calc_field_energy_diff_ABpart(index, new_field_coeff, old_field_coeffs)
+    D_energy_diff = self.calc_field_energy_diff_Dpart(index, new_field_coeff, old_field_coeffs)
+    return self.alpha * A_energy_diff + self.C * B_energy_diff + 0.5 * self.u * D_energy_diff
+
   def calc_bending_energy(self, amplitude):
     """
     calculate bending as (K_i^i)**2.  Gaussian curvature and cross term 2 K_th^th K_z^z are omitted due to gauss-bonnet theorem.
@@ -257,22 +342,10 @@ class System():
     """
     self.evaluate_A_integrals(amplitude)
     self.evaluate_B_integrals(amplitude) #only evaluates with new amplitude -> tmp storage location
-    A_complex_energy = 0+0j
-    D_complex_energy = 0+0j
-    # hybrid einsum and loop for Acc* and Dccc*c* sums
-    for beta in range(n_field_coeffs_theta):
-    	A_complex_energy += 2*math.pi*np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
-    for beta1 in range(n_field_coeffs_theta): # TODO: better to generate once and save allowed tuples [beta1, beta2, betaprime1, betaprime2]
-        for beta2 in range(n_field_coeffs_theta):
-            for betaprime1 in range(n_field_coeffs_theta):
-               #selection rule beta1 + beta2 == beta'1 + beta'2
-               betaprime2 = beta1+beta2-betaprime1
-               try: # betaprime2 may be out of range
-    	         D_complex_energy +=  2*math.pi*np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
-               except KeyError:
-                 pass
-    # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
-    B_complex_energy = np.einsum("ijab, ai, bj -> ", self.tmp_B_integrals, field_coeffs.conjugate(), field_coeffs) 
+    # then draw from tmp storage location
+    A_complex_energy = np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
+    B_complex_energy = np.einsum("ij, i, j -> ", self.tmp_B_integrals, field_coeffs.conjugate(), field_coeffs) 
+    D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) 
