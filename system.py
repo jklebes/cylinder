@@ -102,9 +102,10 @@ class System():
       return 2*math.pi*(z_bending)
     else:
       #if beta==beta2: #selection rule: other terms are 0 or, if beta=beta',  2piB_{jj'} 
-      #cross_term =  (-4*math.pi*self.n*beta * #cross term-  img part 0
-                      # A_theta(amplitude, z) * 
-                      #1.0/self.sqrt_g_theta(amplitude, z) * self.sqrt_g_z(amplitude, z)) #index raise and  metric tensor
+      cross_term =  (-4*math.pi*self.n*beta * #cross term
+                       A_theta(amplitude, z) * 
+                      1.0/self.sqrt_g_theta(amplitude, z) * self.sqrt_g_z(amplitude, z)*
+                      math.sin((i-j)*self.wavenumber*z)) #index raise and  metric tensor
         # z bending |d_z Psi|^2 and surface curvature |-in A_theta Psi|^2 parts as in 1D case
       z_bending = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.sqrt_g_theta(amplitude, z) *
@@ -112,15 +113,15 @@ class System():
       surface_curvature = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
                     self.sqrt_g_z(amplitude, z) * 
                     1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
-        #new for beta, beta' != 0 modes: theta bending part |d_theta Psi|^2
-        # img part zero because includes integral of (sin 0) dtheta (no toher theta-depnedednt part in integrand), even when beta=beta'
-        theta_bending = (beta**2
-                        1.0/self.sqrt_g_theta(amplitude, z) * #sqrt_g_theta combined with index raising 1/g_theta: 
-                                                #eta^{theta theta}  - element of inv metric tensor of cylindrial coord system -
-                                                #is 1/r^2(z), same as 1/(sqrt(g_theta)^2)
-                        self.sqrt_g_z(amplitude, z)* # rest of metric determinant sqrt(g) part of itegral
-                        math.sin((i-j)*self.wavenumber*z)) # theta bending has an img part because , while integral of e^(..theta) evaluates to real, 
-                                                           # z integral has this imaginary part
+      #new for beta, beta' != 0 modes: theta bending part |d_theta Psi|^2
+      # img part zero because includes integral of (sin 0) dtheta (no toher theta-depnedednt part in integrand), even when beta=beta'
+      theta_bending = (beta**2
+                      1.0/self.sqrt_g_theta(amplitude, z) * #sqrt_g_theta combined with index raising 1/g_theta: 
+                                              #eta^{theta theta}  - element of inv metric tensor of cylindrial coord system -
+                                              #is 1/r^2(z), same as 1/(sqrt(g_theta)^2)
+                      self.sqrt_g_z(amplitude, z)* # rest of metric determinant sqrt(g) part of itegral
+                      math.sin((i-j)*self.wavenumber*z)) # theta bending has an img part because , while integral of e^(..theta) evaluates to real, 
+                                                         # z integral has this imaginary part
       B_integrand = 2*pi* (z_bending + surface_curvature+theta_bending)
       return B_integrand
 
@@ -135,7 +136,8 @@ class System():
     else:
       cross_term  = (-4*math.pi*self.n*beta*
                     self.A_theta(amplitude, z)*
-                    self.sqrt_g_z(amplitude, z)/self.sqrt_g_theta(amplitude, z))
+                    self.sqrt_g_z(amplitude, z)/self.sqrt_g_theta(amplitude, z)*
+                    math.cos((i-j)*self.wavenumber*z))
       z_bending = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.sqrt_g_theta(amplitude, z) *
                 ## don't index raise in z direction # because metric tensor eta (cylindrical <-> cartesian coordinate system) has 1 here, e_z=e_z
