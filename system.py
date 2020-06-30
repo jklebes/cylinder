@@ -2,8 +2,15 @@ import math
 import scipy.integrate as integrate
 import numpy as np
 
-class System():
 
+
+class System():
+  """
+  System: Cylider2D
+  A physics system containing functions that return an energy for given real , complex parameter values
+  Representing a section of sinusoidally perturbed cylindrical surface / surface of revolution r(z) = r(a) (1+a sin(kz))
+  plus a complex-valued field over the two-dimensional surface, fourier decomposed into an array of modes indexed (j, beta)
+  """
   def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs):
     assert (all(map(lambda x: x >= 0, [wavenumber, radius, C, u, kappa, gamma, num_field_coeffs])))
     assert (alpha <= 0)
@@ -28,13 +35,16 @@ class System():
 
     self.tmp_A_integrals = np.zeros(4*self.len_arrays_z-3, dtype=complex) #initialize 1D np array of complex 
     #A_integrals list is longer than others because it covers range of possible differences in index between 2 or 4 field coeffs 
-    self.B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
-    self.A_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z), dtype=complex) #initialize np complex array nxn
-    self.D_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_z, self.len_arrays_z),dtype=complex) # same 4D
-    self.tmp_B_integrals = np.zeros((self.len_arrays, self.len_arrays), dtype=complex) # 2D np array of complex
+    self.tmp_B_integrals = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_theta), dtype=complex) # 3D np array of complex, to hold calculated values for different j, j', beta=beta'
+    self.tmp_B_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_theta, self.len_arrays_theta), dtype=complex) # 4D array j, j', beta, beta'
+    # A and D matrices theoretically should have +2, +4 theta dimensions, but since the values are 0 or same according to selection rule its unnecessary to save these
     self.tmp_A_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z), dtype=complex) #initialize np complex array nxn
     self.tmp_D_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_z, self.len_arrays_z),dtype=complex) # same 4D
     self.tmp_A_integrals_0 = 0
+    # location to save long-term copies of the same
+    self.B_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_theta, self.len_arrays_theta), dtype=complex) # 4D array j, j', beta, beta'
+    self.A_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z), dtype=complex) #initialize np complex array nxn
+    self.D_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_z, self.len_arrays_z),dtype=complex) 
 
   ######## common terms in integrals ###########
 
@@ -49,6 +59,10 @@ class System():
 
   def n_A_theta_squared(self, amplitude, z):
     return (self.n * self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(self.wavenumber * z) /self.sqrt_g_z(amplitude, z)) **2 
+
+  def A_theta(self, amplitude, z):
+    return  self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(self.wavenumber * z) /self.sqrt_g_z(amplitude, z)
+
 
   ########## evaluates integrals ##########
   def A_integrand_img_part(self, diff, amplitude, z):
@@ -78,50 +92,62 @@ class System():
               self.sqrt_g_theta(amplitude, z) *
               self.sqrt_g_z(amplitude, z))
 
-  def B_integrand_img_part(self, i, j, beta, beta2, amplitude, z):
+  def B_integrand_img_part(self, i, j, beta,  amplitude, z):
+    #selection rule beta=beta' applies to everything so arg is just one value beta
     if amplitude == 0: #shortcut unperturbed case
       z_bending = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
-      # and 1/sqrt(g_zz) =1
-      return z_bending+theta_bending
+                              # and 1/sqrt(g_zz) =1
+      #theta_bending =  beta beta' sin(beta-beta') * z-integral #- img part zero 
+      return 2*math.pi*(z_bending)
     else:
-      if beta==beta2: #selection rule: other terms are 0 or, if beta=beta',  2piB_{jj'}
-        B_integrand = 0 # (-4*math.pi*self.n*beta * #cross term-  img part 0
+      #if beta==beta2: #selection rule: other terms are 0 or, if beta=beta',  2piB_{jj'} 
+      #cross_term =  (-4*math.pi*self.n*beta * #cross term-  img part 0
                       # A_theta(amplitude, z) * 
                       #1.0/self.sqrt_g_theta(amplitude, z) * self.sqrt_g_z(amplitude, z)) #index raise and  metric tensor
         # z bending |d_z Psi|^2 and surface curvature |-in A_theta Psi|^2 parts as in 1D case
-        z_bending = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
-                  self.sqrt_g_theta(amplitude, z) *
-                  self.sqrt_g_z(amplitude, z))
-        surface_curvature = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
-                      self.sqrt_g_z(amplitude, z) * 
-                      1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
+      z_bending = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
+                self.sqrt_g_theta(amplitude, z) *
+                self.sqrt_g_z(amplitude, z))
+      surface_curvature = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
+                    self.sqrt_g_z(amplitude, z) * 
+                    1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) and g^thth
         #new for beta, beta' != 0 modes: theta bending part |d_theta Psi|^2
         # img part zero because includes integral of (sin 0) dtheta (no toher theta-depnedednt part in integrand), even when beta=beta'
-        #theta_bending = (beta*beta2 * math.sin((beta-beta2))* #img part of d_theta e^(i (beta - beta) theta)
-        #                1.0/self.sqrt_g_theta(amplitude, z) * #sqrt_g_theta combined with index raising 1/g_theta: 
-        #                                        #eta^{theta theta}  - element of inv metric tensor of cylindrial coord system -
-        #                                        #is 1/r^2(z), same as 1/(sqrt(g_theta)^2)
-        #                self.sqrt_g_z(amplitude, z)) # rest of metric determinant sqrt(g) part of itegral
-        B_integrand += 2*pi* (z_bending + surface_curvature)
+        theta_bending = (beta**2
+                        1.0/self.sqrt_g_theta(amplitude, z) * #sqrt_g_theta combined with index raising 1/g_theta: 
+                                                #eta^{theta theta}  - element of inv metric tensor of cylindrial coord system -
+                                                #is 1/r^2(z), same as 1/(sqrt(g_theta)^2)
+                        self.sqrt_g_z(amplitude, z)* # rest of metric determinant sqrt(g) part of itegral
+                        math.sin((i-j)*self.wavenumber*z)) # theta bending has an img part because , while integral of e^(..theta) evaluates to real, 
+                                                           # z integral has this imaginary part
+      B_integrand = 2*pi* (z_bending + surface_curvature+theta_bending)
       return B_integrand
 
-  def B_integrand_real_part(self, i, j, beta, beta2, amplitude, z):
+  def B_integrand_real_part(self, i, j, beta, amplitude, z):
     if amplitude == 0:
-      z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
+      # TODO : check this
+      z_bending = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
-      return (z_part)
+      theta_bending = (beta**2 * #math.cos(beta-beta') =1
+                      self.radius)  
+      return 2*math.pi*(z_bending+theta_bending)
     else:
-      z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
+      cross_term  = (-4*math.pi*self.n*beta*
+                    self.A_theta(amplitude, z)*
+                    self.sqrt_g_z(amplitude, z)/self.sqrt_g_theta(amplitude, z))
+      z_bending = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.sqrt_g_theta(amplitude, z) *
                 ## don't index raise in z direction # because metric tensor eta (cylindrical <-> cartesian coordinate system) has 1 here, e_z=e_z
-                # 1/self.sqrt_g_z(radius, amplitude, wavenumber, z))  # and 1/sqrt(g_zz) from metric ddeterminant, index raising g^zz
                 self.sqrt_g_z(amplitude, z))
-      theta_part = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
+      surface_curvature  = (self.n_A_theta_squared(amplitude, z) *  # part of n_A_theta^2
                     self.sqrt_g_z(amplitude, z) *  # sqrt(g_zz) from metric
                     1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) from metric and g^thth = 1/g_thth index raising
                     math.cos((i-j)*self.wavenumber*z))
-      return (z_part + theta_part)
+      theta_bending =  (beta**2 * # *math.cos(beta-beta') =1
+                       self.sqrt_g_z(amplitude, z)/self.sqrt_g_theta(amplitude, z)* # index raise, metric determinant
+                       math.cos((i-j)*self.wavenumber*z)) 
+      return 2*math.pi*(cross_term+z_bending +surface_curvature+ theta_bending)
   
   def Kthth_integrand(self, amplitude, z):
     return (1/(self.sqrt_g_theta(amplitude,z) *  self.sqrt_g_z(amplitude, z))) #*  # part of K_th^th^2
