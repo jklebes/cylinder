@@ -253,7 +253,21 @@ class System():
                                           0, 2 * math.pi / self.wavenumber) # integrands demand coefficient's indices in range -n to n
         #print("evaluated with i ", i , "j ", j , "and put it at Bintegrals ", i+self.num_field_coeffs, j+self.num_field_coeffs)
         self.tmp_B_integrals[i+self.num_field_coeffs, j+self.num_field_coeffs] = complex(real_part, img_part) # while results are stored in order in array with indices 0 to 2n
-   #use calculated values to fill 4D array in i, j, beta, beta' - mostly 0 where beta!=beta'
+    #use calculated values to fill 4D array in i, j, beta, beta' - mostly 0 where beta!=beta'
+    # start with all 0s
+    self.tmp_B_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_theta, self.len_arrays_theta), dtype=complex) 
+    # fill with value where beta = beta'
+    for i in range(-self.num_field_coeffs_z, self.num_field_coeffs_z+1):
+      for j in range(-self.num_field_coeffs_z, self.num_field_coeffs_z+1):
+        for beta in range(-self.num_field_coeffs_theta, self.num_field_coeffs_theta+1):
+          #fill element i,j,beta,beta
+          img_part, error = integrate.quad(lambda z: self.B_integrand_img_part(i, j, beta, amplitude, z),
+                                         0, 2 * math.pi / self.wavenumber)
+          real_part, error = integrate.quad(lambda z: self.B_integrand_real_part(i, j, beta, amplitude, z),
+                                          0, 2 * math.pi / self.wavenumber) # integrands demand coefficient's indices in range -n to n
+          B_matrix_element = complex(real_part, img_part)
+          self.tmp_B_matrix[i,j,beta,beta]=B_matrix_element
+ 
 
   ############# calc energy ################
   def calc_field_energy(self, field_coeffs):
