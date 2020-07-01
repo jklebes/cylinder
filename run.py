@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import system as ce #TODO: refactor name
+#import system as ce #TODO: refactor name
 import scipy.integrate as integrate
 import math
 import collections
@@ -13,6 +13,7 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
+import system2D as ce
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
   """
@@ -97,9 +98,9 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
       kappa=kb
       names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(wvn,3))+"_kappa"+str(round(kappa,3)))
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
-      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
-      print(kappa, wavenumber, means_dict["abs_amplitude"])
-      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
+      coeffs_names = names[1:(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1])]
+      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(coeffs_names)])
+      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(coeffs_names) for (j, name2) in enumerate(coeffs_names) if i!= j])
       for name in names:
         results_line[name].append(means_dict[name])
       for name in var_dict:
@@ -154,7 +155,7 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
   :param title:
   :return:
   """
-  #print(results)
+  print(results)
   #cut ranges to shape of data
   range1 = range1[-len(results):]
   range2 = range2[-len(results[0]):]
@@ -191,7 +192,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method):
   # TODO: could be switch or dict of functions
   if exp_type == ("wavenumber", "kappa"):
     results = loop_wavenumber_kappa(wavenumber_range=range1, kappa_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
-    print(results["abs_amplitude"])
+    print("results", results)
   elif exp_type == ("wavenumber", "alpha"):
     results = loop_wavenumber_alpha(wavenumber_range=range1, alpha_range=range2, n_steps=n_steps, method=method, outdir = exp_dir)
     print(results["abs_amplitude"])
@@ -255,7 +256,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     return np.array(array)
 
   ########### setup system, metropolis engine, link energy functions #############
-  se = ce.System(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
+  se = ce.System2D(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #function [real values], [complex values] -> energy 
   energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(coefflisttoarray(complex_params))
   energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot 
@@ -320,7 +321,6 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     pickle.dump(me.sampling_width, f)
   result_names = me.params_names
   result_names.extend(me.observables_names)
-  print(result_names)
   result_means = [i for i in me.real_mean]
   result_means.extend([i for i in me.complex_mean])
   result_means.extend([i for i in me.observables_mean])
