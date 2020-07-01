@@ -1,7 +1,7 @@
 import unittest
 import run
 import numpy as np
-import system
+import system1D as system
 import metropolis_engine
 import random
 import math

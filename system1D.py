@@ -4,7 +4,7 @@ import numpy as np
 
 class System():
 
-  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs):
+  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs=0):
     assert (all(map(lambda x: x >= 0, [wavenumber, radius, C, u, kappa, gamma, num_field_coeffs])))
     assert (alpha <= 0)
     self.wavenumber = wavenumber
@@ -71,7 +71,7 @@ class System():
               self.sqrt_g_z(amplitude, z))
 
   def B_integrand_img_part(self, i, j, amplitude, z):
-    if amplitude == 0:
+    if False or amplitude == 0:
       z_part = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
       # and 1/sqrt(g_zz) =1
@@ -87,7 +87,7 @@ class System():
       return (z_part+theta_part)
 
   def B_integrand_real_part(self, i, j, amplitude, z):
-    if amplitude == 0:
+    if False or amplitude == 0:
       z_part = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
       return (z_part)

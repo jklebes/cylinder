@@ -13,7 +13,7 @@ class System2D(system1D.System):
   Representing a section of sinusoidally perturbed cylindrical surface / surface of revolution r(z) = r(a) (1+a sin(kz))
   plus a complex-valued field over the two-dimensional surface, fourier decomposed into an array of modes indexed (j, beta)
   """
-  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs):
+  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs=(0,0)):
     assert (all(map(lambda x: x >= 0, [wavenumber, radius, C, u, kappa, gamma, num_field_coeffs[0], num_field_coeffs[1]])))
     assert (alpha <= 0)
     self.wavenumber = wavenumber
@@ -62,7 +62,7 @@ class System2D(system1D.System):
                 self.radius)  # sqrt(g_theta theta) = radius
                               # and 1/sqrt(g_zz) =1
       #theta_bending =  beta beta' sin(beta-beta') * z-integral #- img part zero 
-      return 2*math.pi*(z_bending)
+      return (z_bending)
     else:
       #if beta==beta2: #selection rule: other terms are 0 or, if beta=beta',  2piB_{jj'} 
       cross_term =  (-4*math.pi*self.n*beta * #cross term
@@ -86,7 +86,7 @@ class System2D(system1D.System):
                       self.sqrt_g_z(amplitude, z)* # rest of metric determinant sqrt(g) part of itegral
                       math.sin((i-j)*self.wavenumber*z)) # theta bending has an img part because , while integral of e^(..theta) evaluates to real, 
                                                          # z integral has this imaginary part
-      B_integrand = 2*pi* (cross_term + z_bending + surface_curvature+theta_bending)
+      B_integrand = (cross_term + z_bending + surface_curvature+theta_bending)
       return B_integrand
 
   def B_integrand_real_part_presimplify(self, i, j, beta, amplitude, z):
@@ -96,7 +96,7 @@ class System2D(system1D.System):
                 self.radius)  # sqrt(g_theta theta) = radius
       theta_bending = (beta**2 * #math.cos(beta-beta') =1
                       self.radius)  
-      return 2*math.pi*(z_bending+theta_bending)
+      return z_bending+theta_bending
     else:
       cross_term  = (-4*math.pi*self.n*beta*
                     self.A_theta(amplitude, z)*
@@ -113,7 +113,7 @@ class System2D(system1D.System):
       theta_bending =  (beta**2 * # *math.cos(beta-beta') =1
                        self.sqrt_g_z(amplitude, z)/self.sqrt_g_theta(amplitude, z)* # index raise, metric determinant
                        math.cos((i-j)*self.wavenumber*z)) 
-      return 2*math.pi*(cross_term+z_bending +surface_curvature+ theta_bending)
+      return (cross_term+z_bending +surface_curvature+ theta_bending)
   
   def B_integrand_real_part(self, i, j, beta, amplitude, z):
     if False and amplitude == 0: #TODO fix, returns wrong answers
@@ -122,7 +122,7 @@ class System2D(system1D.System):
                 self.radius)  # sqrt(g_theta theta) = radius
       theta_bending = (beta**2 * #math.cos(beta-beta') =1
                       self.radius)  
-      return 2*math.pi*(z_bending+theta_bending)
+      return (z_bending+theta_bending)
     else:
       simplified_integrand  = (math.cos((i-j)*self.wavenumber*z)*
                               # |d_z Psi |^2 part:
@@ -131,7 +131,7 @@ class System2D(system1D.System):
                               # the squared part expands to three terms: beta beta', -2beta n A_theta, and n**2 A_theta**2
                               (beta - self.n*self.A_theta(amplitude, z))**2 * self.sqrt_g_z(amplitude, z) / self.sqrt_g_theta(amplitude, z))
                               )
-      return 2*math.pi*(simplified_integrand)
+      return simplified_integrand
  
   
   def B_integrand_img_part(self, i, j, beta, amplitude, z):
@@ -141,7 +141,7 @@ class System2D(system1D.System):
                 self.radius)  # sqrt(g_theta theta) = radius
       theta_bending = (beta**2 * #math.cos(beta-beta') =1
                       self.radius)  
-      return 2*math.pi*(z_bending+theta_bending)
+      return (z_bending+theta_bending)
     else:
       simplified_integrand  = (math.sin((i-j)*self.wavenumber*z)* #sin: img part of e^i...
                               # |d_z Psi |^2 part:
@@ -150,7 +150,7 @@ class System2D(system1D.System):
                               # the squared part expands to three terms: beta beta', -2beta n A_theta, and n**2 A_theta**2
                               (beta - self.n*self.A_theta(amplitude, z))**2 * self.sqrt_g_z(amplitude, z) / self.sqrt_g_theta(amplitude, z))
                               )
-      return 2*math.pi*(simplified_integrand)
+      return simplified_integrand
  
 
   def evaluate_A_integrals(self, amplitude):
@@ -209,15 +209,15 @@ class System2D(system1D.System):
     A_complex_energy = 0+0j
     D_complex_energy = 0+0j
     # hybrid einsum and loop for Acc* and Dccc*c* sums
-    for beta in range(self.num_field_coeffs_theta):
-    	A_complex_energy += 2*math.pi*np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
-    for beta1 in range(self.num_field_coeffs_theta): # TODO: better to generate once and save allowed tuples [beta1, beta2, betaprime1, betaprime2]
-        for beta2 in range(self.num_field_coeffs_theta):
-            for betaprime1 in range(self.num_field_coeffs_theta):
+    for beta in range(self.len_arrays_theta):
+    	A_complex_energy += np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
+    for beta1 in range(self.len_arrays_theta): # TODO: better to generate once and save allowed tuples [beta1, beta2, betaprime1, betaprime2]
+        for beta2 in range(self.len_arrays_theta):
+            for betaprime1 in range(self.len_arrays_theta):
                #selection rule beta1 + beta2 == beta'1 + beta'2
                betaprime2 = beta1+beta2-betaprime1
                try: # betaprime2 may be out of range
-                 D_complex_energy +=  2*math.pi*np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
+                 D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
                except KeyError:
                  pass
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
@@ -244,19 +244,19 @@ class System2D(system1D.System):
     A_complex_energy = 0+0j
     D_complex_energy = 0+0j
     # hybrid einsum and loop for Acc* and Dccc*c* sums
-    for beta in range(self.num_field_coeffs_theta):
-    	A_complex_energy += 2*math.pi*np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
-    for beta1 in range(self.num_field_coeffs_theta): # TODO: better to generate once and save allowed tuples [beta1, beta2, betaprime1, betaprime2]
-        for beta2 in range(self.num_field_coeffs_theta):
-            for betaprime1 in range(self.num_field_coeffs_theta):
+    for beta in range(self.len_arrays_theta):
+    	A_complex_energy += np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
+    for beta1 in range(self.len_arrays_theta): # TODO: better to generate once and save allowed tuples [beta1, beta2, betaprime1, betaprime2]
+        for beta2 in range(self.len_arrays_theta):
+            for betaprime1 in range(self.len_arrays_theta):
                #selection rule beta1 + beta2 == beta'1 + beta'2
                betaprime2 = beta1+beta2-betaprime1
                try: # betaprime2 may be out of range
-                 D_complex_energy +=  2*math.pi*np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
+                 D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
                except KeyError:
                  pass
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
-    B_complex_energy = np.einsum("ijab, ia, jb -> ", self.tmp_B_matrix, field_coeffs, field_coeffs.conjugate()) 
+    B_complex_energy = np.einsum("ijab, ai, bj -> ", self.tmp_B_matrix, field_coeffs.conjugate(), field_coeffs) 
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     print("B complex energy", B_complex_energy)
     #print("from einsum", self.tmp_B_matrix, field_coeffs, field_coeffs.conjugate())

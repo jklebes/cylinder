@@ -1,7 +1,7 @@
 import unittest
 import run
 import numpy as np
-import system
+import system1D as system
 import random
 import math
 import copy
@@ -23,8 +23,6 @@ class TestRun(unittest.TestCase):
     range2 = np.arange(0, .2, .3)
     n_steps = 1
     converge_stop = True
-    results = run.loop_wavenumber_kappa(wavenumber_range=range1, kappa_range=range2, n_steps=n_steps)
-    self.assertEqual(results["abs_amplitude"].shape, (len(range1), len(range2)), "dimensions of amplitude output")
 
 if __name__ == '__main__':
     unittest.main()
