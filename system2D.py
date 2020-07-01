@@ -221,7 +221,7 @@ class System2D(system1D.System):
                except KeyError:
                  pass
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
-    B_complex_energy = np.einsum("ijab, ia, jb -> ", self.B_matrix, field_coeffs.conjugate(), field_coeffs) 
+    B_complex_energy = np.einsum("ijab, ai, bj -> ", self.B_matrix, field_coeffs.conjugate(), field_coeffs) #why the backwards list of indices?
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) 
