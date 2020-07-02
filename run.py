@@ -275,12 +275,12 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_real_group() #use outputted flag to trigger numerical integration in System on amplitude change
-        print("step real group", accepted, me.real_params)        
+        #print("step real group", accepted, me.real_params)        
         if accepted: se.save_temporary_matrices()
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
           #print("field_coeffs", me.complex_params)
-      #print("measure", i)#, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("measure", i)#, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
@@ -341,7 +341,7 @@ radius = 1
 wavenumber = .4
 
 # simulation details
-num_field_coeffs = (1,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (1,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
 measure_every =10
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
@@ -357,9 +357,9 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.05, 2, 1)
-  range2 = np.arange(1, 10, 10)
-  n_steps = 100#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  range1 = np.arange(0.05, 1.4, .1)
+  range2 = np.arange(0, .5, .1)
+  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")

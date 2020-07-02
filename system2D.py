@@ -124,7 +124,7 @@ class System2D(system1D.System):
                       self.radius)  
       return (z_bending+theta_bending)
     else:
-      simplified_integrand  = (math.cos((i-j)*self.wavenumber*z)*
+      simplified_integrand  = math.cos((i-j)*self.wavenumber*z)*(
                               # |d_z Psi |^2 part:
                               (self.wavenumber**2 * i * j * self.sqrt_g_z(amplitude,z) * self.sqrt_g_theta(amplitude, z)+
                               # the following are all theta parts, with index raise eta^{theta theta} combined with sqrt(g)
@@ -143,7 +143,7 @@ class System2D(system1D.System):
                       self.radius)  
       return (z_bending+theta_bending)
     else:
-      simplified_integrand  = (math.sin((i-j)*self.wavenumber*z)* #sin: img part of e^i...
+      simplified_integrand  = math.sin((i-j)*self.wavenumber*z)*( #sin: img part of e^i...
                               # |d_z Psi |^2 part:
                               (self.wavenumber**2 * i * j * self.sqrt_g_z(amplitude,z) * self.sqrt_g_theta(amplitude, z)+
                               # these are all theta parts, with index raise eta^{theta theta} combined with sqrt(g)
@@ -216,10 +216,11 @@ class System2D(system1D.System):
             for betaprime1 in range(self.len_arrays_theta):
                #selection rule beta1 + beta2 == beta'1 + beta'2
                betaprime2 = beta1+beta2-betaprime1
-               try: # betaprime2 may be out of range
-                 D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
-               except KeyError:
-                 pass
+               if betaprime2 >=0:
+                 try: # betaprime2 may be out of range
+                   D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
+                 except IndexError:
+                   pass
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
     B_complex_energy = np.einsum("ijab, ai, bj -> ", self.B_matrix, field_coeffs.conjugate(), field_coeffs) #why the backwards list of indices?
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
@@ -251,15 +252,17 @@ class System2D(system1D.System):
             for betaprime1 in range(self.len_arrays_theta):
                #selection rule beta1 + beta2 == beta'1 + beta'2
                betaprime2 = beta1+beta2-betaprime1
-               try: # betaprime2 may be out of range
-                 D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
-               except KeyError:
-                 pass
+               if betaprime2 >= 0:
+                 try: # betaprime2 may be out of range
+                   D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
+                 except IndexError:
+                   pass
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
     B_complex_energy = np.einsum("ijab, ai, bj -> ", self.tmp_B_matrix, field_coeffs.conjugate(), field_coeffs) 
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
-    print("B complex energy", B_complex_energy)
+    #print("B complex energy", B_complex_energy)
     #print("from einsum", self.tmp_B_matrix, field_coeffs, field_coeffs.conjugate())
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
+    #print("D_complex_energy", D_complex_energy, field_coeffs)
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) 
     return  self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
