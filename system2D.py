@@ -46,6 +46,26 @@ class System2D(system1D.System):
     self.B_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_theta, self.len_arrays_theta), dtype=complex) # 4D array j, j', beta, beta'
     self.A_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z), dtype=complex) #initialize np complex array nxn
     self.D_matrix = np.zeros((self.len_arrays_z, self.len_arrays_z, self.len_arrays_z, self.len_arrays_z),dtype=complex) 
+    
+    #for quartic cross term selection rule:  generate list of allowed (nonorthogonal) theta-coefficient combinations
+    # beta + beta2 = beta' + beta2'
+    # (index in range 0..len_arrays) = (index beta in -range num_field_coeffs..num_field_coeffs) + const
+    # selection rule eqaulvalent under either indexing scheme
+    # (beta+const) + (beta2 + const) = (beta'+const) + (beta2' + const)
+    self.quartic_selection_rule = self.generate_quartic_combinations(self.len_arrays_theta)
+    print("generated combos", self.quartic_selection_rule)
+
+  def generate_quartic_combinations(self,len_arrays):
+    # only done once, doesnt matter if slow
+    allowed_combos = []
+    for index1 in range(len_arrays):
+      for index2 in range(len_arrays):
+        for index3 in range(len_arrays):
+          for index4 in range(len_arrays):
+            if index1+index2 == index3+index4:
+              allowed_combos.append((index1, index2, index3, index4))
+    return allowed_combos
+ 
 
   ######## common terms in integrals ###########
   # this in addition to those in System base class
@@ -211,16 +231,8 @@ class System2D(system1D.System):
     # hybrid einsum and loop for Acc* and Dccc*c* sums
     for beta in range(self.len_arrays_theta):
     	A_complex_energy += np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
-    for beta1 in range(self.len_arrays_theta): # TODO: better to generate once and save allowed tuples [beta1, beta2, betaprime1, betaprime2]
-        for beta2 in range(self.len_arrays_theta):
-            for betaprime1 in range(self.len_arrays_theta):
-               #selection rule beta1 + beta2 == beta'1 + beta'2
-               betaprime2 = beta1+beta2-betaprime1
-               if betaprime2 >=0:
-                 try: # betaprime2 may be out of range
-                   D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
-                 except IndexError:
-                   pass
+    for (index1, index2, index3, index4) in self.quartic_selection_rule:
+      D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs[index1], field_coeffs[index2], field_coeffs[index3].conjugate(), field_coeffs[index4].conjugate())
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
     B_complex_energy = np.einsum("ijab, ai, bj -> ", self.B_matrix, field_coeffs.conjugate(), field_coeffs) #why the backwards list of indices?
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
@@ -247,16 +259,8 @@ class System2D(system1D.System):
     # hybrid einsum and loop for Acc* and Dccc*c* sums
     for beta in range(self.len_arrays_theta):
     	A_complex_energy += np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
-    for beta1 in range(self.len_arrays_theta): # TODO: better to generate once and save allowed tuples [beta1, beta2, betaprime1, betaprime2]
-        for beta2 in range(self.len_arrays_theta):
-            for betaprime1 in range(self.len_arrays_theta):
-               #selection rule beta1 + beta2 == beta'1 + beta'2
-               betaprime2 = beta1+beta2-betaprime1
-               if betaprime2 >= 0:
-                 try: # betaprime2 may be out of range
-                   D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[beta1], field_coeffs[beta2], field_coeffs[betaprime1].conjugate(), field_coeffs[betaprime2].conjugate())
-                 except IndexError:
-                   pass
+    for (index1, index2, index3, index4) in self.quartic_selection_rule:
+      D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[index1], field_coeffs[index2], field_coeffs[index3].conjugate(), field_coeffs[index4].conjugate())
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
     B_complex_energy = np.einsum("ijab, ai, bj -> ", self.tmp_B_matrix, field_coeffs.conjugate(), field_coeffs) 
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))

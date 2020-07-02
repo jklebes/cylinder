@@ -240,27 +240,21 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   else:
     cov=None
 
-  ################## a helper function.  move to somehwere else later? ######
-  def coefflisttoarray(coeffs):
-    #unflattens coeffs c_{j beta} in format [c_{-n -m} ... c{n -m } ... c{-n 0} ... c_{n 0} ... c{-n m } ... c_{n m} ]
-    # to matrix format  [[c_{-n -m} ... c{n -m }] 
-    #                      ... 
-    #                    [c{-n 0} ... c_{n 0} ]
-    #                      ...
-    #                    [c{-n m } ... c_{n m}]]
-    z_array_len= num_field_coeffs[0]*2+1
-    theta_array_len= num_field_coeffs[1]*2+1
-    array = []
-    for i in range(theta_array_len):
-      array.append(coeffs[i*z_array_len:(i+1)*z_array_len])
-    return np.array(array)
-
   ########### setup system, metropolis engine, link energy functions #############
   se = ce.System2D(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #function [real values], [complex values] -> energy 
-  energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(coefflisttoarray(complex_params))
+
+  #np.reshape unflattens coeffs c_{j beta} in format [c_{-n -m} ... c{n -m } ... c{-n 0} ... c_{n 0} ... c{-n m } ... c_{n m} ]
+  # to matrix format  [[c_{-n -m} ... c{n -m }] 
+  #                      ... 
+  #                    [c{-n 0} ... c_{n 0} ]
+  #                      ...
+  #                    [c{-n m } ... c_{n m}]]
+  z_array_len= num_field_coeffs[0]*2+1
+  theta_array_len= num_field_coeffs[1]*2+1
+  energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(np.reshape(complex_params, (theta_array_len, z_array_len)))
   energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot 
-  energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,coefflisttoarray(complex_params))
+  energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,np.reshape(complex_params, (theta_array_len, z_array_len)))
   energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term_alt, "surface":energy_fct_surface_term}}
   me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
   #also input system constraint : steps with |amplitude| > 1 to be rejected
@@ -341,7 +335,7 @@ radius = 1
 wavenumber = .4
 
 # simulation details
-num_field_coeffs = (1,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (2,2) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
 measure_every =10
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
