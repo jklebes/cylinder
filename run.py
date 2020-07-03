@@ -5,7 +5,6 @@ import datetime
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-#import system as ce #TODO: refactor name
 import scipy.integrate as integrate
 import math
 import collections
@@ -13,6 +12,7 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
+me_version = "0.2.5"#metropolisengine.__version__ #save version number
 import system2D as ce
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
@@ -37,8 +37,9 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
       time = timeit.default_timer() - start_time
       means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
       print(cov_matrix)
-      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[1:2+2*num_field_coeffs])])
-      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[1:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[1:2+2*num_field_coeffs]) if i!= j])
+      coeffs_names = names[1:(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1])]
+      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(coeffs_names)])
+      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(coeffs_names) for (j, name2) in enumerate(coeffs_names) if i!= j])
       print(means_dict)
       for name in names:
         results_line[name+"_mean"].append(means_dict[name])
@@ -183,7 +184,7 @@ def run_experiment(exp_type,  range1, range2, n_steps, method):
   exp_dir= os.path.join("out", "exp-"+now)
   os.mkdir(exp_dir)
   #save variables about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, "me-version": me_version}
   if method == "sequential":
     exp_notes["fieldsteps per ampstep"] = fieldsteps_per_ampstep
   exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
@@ -350,10 +351,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.05, 1.4, .1)
-  range2 = np.arange(0, .5, .1)
-  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
+  range1 = ((0,0),(1,0),(2,0), (3,0), (1,1), (2,1), (3,1))
+  range2 = range(1, 5, 10)
+  n_steps = 10#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")

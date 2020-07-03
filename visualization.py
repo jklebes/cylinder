@@ -103,7 +103,17 @@ def get_complex_series(data):
   len_series = len(data.index.values)
   time_series = defaultdict(lambda: np.zeros((len_series), dtype='complex128'))
   for column_name in data.columns.values:
-    if "img" in column_name:
+    print(column_name)
+    if "sampling_width" in column_name or "energy" in column_name:
+      pass
+    elif "amplitude" in column_name or "ampiltude" in column_name or ("param_0" in column_name and "abs" not in column_name and "squared" not in column_name):
+      print(type(data[column_name][0]))
+      if isinstance(data[column_name][0], str):
+        amplitude_series = [complex(a).real for a in data[column_name]]
+      else:
+        amplitude_series = data[column_name]
+        print("read amplitude_series" , amplitude_series)
+    elif "img" in column_name:
       coeff_number = int(column_name.split("_")[2])
       print("found img part of c ", coeff_number)
       time_series[coeff_number] += np.array([0+float(value)*1j for value in data[column_name] ])
@@ -111,14 +121,8 @@ def get_complex_series(data):
       coeff_number = int(column_name.split("_")[2])
       print("found real part of c ", coeff_number)
       time_series[coeff_number] += np.array([float(value) +0j for value in data[column_name] ])
-    elif "amplitude" in column_name or "ampiltude" in column_name:
-      print(type(data[column_name][0]))
-      if isinstance(data[column_name][0], str):
-        amplitude_series = [complex(a).real for a in data[column_name]]
-      else:
-        amplitude_series = data[column_name]
-    elif "c" in column_name:
-      coeff_number = int(column_name.split("_")[1])
+    elif "c_" in column_name or ("param_" in column_name and "abs" not in column_name and "squared" not in column_name): 
+      coeff_number = coeff_numbers[int(column_name.split("_")[1])] # lookup from dict given for this file
       time_series[coeff_number] = [complex(value) for value in data[column_name]]
   return time_series, amplitude_series
 
@@ -148,8 +152,9 @@ def visualize_snapshot(complex_snapshot):
 
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "external-index-raise3")
-  data_file = os.path.join(data_dir, "amplitude-0.8_C1.0.csv")
+  data_dir = os.path.join("arc3", "ncoeffs4")
+  coeff_numbers = dict([(i, i-4) for i in range(1,8)])
+  data_file = os.path.join(data_dir, "ncoeffs3_fsteps1.csv")
   data = file_to_df(data_file)
   complex_series, amplitude_series = get_complex_series(data)
   #print(complex_series)
