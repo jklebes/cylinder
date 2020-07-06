@@ -12,7 +12,7 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
-me_version = "0.2.5"#metropolisengine.__version__ #save version number
+me_version = "" #metropolisengine.__version__ #save version number
 import system2D as ce
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
@@ -97,12 +97,11 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
     for kb in kappa_range:
       # run
       kappa=kb
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(wvn,3))+"_kappa"+str(round(kappa,3)))
-      means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
-      coeffs_names = names[1:(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1])]
+      means_dict, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(wvn,3))+"_kappa"+str(round(kappa,3)))
+      coeffs_names = ["param_"+str(i) for i in range(1,(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1]))]
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(coeffs_names)])
       covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(coeffs_names) for (j, name2) in enumerate(coeffs_names) if i!= j])
-      for name in names:
+      for name in means_dict:
         results_line[name].append(means_dict[name])
       for name in var_dict:
         results_line[name+"_variance"].append(var_dict[name])
@@ -316,10 +315,12 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     pickle.dump(me.real_group_sampling_width, f)
   result_names = me.params_names
   result_names.extend(me.observables_names)
-  result_means = [i for i in me.real_mean]
-  result_means.extend([i for i in me.complex_mean])
-  result_means.extend([i for i in me.observables_mean])
-  return result_names, result_means , me.covariance_matrix_complex
+  me.save_equilibrium_stats()
+  result_means = me.equilibrated_means
+  #result_means = [i for i in me.real_mean]
+  #result_means.extend([i for i in me.complex_mean])
+  #result_means.extend([i for i in me.observables_mean])
+  return result_means, me.covariance_matrix_complex
 
 # coefficients
 alpha = -1
@@ -328,7 +329,7 @@ u = 1
 n = 1
 kappa = .1
 gamma = 1
-temp = .1
+temp = 1
 
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
@@ -338,7 +339,7 @@ wavenumber = .4
 # simulation details
 num_field_coeffs = (0,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
-measure_every =100
+measure_every =10
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
 #notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
@@ -352,10 +353,10 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.05, 1.4, .03)
-  range2 = np.arange(0, .5, .02)
+  range1 = np.arange(0.05, 1.4, .7)
+  range2 = np.arange(0, .5, .3)
   n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
-  method = "no-field"
+  method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
 
