@@ -5,43 +5,32 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import seaborn as sb
 
-fig, ax = plt.subplots()
-
-x = np.arange(0, 2*np.pi, 0.01)
-line_field, = ax.plot(x, np.sin(x), color='b', label = "field magnitude")
-#line_field_component, = ax.plot(x, np.sin(x), color='brown', label = "field component real")
-#line_field_component_img, = ax.plot(x, np.sin(x), color='orange', label = "field component img")
-line_field_avg, = ax.plot(x, np.sin(x), color='black', label="running average")
-line_amplitude, = ax.plot(x, np.sin(x), color='g', linewidth=10)
-line_amplitude2, = ax.plot(x, np.sin(x), color='g', linewidth=10)
+z_coords = np.arange(0, 2*np.pi, 0.01)
+theta_coords = np.arange(0, 2*np.pi, 0.01)
+fig = plt.figure()
+data = np.zeros((len(z_coords), len(theta_coords)))
+ax = sb.heatmap(data, vmin=0, vmax=1)
+#line_amplitude, = ax.plot(x, np.sin(x), color='g', linewidth=10)
+#line_amplitude2, = ax.plot(x, np.sin(x), color='g', linewidth=10)
 
 running_avg = None
 stepcounter = 0
 
-def init():  # only required for blitting to give a clean slate.
-  global running_avg
-  line_field.set_ydata([np.nan] * len(x))
-  running_avg = np.zeros(len(x))
-  line_field_avg.set_ydata([np.nan] * len(x))
-  #line_field_component.set_ydata([np.nan] * len(x))
-  #line_field_component_img.set_ydata([np.nan] * len(x))
-  line_amplitude.set_ydata([np.nan] * len(x))
-  line_amplitude2.set_ydata([np.nan] * len(x))
-  return line_field, line_field_avg, line_amplitude, line_amplitude2
-  #return line_field, line_field_component, line_field_component_img, line_field_avg, line_amplitude, line_amplitude2
-  #return line_field, line_amplitude, line_amplitude2
+def init():
+  plt.clf()
+  data =np.zeros((len(z_coords), len(theta_coords)))
+  data[45,294]=1
+  ax=sb.heatmap(data, vmin=0, vmax=0)
 
 def animate(i):
-  line_field.set_ydata(get_magnitude_line(i,x)) 
-  #line_field_component.set_ydata(get_component_line(i,x,1)) 
-  #line_field_component_img.set_ydata(get_component_line_img(i,x,1)) 
-  line_field_avg.set_ydata(get_avg_line(i,x)) 
-  line_amplitude.set_ydata(get_amplitude_line(i,x))  
-  line_amplitude2.set_ydata(get_amplitude_line2(i,x))  
-  return line_field, line_field_avg, line_amplitude, line_amplitude2
-  #return line_field, line_field_component, line_field_component_img, line_field_avg, line_amplitude, line_amplitude2
-  #return line_field, line_amplitude, line_amplitude2
+  #line_amplitude.set_ydata(get_amplitude_line(i,x))  
+  #line_amplitude2.set_ydata(get_amplitude_line2(i,x))  
+  plt.clf()
+  data = np.random.rand(len(z_coords), len(theta_coords))
+  ax = sb.heatmap(data, vmin=0, vmax=1)
+  #return line_field, line_field_avg, line_amplitude, line_amplitude2
 
 def file_to_df(data_file):
   df = pd.read_csv(data_file, index_col=0)
@@ -128,8 +117,8 @@ def get_complex_series(data):
 
 def visualize_snapshot(complex_snapshot):
   #get sum of c_j * e^ijz for a range of z values between 0 and 2pi
-  zs = np.arange(0, 2*math.pi, .02)
-  ths = np.arange(0, 2*math.pi, .02)
+  zs = z_coords
+  ths = theta_coords
   field = np.zeros((len(zs), len(ths))) #complex field, real parts, img parts as a function of z
   reals = []
   imgs = []
@@ -159,7 +148,7 @@ if __name__=="__main__":
   complex_series, amplitude_series = get_complex_series(data)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   #x = np.arange(0, 2*np.pi, 0.01)
-  ani = animation.FuncAnimation(fig, animate, init_func=init, interval=40, blit=True, save_count=50)
+  ani = animation.FuncAnimation(fig, animate, init_func=init, interval=40, blit=False, save_count=50)
   ax.set_ylim([-4.3,2])
   ax.set_xlim([-.2, 2*math.pi+.2])
   plt.plot([-1,2*math.pi+1], [0]*2, color='black')
@@ -167,4 +156,4 @@ if __name__=="__main__":
   plt.legend(loc=3)
   plt.xlabel('z')
   plt.show()
-  #ani.save("kept_for_animation.mp4")
+  #`ani.save("kept_for_animation.mp4")
