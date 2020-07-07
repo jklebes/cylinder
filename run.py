@@ -12,7 +12,11 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
+<<<<<<< HEAD
+me_version = metropolisengine.__version__ #save version number
+=======
 me_version = "" #metropolisengine.__version__ #save version number
+>>>>>>> eeb7479e0a073d2c44552373d8b55f9c71ae5b2b
 import system2D as ce
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
@@ -130,9 +134,8 @@ def loop_wavenumber_alpha(wavenumber_range, alpha_range, n_steps, method = "simu
       alpha = alpha_
 
       assert(alpha <=0)
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(wvn)+"_alpha"+str(alpha))
-      means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
-      print(names)
+      means_dict, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(wvn)+"_alpha"+str(alpha))
+      print("means_dict", means_dict)
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
       print(kappa, wavenumber, means_dict["abs_amplitude"])
       covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
@@ -274,7 +277,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
           #print("field_coeffs", me.complex_params)
-      print("measure", i)#, "sampling widths", me.field_sampling_width, me.amplitude_sampling_width, "state", state)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
@@ -299,8 +302,9 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
         accepted = me.step_real_group()
         if accepted: se.save_temporary_matrices
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
-  me.save_time_series()
+
   if outdir is not None and os.path.isdir(outdir):
+    me.save_time_series()
     df = me.df #pd.DataFrame()
     #print(outdir, title, me.params_names, states)
     df.to_csv(os.path.join(outdir, title + ".csv"))
@@ -315,12 +319,17 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     pickle.dump(me.real_group_sampling_width, f)
   result_names = me.params_names
   result_names.extend(me.observables_names)
-  me.save_equilibrium_stats()
-  result_means = me.equilibrated_means
+  # the old version: raw means of whole simulation
   #result_means = [i for i in me.real_mean]
   #result_means.extend([i for i in me.complex_mean])
   #result_means.extend([i for i in me.observables_mean])
-  return result_means, me.covariance_matrix_complex
+  # the new version: means of equilibrated part of simulation
+  # prompt metropolisengine to collect stats
+  me.save_equilibrium_stats()
+  result_means = me.equilibrated_means #should list real param means, complex param means, observables means
+                                       # maybe also: save g, neff => quality of sampling, error bars
+  print("result_means,", result_means)
+  return result_means , me.covariance_matrix_complex
 
 # coefficients
 alpha = -1
