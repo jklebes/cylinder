@@ -12,7 +12,11 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
+<<<<<<< HEAD
 me_version = metropolisengine.__version__ #save version number
+=======
+me_version = "" #metropolisengine.__version__ #save version number
+>>>>>>> eeb7479e0a073d2c44552373d8b55f9c71ae5b2b
 import system2D as ce
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
@@ -360,7 +364,7 @@ if __name__ == "__main__":
   loop_type = ("wavenumber", "kappa")
   range1 = np.arange(0.05, 1.4, .7)
   range2 = np.arange(0, .5, .3)
-  n_steps = 2000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
