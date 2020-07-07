@@ -6,46 +6,96 @@ import math
 import cmath
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import colorsys
+import seaborn as sb
 
-amplitude_scaling = 10
-z_coords = np.arange(0, 2*np.pi,.05)
-theta_coords = np.arange(0, 2*np.pi, 0.12)
+show = "phase" #abs, phase, real, or img part of complex field
+if show=="phase":
+  cmap = "hsv" #a cyclic colormap
+  vmin = -np.pi
+  vmax = np.pi
+else:
+  cmap = "hot" # a sequential colormap
+  vmax = 1.5
+  if show == "abs":
+    vmin=0
+  else:
+    vin = -1.5
+z_coords = np.arange(0, 2*np.pi, 0.1)
+theta_coords = np.arange(0, 2*np.pi, 0.1)
 fig = plt.figure()
-ax = plt.axes(xlim=(0, len(z_coords)), ylim=(-50, len(theta_coords)))
-data = np.zeros((len(theta_coords), len(z_coords)))
-im=plt.imshow(data, vmin=0, vmax=1.5)
-line_amplitude, = ax.plot(range(len(z_coords)), np.sin(z_coords), color='g', linewidth=10)
-line_amplitude2, = ax.plot(range(len(z_coords)), np.sin(z_coords), color='g', linewidth=10)
+data = np.zeros((len(z_coords), len(theta_coords)))
+ax = sb.heatmap(data, vmin=-1.5, vmax=1.5)
+#line_amplitude, = ax.plot(x, np.sin(x), color='g', linewidth=10)
+#line_amplitude2, = ax.plot(x, np.sin(x), color='g', linewidth=10)
 
 running_avg = None
 stepcounter = 0
 
 def init():
-  im.set_data(np.zeros((len(theta_coords), len(z_coords))))
-  line_amplitude.set_ydata([np.nan] * len(z_coords))
-  line_amplitude2.set_ydata([np.nan] * len(z_coords))
-  return im, line_amplitude, line_amplitude2
+  plt.clf()
+  data =np.zeros((len(z_coords), len(theta_coords)))
+  ax=sb.heatmap(data)
 
 def animate(i):
+  #line_amplitude.set_ydata(get_amplitude_line(i,x))  
+  #line_amplitude2.set_ydata(get_amplitude_line2(i,x))  
+  plt.clf()
   complex_snapshot=dict([])
   for key in complex_series:
     complex_snapshot[key] = complex_series[key][i]
   data = visualize_snapshot(complex_snapshot)
-  im.set_array(data)
-  #print(data)
-  line_amplitude.set_ydata(get_amplitude_line(i,z_coords))
-  line_amplitude2.set_ydata(get_amplitude_line2(i,z_coords))
-  return im, line_amplitude, line_amplitude2
+  ax = sb.heatmap(data, vmin=vmin, vmax=vmax, cmap = cmap)
+  #return line_field, line_field_avg, line_amplitude, line_amplitude2
 
 def file_to_df(data_file):
   df = pd.read_csv(data_file, index_col=0)
   return df
 
 def get_amplitude_line(i,zs):
-  return [-15+amplitude_scaling*amplitude_series[i]*math.sin(z) for z in zs]
+  return [-1.2+amplitude_series[i]*math.sin(z) for z in zs]
 def get_amplitude_line2(i,zs):
-  return [-35-amplitude_scaling*amplitude_series[i]*math.sin(z) for z in zs]
+  return [-3.2-amplitude_series[i]*math.sin(z) for z in zs]
+
+def get_avg_line(i,zs):
+  return running_avg
+
+def get_component_line_img(i, zs, key):
+  global running_avg
+  global stepcounter
+  complex_snapshot= complex_series[key][i]
+  line = []
+  for z in zs:
+    f= complex_snapshot*(math.cos(key*z)+ math.sin(key*z)*1j)
+    line.append(f.imag)
+  stepcounter +=1
+  return line
+
+def get_component_line(i, zs, key):
+  global running_avg
+  global stepcounter
+  complex_snapshot= complex_series[key][i]
+  line = []
+  for z in zs:
+    f= complex_snapshot*(math.cos(key*z)+ math.sin(key*z)*1j)
+    line.append(f.real)
+  stepcounter +=1
+  return line
+
+def get_magnitude_line(i, zs):
+  global running_avg
+  global stepcounter
+  line = []
+  for z in zs:
+    f = 0+0j
+    for index in complex_snapshot:
+      f+= complex_snapshot[index]*(math.cos(index*z)+ math.sin(index*z)*1j)
+      #if z==.01:
+        #print(index, math.cos(index*0.01), complex_snapshot[index], f.imag)
+    line.append(abs(f))
+  stepcounter +=1
+  running_avg *= (stepcounter -1) / float(stepcounter)
+  running_avg += np.array(line)/float(stepcounter) 
+  return line
 
 
 def get_complex_series(data):
@@ -81,7 +131,7 @@ def visualize_snapshot(complex_snapshot):
   #get sum of c_j * e^ijz for a range of z values between 0 and 2pi
   zs = z_coords
   ths = theta_coords
-  field = np.zeros((len(ths), len(zs))).tolist() #complex field, real parts, img parts as a function of z
+  field = np.zeros((len(zs), len(ths))) #complex field, real parts, img parts as a function of z
   reals = []
   imgs = []
   for (i,z) in enumerate(zs):
@@ -91,15 +141,17 @@ def visualize_snapshot(complex_snapshot):
       img = 0
       for (z_index, th_index) in complex_snapshot:
         f += complex_snapshot[(z_index, th_index)] *( math.cos(z_index*z) + math.sin(z_index*z)*1j)*(math.cos(th_index*th)+ math.sin(th_index*th)*1j)
-      field[j][i]=complex_to_rgb(f) # indexes are in this order -> display on screen is --z-->  
+      if show == "phase":
+        field[i,j]=cmath.phase(f)
+      elif show== "abs":
+        field[i,j] = abs(f)
+      elif show == "real":
+        field[i,j] = f.real
+      elif show == "img" or show == "imag":
+        field[i,j]=f.imag
   return field
 
-def complex_to_rgb(c):
-  a=.3
-  h = cmath.phase(c)
-  l = (1-a**(abs(c))) *1
-  s = 1
-  return colorsys.hls_to_rgb(h, l, s)
+
 
 if __name__=="__main__":
   data_dir = os.path.join("out", "2D")
@@ -114,12 +166,12 @@ if __name__=="__main__":
   complex_series, amplitude_series = get_complex_series(data)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   #x = np.arange(0, 2*np.pi, 0.01)
-  ani = animation.FuncAnimation(fig, animate, interval=1,  save_count=50)
-  #ax.set_ylim([-4.3,2])
-  #ax.set_xlim([-.2, 2*math.pi+.2])
-  #plt.plot([-1,2*math.pi+1], [0]*2, color='black')
-  plt.yticks([])
-  #plt.legend(loc=3)
+  ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1, blit=False, save_count=50)
+  ax.set_ylim([-4.3,2])
+  ax.set_xlim([-.2, 2*math.pi+.2])
+  plt.plot([-1,2*math.pi+1], [0]*2, color='black')
+  plt.yticks([0,0.5,1, 1.5, 2])
+  plt.legend(loc=3)
   plt.xlabel('z')
   plt.show()
   #`ani.save("kept_for_animation.mp4")
