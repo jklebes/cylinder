@@ -122,6 +122,7 @@ def get_complex_series(data):
       print("found real part of c ", coeff_number)
       time_series[coeff_number] += np.array([float(value) +0j for value in data[column_name] ])
     elif "c_" in column_name or ("param_" in column_name and "abs" not in column_name and "squared" not in column_name): 
+      print(coeff_numbers)
       coeff_number = coeff_numbers[int(column_name.split("_")[1])] # lookup from dict given for this file
       time_series[coeff_number] = [complex(value) for value in data[column_name]]
   return time_series, amplitude_series
@@ -152,9 +153,9 @@ def visualize_snapshot(complex_snapshot):
 
 
 if __name__=="__main__":
-  data_dir = os.path.join("arc3", "ncoeffs4")
-  coeff_numbers = dict([(i, i-4) for i in range(1,8)])
-  data_file = os.path.join(data_dir, "ncoeffs3_fsteps1.csv")
+  data_dir = os.path.join("out", "exp-2020-07-09-07-03-45")
+  coeff_numbers = dict([(i, i-5) for i in range(1,10)])
+  data_file = os.path.join(data_dir, "wvn0.5_kappa0.0.csv")
   data = file_to_df(data_file)
   complex_series, amplitude_series = get_complex_series(data)
   #print(complex_series)
@@ -164,12 +165,12 @@ if __name__=="__main__":
   #print(complex_snapshot)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   x = np.arange(0, 2*np.pi, 0.01)
-  ani = animation.FuncAnimation(fig, animate, init_func=init, interval=40, blit=True, save_count=50)
-  ax.set_ylim([-4.3,2])
+  ani = animation.FuncAnimation(fig, animate, init_func=init, interval=100, blit=True, save_count=50)
+  ax.set_ylim([-4.3,1.5])
   ax.set_xlim([-.2, 2*math.pi+.2])
   plt.plot([-1,2*math.pi+1], [0]*2, color='black')
   plt.yticks([0,0.5,1, 1.5, 2])
-  plt.legend(loc=3)
+  plt.legend(loc=1)
   plt.xlabel('z')
-  plt.show()
-  #ani.save("kept_for_animation.mp4")
+  #plt.show()
+  ani.save("onfrozen.mp4")

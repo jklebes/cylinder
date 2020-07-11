@@ -12,11 +12,7 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
-<<<<<<< HEAD
-me_version = metropolisengine.__version__ #save version number
-=======
 me_version = "" #metropolisengine.__version__ #save version number
->>>>>>> eeb7479e0a073d2c44552373d8b55f9c71ae5b2b
 import system2D as ce
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
@@ -271,7 +267,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   if method == "sequential":
     for i in range(n_steps):
       for j in range(measure_every):
-        accepted = me.step_real_group() #use outputted flag to trigger numerical integration in System on amplitude change
+        accepted = False #me.step_real_group() #use outputted flag to trigger numerical integration in System on amplitude change
         #print("step real group", accepted, me.real_params)        
         if accepted: se.save_temporary_matrices()
         for ii in range(fieldsteps_per_ampstep):
@@ -335,20 +331,20 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
 alpha = -1
 C = 1
 u = 1
-n = 1
+n = 6
 kappa = .1
 gamma = 1
 temp = 1
 
 # system dimensions
-initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
+initial_amplitude= .8  #also fixed system amplitude for when amplitude is static
 radius = 1
 wavenumber = .4
 
 # simulation details
-num_field_coeffs = (0,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (3,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
-measure_every =10
+measure_every =100
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
 #notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
@@ -362,10 +358,10 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.05, 1.4, .7)
+  range1 = np.arange(0.5, 1.4, .7)
   range2 = np.arange(0, .5, .3)
-  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
-  method = "sequential"
+  n_steps = 5000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  method = "fixed-amplitude"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
 

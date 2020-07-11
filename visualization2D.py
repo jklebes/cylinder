@@ -10,7 +10,7 @@ import colorsys
 
 amplitude_scaling = 10
 z_coords = np.arange(0, 2*np.pi,.05)
-theta_coords = np.arange(0, 2*np.pi, 0.12)
+theta_coords = np.arange(0, 2*np.pi, 0.1)
 fig = plt.figure()
 ax = plt.axes(xlim=(0, len(z_coords)), ylim=(-50, len(theta_coords)))
 data = np.zeros((len(theta_coords), len(z_coords)))
@@ -96,15 +96,15 @@ def visualize_snapshot(complex_snapshot):
 
 def complex_to_rgb(c):
   a=.3
-  h = cmath.phase(c)
+  h = cmath.phase(c)/(2*math.pi)
   l = (1-a**(abs(c))) *1
   s = 1
   return colorsys.hls_to_rgb(h, l, s)
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "2D")
-  data_file = os.path.join(data_dir, "wvn0.65_kappa0.0.csv")
-  n,m  =  (1,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
+  data_dir = os.path.join("out", "exp-2020-07-08-19-11-02")
+  data_file = os.path.join(data_dir, "wvn0.5_kappa0.1.csv")
+  n,m  =  (3,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
   # if it's 1D data put 0 as second element
   # conversion key from param number to (z_index, theta_index)
   # there are this many complex parameters:
@@ -114,12 +114,22 @@ if __name__=="__main__":
   complex_series, amplitude_series = get_complex_series(data)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   #x = np.arange(0, 2*np.pi, 0.01)
-  ani = animation.FuncAnimation(fig, animate, interval=1,  save_count=50)
+  ani = animation.FuncAnimation(fig, animate, interval=600,  save_count=50)
   #ax.set_ylim([-4.3,2])
   #ax.set_xlim([-.2, 2*math.pi+.2])
   #plt.plot([-1,2*math.pi+1], [0]*2, color='black')
   plt.yticks([])
+  plt.xticks=([])
   #plt.legend(loc=3)
   plt.xlabel('z')
-  plt.show()
-  #`ani.save("kept_for_animation.mp4")
+  plt.xticks=([])
+  #plt.show()
+  ani.save("2Danimation.mp4")
+  plt.close()
+  matrixr = [ (0 + i*1j) for i in np.arange(-2, 2, .01)]
+  matrix = [[complex_to_rgb((i + x)) for i in matrixr] for x in np.arange(-2,2,.01)]
+  plt.imshow(matrix)
+  plt.xticks=([])
+  plt.yticks=([])
+  plt.axis('off')
+  plt.savefig("cmoplex.png")
