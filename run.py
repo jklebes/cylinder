@@ -33,15 +33,14 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
     for fieldsteps in fieldstep_range:
       fieldsteps_per_ampstep = fieldsteps
       start_time = timeit.default_timer()
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep))
+      means_dict, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep))
       time = timeit.default_timer() - start_time
-      means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
-      print(cov_matrix)
-      coeffs_names = names[1:(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1])]
+      #print(cov_matrix)
+      coeffs_names = ["param_"+str(i) for i in range(1,(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1]))]
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(coeffs_names)])
       covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(coeffs_names) for (j, name2) in enumerate(coeffs_names) if i!= j])
-      print(means_dict)
-      for name in names:
+      #print(means_dict)
+      for name in means_dict:
         results_line[name+"_mean"].append(means_dict[name])
       results_line["time_per_experiment"].append(time)
       for name in var_dict:
@@ -334,7 +333,7 @@ u = 1
 n = 6
 kappa = .1
 gamma = 1
-temp = 1
+temp = .1
 
 # system dimensions
 initial_amplitude= .8  #also fixed system amplitude for when amplitude is static
@@ -344,7 +343,7 @@ wavenumber = .4
 # simulation details
 num_field_coeffs = (3,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
-measure_every =100
+measure_every =10
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
 
 #notes = "with n = 6 - expect more of field conforming to shape.  On fixed shape a=.8." #describe motivation for a simulation here!
@@ -357,11 +356,11 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("wavenumber", "kappa")
-  range1 = np.arange(0.5, 1.4, .7)
-  range2 = np.arange(0, .5, .3)
-  n_steps = 5000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
-  method = "fixed-amplitude"
+  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
+  range1 = ((6,0), (8,0), (6,1), (8,1))
+  range2 = [1]
+  n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
+  method = "sequential"
 
   #single_run(kappa=kappa, wavenumber=wavenumber, n_steps=n_steps, method="no-field")
 
