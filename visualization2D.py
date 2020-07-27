@@ -102,9 +102,10 @@ def complex_to_rgb(c):
   return colorsys.hls_to_rgb(h, l, s)
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "exp-2020-07-08-19-11-02")
-  data_file = os.path.join(data_dir, "wvn0.5_kappa0.1.csv")
-  n,m  =  (3,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
+  #data_dir = os.path.join("..", ".")
+  data_dir = "."
+  data_file = os.path.join(data_dir, "ncoeffs(8, 1)_fsteps1.csv")
+  n,m  =  (8,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
   # if it's 1D data put 0 as second element
   # conversion key from param number to (z_index, theta_index)
   # there are this many complex parameters:
@@ -114,7 +115,7 @@ if __name__=="__main__":
   complex_series, amplitude_series = get_complex_series(data)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   #x = np.arange(0, 2*np.pi, 0.01)
-  ani = animation.FuncAnimation(fig, animate, interval=600,  save_count=50)
+  ani = animation.FuncAnimation(fig, animate, interval=400)#,  save_count=50)
   #ax.set_ylim([-4.3,2])
   #ax.set_xlim([-.2, 2*math.pi+.2])
   #plt.plot([-1,2*math.pi+1], [0]*2, color='black')
@@ -124,7 +125,7 @@ if __name__=="__main__":
   plt.xlabel('z')
   plt.xticks=([])
   #plt.show()
-  ani.save("2Danimation.mp4")
+  ani.save("2Danimation81-T1.mp4")
   plt.close()
   matrixr = [ (0 + i*1j) for i in np.arange(-2, 2, .01)]
   matrix = [[complex_to_rgb((i + x)) for i in matrixr] for x in np.arange(-2,2,.01)]

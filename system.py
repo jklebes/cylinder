@@ -2,8 +2,6 @@ import math
 import scipy.integrate as integrate
 import numpy as np
 
-
-
 class System():
   """
   System: Cylider2D

@@ -328,6 +328,11 @@ class System():
     self.D_matrix = self.tmp_D_matrix
     self.B_integrals = self.tmp_B_integrals
 
+
+  def calc_surface_area(self, amplitude):
+    self.evaluate_A_integral_0(amplitude)
+    return self.tmp_A_integrals_0.real
+
   def calc_surface_energy(self, amplitude):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
