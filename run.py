@@ -12,8 +12,8 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
-me_version = "" #metropolisengine.__version__ #save version number
-import system2D as ce
+me_version = "0.2.18"#metropolisengine.__version__ #save version number
+import system_cylinder2D as cylinder
 
 def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, method = "sequential", outdir = None):
   """
@@ -24,16 +24,25 @@ def loop_num_field_coeffs(num_field_coeff_range, fieldstep_range, n_steps, metho
   :param kappa_range:
   :return:
   """
-  global num_field_coeffs # n as in c_-n to c_n - number of c variables is 2n+1
-  global fieldsteps_per_ampstep
+  #tell it which two variables in single_run() to replace on each loop; 
+  #(others are taken from constants in global namespace)
+  single_run_lambda = lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep),
+                                          num_field_coeffs=num, fieldsteps_per_ampstep = fsteps, 
+                                          alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
+                                          wavenumber=wavenumber)
+  return loop(single_run_lambda, num_field_coeff_range, fieldstep_range)
+
+def loop(single_run_lambda, range1, range2):
+  """
+  generic grid loop: loops over two of the possible arguments of single_run(); 
+  information about which two to replace is built into argument single_run_lambda()
+  """
   results = collections.defaultdict(list)
-  for num in num_field_coeff_range:
-    num_field_coeffs = num
+  for var1 in range1:
     results_line = collections.defaultdict(list)
-    for fieldsteps in fieldstep_range:
-      fieldsteps_per_ampstep = fieldsteps
+    for var2 in range2:
       start_time = timeit.default_timer()
-      means_dict, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep))
+      means_dict, cov_matrix = single_run_lambda(var1, var2) 
       time = timeit.default_timer() - start_time
       #print(cov_matrix)
       coeffs_names = ["param_"+str(i) for i in range(1,(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1]))]
@@ -58,27 +67,11 @@ def loop_amplitude_C(amplitude_range, C_range, n_steps, method = "fixed-amplitud
   :param kappa_range:
   :return:
   """
-  global initial_amplitude
-  global C
-  results = collections.defaultdict(list)
-  for a in amplitude_range:
-    initial_amplitude = a
-    results_line = collections.defaultdict(list)
-    for c in C_range:
-      C=c
-      names, means, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir,title = "amplitude"+str(a)+"_C"+str(C))
-      means_dict = dict([(name, mean) for (name,mean) in zip (names, means)])
-      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
-      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
-      for name in names:
-        results_line[name+"_mean"].append(means_dict[name])
-      for name in var_dict:
-        results_line[name+"_variance"].append(var_dict[name])
-      for name in covar_dict:
-        results_line[name+"_covariance"].append(covar_dict[name])
-    for name in results_line:
-      results[name].append(results_line[name])
-  return results 
+  single_run_lambda = lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "alpha"+str(round(var_a,2))+"_C"+str(round(var_C,2)),
+                                          num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
+                                          alpha=var_alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
+                                          wavenumber=wavenumber)
+  return loop(single_run_lambda, amplitude_range, C_range)
 
 def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simultaneous", outdir=None):
   """
@@ -87,29 +80,11 @@ def loop_wavenumber_kappa(wavenumber_range, kappa_range, n_steps, method = "simu
   :param kappa_range:
   :return:
   """
-  global wavenumber
-  global kappa
-  results = collections.defaultdict(list)
-  for wvn in wavenumber_range:
-    wavenumber = wvn
-    results_line = collections.defaultdict(list)
-    for kb in kappa_range:
-      # run
-      kappa=kb
-      means_dict, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(wvn,3))+"_kappa"+str(round(kappa,3)))
-      coeffs_names = ["param_"+str(i) for i in range(1,(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1]))]
-      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(coeffs_names)])
-      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(coeffs_names) for (j, name2) in enumerate(coeffs_names) if i!= j])
-      for name in means_dict:
-        results_line[name].append(means_dict[name])
-      for name in var_dict:
-        results_line[name+"_variance"].append(var_dict[name])
-      for name in covar_dict:
-        results_line[name+"_covariance"].append(covar_dict[name])
-    for name in results_line:
-      results[name].append(results_line[name])
-  return results 
-
+  single_run_lambda = lambda var_wvn, var_kappa: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(var_wvn,2))+"_kappa"+str(round(var_kappa,2)),
+                                          num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
+                                          alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=var_kappa, radius=radius,
+                                          wavenumber=var_wvn)
+  return loop(single_run_lambda, wavenumber_range, kappa_range)
 
 def loop_wavenumber_alpha(wavenumber_range, alpha_range, n_steps, method = "simultaneous", outdir=None):
   """
@@ -118,31 +93,11 @@ def loop_wavenumber_alpha(wavenumber_range, alpha_range, n_steps, method = "simu
   :param alpha_range:
   :return:
   """
-  global wavenumber
-  global alpha
-  results = collections.defaultdict(list)
-  for wvn in wavenumber_range:
-    wavenumber = wvn
-    results_line = collections.defaultdict(list)
-    for alpha_ in alpha_range:
-      # run
-      alpha = alpha_
-
-      assert(alpha <=0)
-      means_dict, cov_matrix = single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(wvn)+"_alpha"+str(alpha))
-      print("means_dict", means_dict)
-      var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(names[:2+2*num_field_coeffs])])
-      print(kappa, wavenumber, means_dict["abs_amplitude"])
-      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(names[:2+2*num_field_coeffs]) for (j, name2) in enumerate(names[:2+2*num_field_coeffs]) if i!= j])
-      for name in names:
-        results_line[name].append(means_dict[name])
-      for name in var_dict:
-        results_line[name+"_variance"].append(var_dict[name])
-      for name in covar_dict:
-        results_line[name+"_covariance"].append(covar_dict[name])
-    for name in results_line:
-      results[name].append(results_line[name])
-  return results
+  single_run_lambda = lambda var_wvn, var_alpha: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(var_wvn,2))+"_alpha"+str(round(var_alpha,2)),
+                                          num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
+                                          alpha=var_alpha, C=C, n=n, u=u, gamma=gamma, kappa=var, radius=radius,
+                                          wavenumber=var_wvn)
+  return loop(single_run_lambda, wavenumber_range, alpha_range)
 
 def plot_save(range1, range2, results, title, exp_dir = '.'):
   """
@@ -203,10 +158,12 @@ def run_experiment(exp_type,  range1, range2, n_steps, method):
   else:
     print("experiment type not found: ", exp_type)
   for name in results:
-    plot_save(range1=range1, range2=range2, results=results[name], title=exp_type[0]+ "_"+name+"_", exp_dir=exp_dir)
+    plot_save(range1=range1, range2=range2, results=results[name], title=name, exp_dir=exp_dir)
 
 
-def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=None, outdir = None, title = None):
+def single_run(n_steps, 
+              num_field_coeffs, fieldsteps_per_ampstep, alpha, C, n, u, gamma, kappa, radius,
+              wavenumber,method = "simultaneous", amplitude=None, field_coeffs=None, outdir = None, title = None):
   """
   for examining a single run over time.
   with all the data recording
@@ -239,7 +196,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
     cov=None
 
   ########### setup system, metropolis engine, link energy functions #############
-  se = ce.System2D(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
+  se = cylinder.Cylinder2D(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
   #function [real values], [complex values] -> energy 
 
   #np.reshape unflattens coeffs c_{j beta} in format [c_{-n -m} ... c{n -m } ... c{-n 0} ... c_{n 0} ... c{-n m } ... c_{n m} ]
@@ -261,8 +218,6 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
 
  
   ########### start of data collection ############
-  states=[]
-  other_states = []
   if method == "sequential":
     for i in range(n_steps):
       for j in range(measure_every):
@@ -272,7 +227,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
           #print("field_coeffs", me.complex_params)
-      print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width)#, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
@@ -306,7 +261,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   #dump in files for order of magnitude estimate to start next simulation from
   f = open('last_cov.pickle', 'wb')
   pickle.dump(me.covariance_matrix_complex, f)
-  print("cov", np.round(me.covariance_matrix_complex,3))
+  #print("cov", np.round(me.covariance_matrix_complex,3))
   f = open('last_sigma_2.pickle', 'wb')
   if method == "sequential":
     pickle.dump([me.real_group_sampling_width, me.complex_group_sampling_width], f)
@@ -323,7 +278,7 @@ def single_run(n_steps, method = "simultaneous", field_coeffs=None, amplitude=No
   me.save_equilibrium_stats()
   result_means = me.equilibrated_means #should list real param means, complex param means, observables means
                                        # maybe also: save g, neff => quality of sampling, error bars
-  print("result_means,", result_means)
+  #print("result_means,", result_means)
   return result_means , me.covariance_matrix_complex
 
 # coefficients
@@ -341,7 +296,7 @@ radius = 1
 wavenumber = .4
 
 # simulation details
-num_field_coeffs = (3,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (3,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
 measure_every =10
 fieldsteps_per_ampstep = 1  #nly relevant for sequential
@@ -356,9 +311,9 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = ((6,0), (8,0), (6,1), (8,1))
-  range2 = [1]
+  loop_type = ("wavenumber", "kappa")
+  range1 = np.arange(.005, .5, 1.5)
+  range2 = np.arange(0,.3, .1)
   n_steps = 1000#n measuring steps- so there are n_steps * measure_every amplitude steps and n_steps*measure_every*fieldsteps_per_ampsteps fieldsteps
   method = "sequential"
 
