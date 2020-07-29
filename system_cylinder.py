@@ -83,6 +83,5 @@ class Cylinder():
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
-    self.evaluate_A_integral_0(amplitude) # diff=0 element of A integrals can be identified with surface area
     return  self.gamma * self.evaluate_A_integral_0(amplitude) + self.kappa * self.calc_bending_energy(amplitude)
  
