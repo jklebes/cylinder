@@ -58,11 +58,8 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
  
 
   ######## common terms in integrals ###########
-  # this in addition to those in Cylinder base class
+  # in parent classes
 
-  def A_theta(self, amplitude, z):
-    return  self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(self.wavenumber * z) /self.sqrt_g_z(amplitude, z)
- 
   ############# B integrands different in 2D field case ############
   
   def B_integrand_real_part(self, i, j, beta, amplitude, z):

@@ -12,7 +12,7 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
-me_version = "0.2.18"#metropolisengine.__version__ #save version number
+me_version = "0.2.19"#metropolisengine.__version__ #save version number
 import system_cylinder2D as cylinder
 
 
@@ -52,19 +52,19 @@ def loop(single_run_lambda, range1, range2):
       results[name].append(results_line[name])
   return results 
 
-functions_dict = {("num_field_coeffs", "fsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep),
+functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep)),
                                           num_field_coeffs=num, fieldsteps_per_ampstep = fsteps, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
-                                          wavenumber=wavenumber)
-                  ("amplitude", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "alpha"+str(round(var_a,2))+"_C"+str(round(var_C,2)),
+                                          wavenumber=wavenumber),
+                  ("amplitude", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("alpha"+str(round(var_a,2))+"_C"+str(round(var_C,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=var_alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
-                                          wavenumber=wavenumber)
-                  ("wavenumber", "kappa"): lambda var_wvn, var_kappa: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(var_wvn,2))+"_kappa"+str(round(var_kappa,2)),
+                                          wavenumber=wavenumber),
+                  ("wavenumber", "kappa"): lambda var_wvn, var_kappa: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,2))+"_kappa"+str(round(var_kappa,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=var_kappa, radius=radius,
-                                          wavenumber=var_wvn)
-                  ("wavenumber", "alpha"): lambda var_wvn, var_alpha: single_run(n_steps=n_steps, method=method, outdir = outdir, title = "wvn"+str(round(var_wvn,2))+"_alpha"+str(round(var_alpha,2)),
+                                          wavenumber=var_wvn),
+                  ("wavenumber", "alpha"): lambda var_wvn, var_alpha: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,2))+"_alpha"+str(round(var_alpha,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=var_alpha, C=C, n=n, u=u, gamma=gamma, kappa=var, radius=radius,
                                           wavenumber=var_wvn)                   
@@ -109,8 +109,10 @@ def run_experiment(exp_type,  range1, range2):
   :rtype: None
   """
   #make directory for the experiment
+  global outdir
   now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
   exp_dir= os.path.join("out", "exp-"+now)
+  outdir = exp_dir
   os.mkdir(exp_dir)
   #save descritpion about how the experiment was run
   exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, "me-version": me_version}
@@ -120,7 +122,7 @@ def run_experiment(exp_type,  range1, range2):
   exp_notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   # run experiment of the requested type
   try: 
-    results = loop(functions_dict(exp_type), range1, range2)
+    results = loop(functions_dict[exp_type], range1, range2)
   except KeyError:
     print("experiment type not found: ", exp_type)
     print("please set exp_type to one of", list(functions_dict.keys()))
@@ -182,7 +184,8 @@ def single_run(n_steps,
   energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot 
   energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,np.reshape(complex_params, (theta_array_len, z_array_len)))
   energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term_alt, "surface":energy_fct_surface_term}}
-  me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp)
+  me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], 
+  covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp, complex_sample_method="magnitude-phase")
   #set metropolisengine parameter names
   params_names=["amplitude"]
   coeff_indices = [(n,m) for n in range(-num_field_coeffs[0], num_field_coeffs[0]+1) for m in range(-num_field_coeffs[1], num_field_coeffs[1]+1)]
@@ -280,9 +283,9 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = ((1,3),)
+  range1 = ((0,0),(1,1))
   range2 = (1,5)
   n_steps = 1000 
   method= "sequential"
 
-  run_experiment(loop_type,  range1, range2, n_steps, method)
+  run_experiment(loop_type,  range1, range2)
