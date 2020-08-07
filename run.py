@@ -13,7 +13,8 @@ import seaborn as sb
 import argparse
 import metropolisengine
 me_version = "0.2.19"#metropolisengine.__version__ #save version number
-import system_cylinder2D as cylinder
+import system_cylinder2D as cylinder2d
+import system_cylinder as cylinder
 
 
 def loop(single_run_lambda, range1, range2):
@@ -55,19 +56,23 @@ def loop(single_run_lambda, range1, range2):
 functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep)),
                                           num_field_coeffs=num, fieldsteps_per_ampstep = fsteps, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
-                                          wavenumber=wavenumber),
+                                          wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature),
                   ("amplitude", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("alpha"+str(round(var_a,2))+"_C"+str(round(var_C,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=var_alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
-                                          wavenumber=wavenumber),
+                                          wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature),
                   ("wavenumber", "kappa"): lambda var_wvn, var_kappa: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,2))+"_kappa"+str(round(var_kappa,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=var_kappa, radius=radius,
-                                          wavenumber=var_wvn),
+                                          wavenumber=var_wvn, intrinsic_curvature = intrinsic_curvature),
                   ("wavenumber", "alpha"): lambda var_wvn, var_alpha: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,2))+"_alpha"+str(round(var_alpha,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
-                                          alpha=var_alpha, C=C, n=n, u=u, gamma=gamma, kappa=var, radius=radius,
-                                          wavenumber=var_wvn)                   
+                                          alpha=var_alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
+                                          wavenumber=var_wvn, intrinsic_curvature = intrinsic_curvature),                   
+                  ("wavenumber", "intrinsic_curvature"): lambda var_wvn, var_H0: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,2))+"_H0"+str(round(var_H0,2))),
+                                          num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
+                                          alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
+                                          wavenumber=var_wvn, intrinsic_curvature = var_H0)                   
                   }
 
 
@@ -133,7 +138,7 @@ def run_experiment(exp_type,  range1, range2):
 
 
 def single_run(n_steps, 
-              num_field_coeffs, fieldsteps_per_ampstep, alpha, C, n, u, gamma, kappa, radius,
+              num_field_coeffs, fieldsteps_per_ampstep, alpha, C, n, u, gamma, kappa, radius, intrinsic_curvature,
               wavenumber,method = "sequential", amplitude=None, field_coeffs=None, outdir = None, title = None):
   """
   run a single simulation of lengths nsteps and given method 
@@ -159,7 +164,7 @@ def single_run(n_steps,
     sampling_width = pickle.load(f)
   else:
     sampling_width = .05
-  if os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
+  if method!="no-field" and os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
     f = open('last_cov.pickle', 'rb')
     cov = pickle.load(f)
     if len(cov) != (2*num_field_coeffs[0]+1)*(2*num_field_coeffs[1]+1):
@@ -169,34 +174,45 @@ def single_run(n_steps,
     cov=None
 
   ########### setup system, metropolis engine, link energy functions #############
-  se = cylinder.Cylinder2D(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, kappa=kappa, gamma=gamma, num_field_coeffs= num_field_coeffs)
-  #function [real values], [complex values] -> energy 
+  if method == "no-field":
+    se = cylinder.Cylinder(wavenumber=wavenumber, radius=radius, 
+                           kappa=kappa, gamma=gamma, intrinsic_curvature =intrinsic_curvature)
+    energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot  
+    energy_fct_by_params_group = { "real": {"surface": energy_fct_surface_term}, "all":{ "surface":energy_fct_surface_term}}
+    me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=None, initial_real_params = [float(amplitude)], 
+                                 covariance_matrix_complex=None, sampling_width=sampling_width, temp=temp, complex_sample_method=None)
+  else:  
+    se = cylinder2d.Cylinder2D(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, 
+                           kappa=kappa, gamma=gamma, intrinsic_curvature =intrinsic_curvature, num_field_coeffs= num_field_coeffs)
+    se.save_temporary_matrices()
+    #function [real values], [complex values] -> energy 
 
-  #np.reshape unflattens coeffs c_{j beta} in format [c_{-n -m} ... c{n -m } ... c{-n 0} ... c_{n 0} ... c{-n m } ... c_{n m} ]
-  # to matrix format  [[c_{-n -m} ... c{n -m }] 
-  #                      ... 
-  #                    [c{-n 0} ... c_{n 0} ]
-  #                      ...
-  #                    [c{-n m } ... c_{n m}]]
-  z_array_len= num_field_coeffs[0]*2+1
-  theta_array_len= num_field_coeffs[1]*2+1
-  energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(np.reshape(complex_params, (theta_array_len, z_array_len)))
-  energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot 
-  energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,np.reshape(complex_params, (theta_array_len, z_array_len)))
-  energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term_alt, "surface":energy_fct_surface_term}}
-  me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], 
-  covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp, complex_sample_method="magnitude-phase")
+    #np.reshape unflattens coeffs c_{j beta} in format [c_{-n -m} ... c{n -m } ... c{-n 0} ... c_{n 0} ... c{-n m } ... c_{n m} ]
+    # to matrix format  [[c_{-n -m} ... c{n -m }] 
+    #                      ... 
+    #                    [c{-n 0} ... c_{n 0} ]
+    #                      ...
+    #                    [c{-n m } ... c_{n m}]]
+    z_array_len= num_field_coeffs[0]*2+1
+    theta_array_len= num_field_coeffs[1]*2+1
+    energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(np.reshape(complex_params, (theta_array_len, z_array_len)))
+    #energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,np.reshape(complex_params, (theta_array_len, z_array_len)))
+    
+    energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot  
+    energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term_alt, "surface":energy_fct_surface_term}}
+    me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], 
+                                 covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp, complex_sample_method="magnitude-phase")
   #set metropolisengine parameter names
   params_names=["amplitude"]
-  coeff_indices = [(n,m) for n in range(-num_field_coeffs[0], num_field_coeffs[0]+1) for m in range(-num_field_coeffs[1], num_field_coeffs[1]+1)]
-  params_names.extend(["coeff_"+str(n)+"_"+str(m) for n,m in coeff_indices])
-  me.params_names = params_names
+  if method != "no-field":
+    coeff_indices = [(n,m) for n in range(-num_field_coeffs[0], num_field_coeffs[0]+1) for m in range(-num_field_coeffs[1], num_field_coeffs[1]+1)]
+    params_names.extend(["coeff_"+str(n)+"_"+str(m) for n,m in coeff_indices])
+    me.params_names = params_names
   observables_names =  ["abs_"+name for name in params_names]
   observables_names.extend(["amplitude_squared"])
   me.observables_names = observables_names
   #also input system constraint : steps with |amplitude| > 1 to be rejected
-  me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=1 )  
-  se.save_temporary_matrices()
+  me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=.99 )  
 
  
   ########### start of data collection ############
@@ -231,7 +247,6 @@ def single_run(n_steps,
     for i in range(n_steps):
       for j in range(measure_every):
         accepted = me.step_real_group()
-        if accepted: se.save_temporary_matrices
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
 
   ########## save, resturn results ################
@@ -259,17 +274,18 @@ alpha = -1
 C = 1
 u = 1
 n = 6
-kappa = .1
+kappa = .2
 gamma = 1
 temp = .1
+intrinsic_curvature = 0
 
 # system dimensions
-initial_amplitude= .8  #also fixed system amplitude for when amplitude is static
+initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
 radius = 1
 wavenumber = .4
 
 # simulation details
-num_field_coeffs = (3,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (0,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
 measure_every =10
 fieldsteps_per_ampstep = 1  #only relevant for sequential
@@ -282,10 +298,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = ((0,0),(1,1))
-  range2 = (1,5)
+  loop_type = ("wavenumber", "intrinsic_curvature")
+  range1 = np.arange(0.05, 1.5, .08)
+  range2 = np.arange(-2, 2.1, .3)
   n_steps = 1000 
-  method= "sequential"
+  method= "no-field"
 
   run_experiment(loop_type,  range1, range2)

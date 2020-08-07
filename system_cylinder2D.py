@@ -12,8 +12,9 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
   Representing a section of sinusoidally perturbed cylindrical surface / surface of revolution r(z) = r(a) (1+a sin(kz))
   plus a complex-valued field over the two-dimensional surface, fourier decomposed into an array of modes indexed (j, beta)
   """
-  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs=(0,0)):
-    super().__init__(wavenumber, radius, alpha, C, u, n, kappa, gamma)
+  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, intrinsic_curvature=0, num_field_coeffs=(0,0)):
+    super().__init__(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, 
+                    kappa=kappa, gamma=gamma, intrinsic_curvature=intrinsic_curvature)
     self.num_field_coeffs_z, self.num_field_coeffs_theta = num_field_coeffs
     self.len_arrays_z = 2*self.num_field_coeffs_z+1
     self.len_arrays_theta = 2*self.num_field_coeffs_theta+1

@@ -11,12 +11,14 @@ class Cylinder():
   Representing a section of sinusoidally perturbed cylindrical surface / surface of revolution r(z) = r(a) (1+a sin(kz))
   plus a complex-valued field over the two-dimensional surface, fourier decomposed into an array of modes indexed (j, beta)
   """
-  def __init__(self, wavenumber, radius, kappa, gamma):
+  def __init__(self, wavenumber, radius, kappa, gamma=1, intrinsic_curvature=0):
     assert (all(map(lambda x: x >= 0, [wavenumber, radius, kappa, gamma])))
     self.wavenumber = wavenumber
     self.radius = radius
     self.kappa = kappa
-    self.gamma = gamma
+    self.intrinsic_curvature = intrinsic_curvature
+    #effective surface tension including H_0^2 constant
+    self.effective_gamma = gamma + kappa * self.intrinsic_curvature**2 
 
   ######## common terms in integrals ###########
 
@@ -29,14 +31,30 @@ class Cylinder():
   def radius_rescaled(self, amplitude):
     return self.radius / math.sqrt(1 + amplitude ** 2 / 2.0)
 
-  def n_A_theta_squared(self, amplitude, z):
-    return (self.n * self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(self.wavenumber * z) /self.sqrt_g_z(amplitude, z)) **2 
-
   def A_theta(self, amplitude, z):
     return  self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(self.wavenumber * z) /self.sqrt_g_z(amplitude, z)
 
 
   ########## evaluates integrals ##########
+
+  def Kthth_integrand(self, amplitude, z):
+    """
+    Kthth^2 * sqrt(g) = sqrt(g) /sqrt(g)^2 = 1/sqrt(g)
+    """
+    return (1/(self.sqrt_g_theta(amplitude,z) *  self.sqrt_g_z(amplitude, z)))
+ 
+  def Kzz_integrand(self, amplitude, z):
+    return ((self.radius_rescaled(amplitude)*amplitude*self.wavenumber**2*math.sin(self.wavenumber*z))**2 *
+      self.sqrt_g_theta(amplitude, z) /
+      (self.sqrt_g_z(amplitude,z))**5)
+
+  def Kzz_linear_integrand(self, amplitude, z):
+    """
+    integrand related to cross term -2KzzH_0 
+    Kzz sqrt(g) = R'' sqrt(gzz) / gthth
+    """
+    return ( amplitude * self.wavenumber**2 * math.sin(self.wavenumber*z) *#minus omitted, cancelled wth (-) from -2KzzH0 later
+             self.sqrt_g_z(amplitude, z) / (self.sqrt_g_theta(amplitude, z)**2))
 
   def A_integrand_real_part(self, diff, amplitude, z):
     """
@@ -77,11 +95,14 @@ class Cylinder():
     else:
       Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)
       Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
-      return (Kzz_integral + Kthth_integral)
+      #for interaction with intrinsic mean curvature H0 
+      Kzz_linear_integral, error = integrate.quad(lambda z: self.Kzz_linear_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
+      return (Kzz_integral + Kthth_integral + 2*self.intrinsic_curvature*Kzz_linear_integral)
 
   def calc_surface_energy(self, amplitude):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
-    return  self.gamma * self.evaluate_A_integral_0(amplitude) + self.kappa * self.calc_bending_energy(amplitude)
- 
+    return  (self.effective_gamma * self.evaluate_A_integral_0(amplitude) + 
+             self.kappa * self.calc_bending_energy(amplitude))
+                

@@ -5,9 +5,9 @@ import system_cylinder
 
 class Cylinder1D(system_cylinder.Cylinder):
 
-  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, num_field_coeffs=0):
+  def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, intrinsic_curvature=0, num_field_coeffs=0):
     assert (alpha <= 0)
-    super().__init__(wavenumber, radius, kappa, gamma)
+    super().__init__(wavenumber=wavenumber, radius=radius, kappa=kappa, gamma=gamma, intrinsic_curvature=intrinsic_curvature)
     self.alpha = alpha
     self.C = C
     self.u = u
@@ -27,6 +27,10 @@ class Cylinder1D(system_cylinder.Cylinder):
 
   ######## common terms in integrals ###########
   # => covered in base class Cylinder
+  
+  def n_A_theta_squared(self, amplitude, z):
+    return (self.n * self.wavenumber * self.radius_rescaled(amplitude) * amplitude * math.cos(self.wavenumber * z) /self.sqrt_g_z(amplitude, z)) **2 
+
 
   ########## evaluates integrals ##########
   def A_integrand_img_part(self, diff, amplitude, z):
@@ -84,17 +88,6 @@ class Cylinder1D(system_cylinder.Cylinder):
                     1.0/self.sqrt_g_theta(amplitude, z)*  # sqrt(g_thth) from metric and g^thth = 1/g_thth index raising
                     math.cos((i-j)*self.wavenumber*z))
       return (z_part + theta_part)
-  
-  def Kthth_integrand(self, amplitude, z):
-    return (1/(self.sqrt_g_theta(amplitude,z) *  self.sqrt_g_z(amplitude, z))) #*  # part of K_th^th^2
-  #1 / self.sqrt_g_z(amplitude, z) *  # part of K_th^th^2*sqrt_g_zz
-  # self.sqrt_g_theta(amplitude, z))  # one radius in sqrt_g_theta and -2 in Kthth
- 
-  def Kzz_integrand(self, amplitude, z):
-    return ((self.radius_rescaled(amplitude)*amplitude*self.wavenumber**2*math.sin(self.wavenumber*z))**2 *
-      self.sqrt_g_theta(amplitude, z) /
-      (self.sqrt_g_z(amplitude,z))**5)
-  
 
   def evaluate_A_integrals(self, amplitude):
     for diff in range(-4*self.num_field_coeffs,  4*self.num_field_coeffs+1):
@@ -197,7 +190,7 @@ class Cylinder1D(system_cylinder.Cylinder):
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
     self.evaluate_A_integral_0(amplitude) # diff=0 element of A integrals can be identified with surface area
-    return  self.gamma * self.tmp_A_integrals_0 + self.kappa * self.calc_bending_energy(amplitude)
+    return  self.effective_gamma * self.tmp_A_integrals_0 + self.kappa * self.calc_bending_energy(amplitude)
  
 
   def calc_field_energy_amplitude_change(self, amplitude, field_coeffs):
