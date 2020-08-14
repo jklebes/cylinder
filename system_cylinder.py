@@ -18,7 +18,7 @@ class Cylinder():
     self.kappa = kappa
     self.intrinsic_curvature = intrinsic_curvature
     #effective surface tension including H_0^2 constant
-    self.effective_gamma = gamma + kappa * self.intrinsic_curvature**2 
+    self.effective_gamma = gamma 
 
   ######## common terms in integrals ###########
 
