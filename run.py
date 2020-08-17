@@ -53,7 +53,7 @@ def loop(single_run_lambda, range1, range2):
       results[name].append(results_line[name])
   return results 
 
-functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fsteps)),
+functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("ncoeffs"+str(num)+"_fsteps"+str(fsteps)),
                                           num_field_coeffs=num, fieldsteps_per_ampstep = fsteps, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature),
@@ -270,13 +270,13 @@ def single_run(n_steps,
 
 # global params - will use values set here if not loop variable
 # coefficients
-alpha = -1
-C = .1
+alpha = 1
+C = 1
 u = 1
 n = 1
-kappa = .2
+kappa = .4
 gamma = 1
-temp = .1
+temp = .0001
 intrinsic_curvature = 0
 
 # system dimensions
@@ -299,7 +299,7 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = ((7,2),)
+  range1 = ((6,1),)
   range2 = (5,)
   n_steps = 1000 
   method= "sequential"

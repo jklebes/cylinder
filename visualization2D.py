@@ -106,7 +106,7 @@ def complex_to_rgb(c):
   return colorsys.hls_to_rgb(h, l, s)
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "exp-2020-08-17-09-55-50")
+  data_dir = os.path.join("out", "exp-2020-08-17-10-18-00")
   #data_dir = "."
   data_file = os.path.join(data_dir, "ncoeffs(0, 0)_fsteps1.csv")
   n,m  =  (3,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv

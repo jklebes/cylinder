@@ -6,7 +6,7 @@ import system_cylinder
 class Cylinder1D(system_cylinder.Cylinder):
 
   def __init__(self, wavenumber, radius, alpha, C, u, n, kappa, gamma, intrinsic_curvature=0, num_field_coeffs=0):
-    assert (alpha <= 0)
+    #assert (alpha <= 0)
     super().__init__(wavenumber=wavenumber, radius=radius, kappa=kappa, gamma=gamma, intrinsic_curvature=intrinsic_curvature)
     self.alpha = alpha
     self.C = C
