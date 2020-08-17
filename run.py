@@ -274,7 +274,7 @@ alpha = -1
 C = .1
 u = 1
 n = 1
-kappa = .2
+kappa = .1
 gamma = 1
 temp = .1
 intrinsic_curvature = 0
@@ -299,7 +299,7 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = ((2,1), (5,1))
+  range1 = ((1,1),(6,1),)
   range2 = (5,)
   n_steps = 1000 
   method= "sequential"
