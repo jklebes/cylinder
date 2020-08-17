@@ -196,10 +196,10 @@ def single_run(n_steps,
     z_array_len= num_field_coeffs[0]*2+1
     theta_array_len= num_field_coeffs[1]*2+1
     energy_fct_field_term = lambda real_params, complex_params: se.calc_field_energy(np.reshape(complex_params, (theta_array_len, z_array_len)))
-    #energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,np.reshape(complex_params, (theta_array_len, z_array_len)))
+    energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,np.reshape(complex_params, (theta_array_len, z_array_len)))
     
     energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot  
-    energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term, "surface":energy_fct_surface_term}}
+    energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term_alt, "surface":energy_fct_surface_term}}
     me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], 
                                  covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp, complex_sample_method="magnitude-phase")
   #set metropolisengine parameter names
@@ -224,7 +224,7 @@ def single_run(n_steps,
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
           #print("field_coeffs", me.complex_params)
-      print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width)#, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      #print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width)#, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
@@ -271,9 +271,9 @@ def single_run(n_steps,
 # global params - will use values set here if not loop variable
 # coefficients
 alpha = -1
-C = 1
+C = .1
 u = 1
-n = 6
+n = 1
 kappa = .2
 gamma = 1
 temp = .1
@@ -282,12 +282,12 @@ intrinsic_curvature = 0
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = .4
+wavenumber = 1
 
 # simulation details
 num_field_coeffs = (0,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
-measure_every =2
+measure_every =5
 fieldsteps_per_ampstep = 1  #only relevant for sequential
 
 if __name__ == "__main__":
@@ -298,9 +298,9 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("wavenumber", "intrinsic_curvature")
-  range1 = np.arange(0.05, 10.1, 1.25)
-  range2 = np.arange(-30, 15.1, 3)
+  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
+  range1 = ((2,1), (5,1))
+  range2 = (5,)
   n_steps = 1000 
   method= "sequential"
 
