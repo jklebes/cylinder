@@ -167,7 +167,7 @@ def single_run(n_steps,
   if method!="no-field" and os.path.isfile("./last_cov.pickle") and os.path.getsize("./last_cov.pickle"):
     f = open('last_cov.pickle', 'rb')
     cov = pickle.load(f)
-    if len(cov) != (2*num_field_coeffs[0]+1)*(2*num_field_coeffs[1]+1):
+    if cov is not None and len(cov) != (2*num_field_coeffs[0]+1)*(2*num_field_coeffs[1]+1):
       print("rejected because dimensions are wrong")
       cov=None
   else:
@@ -199,7 +199,7 @@ def single_run(n_steps,
     #energy_fct_field_term_alt = lambda real_params, complex_params: se.calc_field_energy_amplitude_change(*real_params,np.reshape(complex_params, (theta_array_len, z_array_len)))
     
     energy_fct_surface_term = lambda real_params, complex_params : se.calc_surface_energy(*real_params) #also need se.calc_field_energy_ampltiude_change to be saved to energy_dict "surface" slot  
-    energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term_alt, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term_alt, "surface":energy_fct_surface_term}}
+    energy_fct_by_params_group = {"complex": {"field": energy_fct_field_term}, "real": {"field": energy_fct_field_term, "surface": energy_fct_surface_term}, "all":{"field": energy_fct_field_term, "surface":energy_fct_surface_term}}
     me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=field_coeffs, initial_real_params = [float(amplitude)], 
                                  covariance_matrix_complex=cov, sampling_width=sampling_width, temp=temp, complex_sample_method="magnitude-phase")
   #set metropolisengine parameter names
@@ -287,7 +287,7 @@ wavenumber = .4
 # simulation details
 num_field_coeffs = (0,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
-measure_every =10
+measure_every =2
 fieldsteps_per_ampstep = 1  #only relevant for sequential
 
 if __name__ == "__main__":
@@ -299,9 +299,9 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "intrinsic_curvature")
-  range1 = np.arange(0.05, 1.5, .08)
-  range2 = np.arange(-2, 2.1, .3)
+  range1 = np.arange(0.05, 10.1, 1.25)
+  range2 = np.arange(-30, 15.1, 3)
   n_steps = 1000 
-  method= "no-field"
+  method= "sequential"
 
   run_experiment(loop_type,  range1, range2)
