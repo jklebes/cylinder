@@ -51,6 +51,7 @@ def get_amplitude_line2(i,zs):
 def get_complex_series(data):
   len_series = len(data.index.values) # length in time
   time_series = defaultdict(lambda: np.zeros(len_series)) # dict (z_index, th_index) : time series of values of c_{z th}
+  print(data)
   for column_name in data.columns.values:
     print(column_name)
     if "sampling_width" in column_name or "energy" in column_name:
@@ -70,10 +71,13 @@ def get_complex_series(data):
       coeff_number = int(column_name.split("_")[2])
       print("found real part of c ", coeff_number)
       time_series[coeff_number] += np.array([float(value) +0j for value in data[column_name] ])
-    elif "c_" in column_name or ("param_" in column_name and "abs" not in column_name and "squared" not in column_name): 
+    elif "c_" in column_name or (("coeff" in column_name or "param_" in column_name) and "abs" not in column_name and "squared" not in column_name): 
       # index math required to translate from paramnumber (1 to ... ) to z_index, th_index in range -m..m x -n ... n
       #the dict coeff_number handles the conversion
-      coeff_number = coeff_numbers[int(column_name.split("_")[1])] # lookup from dict given for this file
+      if "param" in column_name:
+        coeff_number = coeff_numbers[int(column_name.split("_")[1])] # lookup from dict given for this file, if coeffs are labeled 0 to n*m
+      elif "coeff" in column_name:
+        coeff_number = (int(column_name.split("_")[1]), int(column_name.split("_")[2]))
       time_series[coeff_number] = [complex(value) for value in data[column_name]]
   return time_series, amplitude_series
 
@@ -102,16 +106,17 @@ def complex_to_rgb(c):
   return colorsys.hls_to_rgb(h, l, s)
 
 if __name__=="__main__":
-  #data_dir = os.path.join("..", ".")
-  data_dir = "."
-  data_file = os.path.join(data_dir, "ncoeffs(8, 1)_fsteps1.csv")
-  n,m  =  (8,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
+  data_dir = os.path.join("out", "exp-2020-08-17-09-55-50")
+  #data_dir = "."
+  data_file = os.path.join(data_dir, "ncoeffs(0, 0)_fsteps1.csv")
+  n,m  =  (3,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
   # if it's 1D data put 0 as second element
   # conversion key from param number to (z_index, theta_index)
   # there are this many complex parameters:
   num_complex_params = (2*n+1)*(2*m+1)
   coeff_numbers = dict([(i, (-n+( (i-1) % (2*n+1)  ) , -m+( (i-1) // (2*n+1) ))  ) for i in range(1,num_complex_params+1)])
   data = file_to_df(data_file)
+  print("data", data)
   complex_series, amplitude_series = get_complex_series(data)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   #x = np.arange(0, 2*np.pi, 0.01)
@@ -124,8 +129,8 @@ if __name__=="__main__":
   #plt.legend(loc=3)
   plt.xlabel('z')
   plt.xticks=([])
-  #plt.show()
-  ani.save("2Danimation81-T1.mp4")
+  plt.show()
+  #ani.save("2Danimation31.mp4")
   plt.close()
   matrixr = [ (0 + i*1j) for i in np.arange(-2, 2, .01)]
   matrix = [[complex_to_rgb((i + x)) for i in matrixr] for x in np.arange(-2,2,.01)]

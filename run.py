@@ -53,7 +53,7 @@ def loop(single_run_lambda, range1, range2):
       results[name].append(results_line[name])
   return results 
 
-functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fieldsteps_per_ampstep)),
+functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("ncoeffs"+str(num_field_coeffs)+"_fsteps"+str(fsteps)),
                                           num_field_coeffs=num, fieldsteps_per_ampstep = fsteps, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature),
@@ -184,7 +184,6 @@ def single_run(n_steps,
   else:  
     se = cylinder2d.Cylinder2D(wavenumber=wavenumber, radius=radius, alpha=alpha, C=C, u=u, n=n, 
                            kappa=kappa, gamma=gamma, intrinsic_curvature =intrinsic_curvature, num_field_coeffs= num_field_coeffs)
-    se.save_temporary_matrices()
     #function [real values], [complex values] -> energy 
 
     #np.reshape unflattens coeffs c_{j beta} in format [c_{-n -m} ... c{n -m } ... c{-n 0} ... c_{n 0} ... c{-n m } ... c_{n m} ]
@@ -213,7 +212,8 @@ def single_run(n_steps,
   me.observables_names = observables_names
   #also input system constraint : steps with |amplitude| > 1 to be rejected
   me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=.99 )  
-
+  #save temp matrices after initiaing metropolis engine, which called inital energy calculation and filled tmp matrices
+  se.save_temporary_matrices()
  
   ########### start of data collection ############
   if method == "sequential":
@@ -224,7 +224,7 @@ def single_run(n_steps,
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
           #print("field_coeffs", me.complex_params)
-      #print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width)#, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
@@ -274,7 +274,7 @@ alpha = -1
 C = .1
 u = 1
 n = 1
-kappa = .1
+kappa = .2
 gamma = 1
 temp = .1
 intrinsic_curvature = 0
@@ -299,7 +299,7 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = ((1,1),(6,1),)
+  range1 = ((7,2),)
   range2 = (5,)
   n_steps = 1000 
   method= "sequential"

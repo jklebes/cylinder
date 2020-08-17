@@ -154,9 +154,9 @@ def visualize_snapshot(complex_snapshot):
 
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "2D")
-  data_file = os.path.join(data_dir, "wvn0.65_kappa0.0.csv")
-  n,m  =  (1,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
+  data_dir = os.path.join("out", "exp-2020-08-17-09-55-50")
+  data_file = os.path.join(data_dir, "ncoeffs(0, 0)_fsteps1.csv")
+  n,m  =  (3,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
   # if it's 1D data put 0 as second element
   # conversion key from param number to (z_index, theta_index)
   # there are this many complex parameters:
