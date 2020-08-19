@@ -69,16 +69,17 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
       z_bending = (i * j * self.wavenumber ** 2 * math.cos((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
       theta_bending = (beta**2 * #math.cos(beta-beta') =1
-                      self.radius)  
+                      1/self.radius) #to match index raising below, should be 1/r - now correct?  
       return (z_bending+theta_bending)
     else:
       simplified_integrand  = math.cos((i-j)*self.wavenumber*z)*(
                               # |d_z Psi |^2 part:
-                              (self.wavenumber**2 * i * j * self.sqrt_g_z(amplitude,z) * self.sqrt_g_theta(amplitude, z)+
+                              self.wavenumber**2 * i * j * self.sqrt_g_z(amplitude,z) * self.sqrt_g_theta(amplitude, z)+
                               # the following are all theta parts, with index raise eta^{theta theta} combined with sqrt(g)
                               # the squared part expands to three terms: beta beta', -2beta n A_theta, and n**2 A_theta**2
+                              # * math.cos(beta-beta') =1
                               (beta - self.n*self.A_theta(amplitude, z))**2 * self.sqrt_g_z(amplitude, z) / self.sqrt_g_theta(amplitude, z))
-                              )
+                              
       return simplified_integrand
  
   
@@ -87,17 +88,17 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
       # TODO : check this
       z_bending = (i * j * self.wavenumber ** 2 * math.sin((i - j) * self.wavenumber * z) *  # |d e^... |^2
                 self.radius)  # sqrt(g_theta theta) = radius
-      theta_bending = (beta**2 * #math.cos(beta-beta') =1
-                      self.radius)  
+      theta_bending = 0#(beta**2 * #math.cos(beta-beta') =0
+                      #1/self.radius)  # now correct? 
       return (z_bending+theta_bending)
     else:
       simplified_integrand  = math.sin((i-j)*self.wavenumber*z)*( #sin: img part of e^i...
                               # |d_z Psi |^2 part:
-                              (self.wavenumber**2 * i * j * self.sqrt_g_z(amplitude,z) * self.sqrt_g_theta(amplitude, z)+
+                              self.wavenumber**2 * i * j * self.sqrt_g_z(amplitude,z) * self.sqrt_g_theta(amplitude, z) +
                               # these are all theta parts, with index raise eta^{theta theta} combined with sqrt(g)
                               # the squared part expands to three terms: beta beta', -2beta n A_theta, and n**2 A_theta**2
                               (beta - self.n*self.A_theta(amplitude, z))**2 * self.sqrt_g_z(amplitude, z) / self.sqrt_g_theta(amplitude, z))
-                              )
+                              
       return simplified_integrand
  
 

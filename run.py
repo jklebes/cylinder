@@ -57,10 +57,10 @@ functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fs
                                           num_field_coeffs=num, fieldsteps_per_ampstep = fsteps, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature),
-                  ("amplitude", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("alpha"+str(round(var_a,2))+"_C"+str(round(var_C,2))),
+                  ("amplitude", "C"): lambda var_a, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("a"+str(round(var_a,2))+"_C"+str(round(var_C,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
-                                          alpha=var_alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
-                                          wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature),
+                                          alpha=alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
+                                          wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature, amplitude=var_a),
                   ("wavenumber", "kappa"): lambda var_wvn, var_kappa: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,2))+"_kappa"+str(round(var_kappa,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=var_kappa, radius=radius,
@@ -224,7 +224,7 @@ def single_run(n_steps,
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
           #print("field_coeffs", me.complex_params)
-      print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width, me.real_params,me.complex_params)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
+      print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width, me.real_params,me.complex_params, me.energy)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
   elif method == "simultaneous":
     for i in range(n_steps):
@@ -270,25 +270,25 @@ def single_run(n_steps,
 
 # global params - will use values set here if not loop variable
 # coefficients
-alpha = 1
-C = 1
+alpha = -1
+C = 2
 u = 1
 n = 1
-kappa = .4
+kappa = .3
 gamma = 1
-temp = .0001
+temp = .1
 intrinsic_curvature = 0
 
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = 1
+wavenumber = .8
 
 # simulation details
-num_field_coeffs = (0,0) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (6,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
 measure_every =5
-fieldsteps_per_ampstep = 1  #only relevant for sequential
+fieldsteps_per_ampstep = 4  #only relevant for sequential
 
 if __name__ == "__main__":
 
@@ -298,10 +298,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("num_field_coeffs", "fieldsteps_per_ampstep")
-  range1 = ((6,1),)
-  range2 = (5,)
-  n_steps = 1000 
+  loop_type = ("amplitude", "C")
+  range1 = (0,)
+  range2 = (5,2,1,.5,.1)
+  n_steps = 800 
   method= "sequential"
 
   run_experiment(loop_type,  range1, range2)

@@ -96,31 +96,32 @@ def visualize_snapshot(complex_snapshot):
       for (z_index, th_index) in complex_snapshot:
         f += complex_snapshot[(z_index, th_index)] *( math.cos(z_index*z) + math.sin(z_index*z)*1j)*(math.cos(th_index*th)+ math.sin(th_index*th)*1j)
       field[j][i]=complex_to_rgb(f) # indexes are in this order -> display on screen is --z-->  
+  print(complex_snapshot[(0, 0)])
   return field
 
 def complex_to_rgb(c):
-  a=.3
+  a=.5
   h = cmath.phase(c)/(2*math.pi)
   l = (1-a**(abs(c))) *1
   s = 1
   return colorsys.hls_to_rgb(h, l, s)
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "exp-2020-08-17-10-18-00")
+  data_dir = os.path.join("out", "kappa10")
   #data_dir = "."
-  data_file = os.path.join(data_dir, "ncoeffs(0, 0)_fsteps1.csv")
-  n,m  =  (3,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
+  data_file = os.path.join(data_dir, "a0_C1.csv")
+  n,m  =  (6,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
   # if it's 1D data put 0 as second element
   # conversion key from param number to (z_index, theta_index)
   # there are this many complex parameters:
   num_complex_params = (2*n+1)*(2*m+1)
   coeff_numbers = dict([(i, (-n+( (i-1) % (2*n+1)  ) , -m+( (i-1) // (2*n+1) ))  ) for i in range(1,num_complex_params+1)])
   data = file_to_df(data_file)
-  print("data", data)
+  print("data", data.loc[:,'coeff_0_0'])
   complex_series, amplitude_series = get_complex_series(data)
   #values_vs_time_f, real, img = visualize_snapshot(complex_snapshot)
   #x = np.arange(0, 2*np.pi, 0.01)
-  ani = animation.FuncAnimation(fig, animate, interval=400)#,  save_count=50)
+  ani = animation.FuncAnimation(fig, animate, interval=400, frames=10000)#,  save_count=50)
   #ax.set_ylim([-4.3,2])
   #ax.set_xlim([-.2, 2*math.pi+.2])
   #plt.plot([-1,2*math.pi+1], [0]*2, color='black')
@@ -130,7 +131,7 @@ if __name__=="__main__":
   plt.xlabel('z')
   plt.xticks=([])
   plt.show()
-  #ani.save("2Danimation31.mp4")
+  #ani.save("unitnematic.mp4", fps=2, )
   plt.close()
   matrixr = [ (0 + i*1j) for i in np.arange(-2, 2, .01)]
   matrix = [[complex_to_rgb((i + x)) for i in matrixr] for x in np.arange(-2,2,.01)]
@@ -138,4 +139,4 @@ if __name__=="__main__":
   plt.xticks=([])
   plt.yticks=([])
   plt.axis('off')
-  plt.savefig("cmoplex.png")
+  plt.savefig("complex.png")
