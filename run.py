@@ -76,7 +76,7 @@ functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fs
                   ("alpha", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("alpha"+str(round(var_alpha,2))+"_C"+str(round(var_C))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=var_alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
-                                          wavenumber=wvn, intrinsic_curvature = H0)                   
+                                          wavenumber=wavenumber, intrinsic_curvature = H0)                   
                   }
 
 
