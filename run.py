@@ -72,7 +72,11 @@ functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fs
                   ("wavenumber", "intrinsic_curvature"): lambda var_wvn, var_H0: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,2))+"_H0"+str(round(var_H0,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
-                                          wavenumber=var_wvn, intrinsic_curvature = var_H0)                   
+                                          wavenumber=var_wvn, intrinsic_curvature = var_H0),                   
+                  ("alpha", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("alpha"+str(round(var_alpha,2))+"_C"+str(round(var_C))),
+                                          num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
+                                          alpha=var_alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
+                                          wavenumber=wvn, intrinsic_curvature = H0)                   
                   }
 
 
@@ -120,7 +124,7 @@ def run_experiment(exp_type,  range1, range2):
   outdir = exp_dir
   os.mkdir(exp_dir)
   #save descritpion about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa,  "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, "me-version": me_version}
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "temp":temp, "method": method, "C": C,"kappa": kappa, "gamma": gamma, "alpha": alpha, "n":n, "u":u, "num_field_coeffs":num_field_coeffs, "range1":range1, "range2": range2, "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, "measure every n ampsteps":measure_every, "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, "me-version": me_version}
   if method == "sequential":
     exp_notes["fieldsteps per ampstep"] = fieldsteps_per_ampstep
   exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
@@ -273,8 +277,8 @@ def single_run(n_steps,
 alpha = -1
 C = 2
 u = 1
-n = 1
-kappa = .3
+n = 6
+kappa = 25
 gamma = 1
 temp = .1
 intrinsic_curvature = 0
@@ -282,13 +286,13 @@ intrinsic_curvature = 0
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = .8
+wavenumber = 1
 
 # simulation details
-num_field_coeffs = (6,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (9,2) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
-measure_every =5
-fieldsteps_per_ampstep = 4  #only relevant for sequential
+measure_every =10
+fieldsteps_per_ampstep = 0  #only relevant for sequential
 
 if __name__ == "__main__":
 
@@ -298,10 +302,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-  loop_type = ("amplitude", "C")
-  range1 = (0,)
-  range2 = (5,2,1,.5,.1)
-  n_steps = 800 
-  method= "sequential"
+  loop_type = ("alpha", "C")
+  range1 = (1,0,-0.01,-0.1, -1, -10)
+  range2 = (0, 0.01, 0.1, 1, 10)
+  n_steps = 1000 
+  method= "fixed-amplitude"
 
   run_experiment(loop_type,  range1, range2)
