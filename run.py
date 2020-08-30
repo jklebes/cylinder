@@ -242,6 +242,7 @@ def single_run(n_steps,
         for ii in range(fieldsteps_per_ampstep):
           me.step_complex_group()
       me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
+      print(i, me.complex_group_sampling_width, me.complex_params)
   elif method == "no-field":
     me.m = 1 #number of dimensions of parameter space for adaptive purposes such as target acceptance rate.  actually just 1 degree of freedom for amplitude-only run.
     for i in range(n_steps):
@@ -302,6 +303,6 @@ if __name__ == "__main__":
   range1 = (0,)
   range2 = (5,2,1,.5,.1)
   n_steps = 800 
-  method= "sequential"
+  method= "fixed-amplitude"
 
   run_experiment(loop_type,  range1, range2)

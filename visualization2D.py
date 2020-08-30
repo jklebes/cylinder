@@ -14,12 +14,16 @@ theta_coords = np.arange(0, 2*np.pi, 0.1)
 fig = plt.figure()
 ax = plt.axes(xlim=(0, len(z_coords)), ylim=(-50, len(theta_coords)))
 data = np.zeros((len(theta_coords), len(z_coords)))
-im=plt.imshow(data, vmin=0, vmax=1.5)
+im=plt.imshow(data, vmin=0, vmax=2)
+#plt.colorbar()
 line_amplitude, = ax.plot(range(len(z_coords)), np.sin(z_coords), color='g', linewidth=10)
 line_amplitude2, = ax.plot(range(len(z_coords)), np.sin(z_coords), color='g', linewidth=10)
 
 running_avg = None
 stepcounter = 0
+
+avg_random_point= 0
+counter=0
 
 def init():
   im.set_data(np.zeros((len(theta_coords), len(z_coords))))
@@ -96,7 +100,14 @@ def visualize_snapshot(complex_snapshot):
       for (z_index, th_index) in complex_snapshot:
         f += complex_snapshot[(z_index, th_index)] *( math.cos(z_index*z) + math.sin(z_index*z)*1j)*(math.cos(th_index*th)+ math.sin(th_index*th)*1j)
       field[j][i]=complex_to_rgb(f) # indexes are in this order -> display on screen is --z-->  
-  print(complex_snapshot[(0, 0)])
+      if j==5 and i==11:
+        global avg_random_point
+        global counter
+        avg_random_point *= counter
+        counter+=1
+        avg_random_point /= float(counter)
+        avg_random_point += abs(f)/float(counter)
+        print(abs(f), avg_random_point)
   return field
 
 def complex_to_rgb(c):
@@ -107,10 +118,10 @@ def complex_to_rgb(c):
   return colorsys.hls_to_rgb(h, l, s)
 
 if __name__=="__main__":
-  data_dir = os.path.join("out", "kappa10")
+  data_dir = os.path.join("out", "exp-2020-08-24-17-06-04")
   #data_dir = "."
-  data_file = os.path.join(data_dir, "a0_C1.csv")
-  n,m  =  (6,1) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
+  data_file = os.path.join(data_dir, "alpha-1_C10.csv")
+  n,m  =  (9,2) # values n (z index goes from -n to n) , m (theta index goes from -m to +m) - can be found in data directory's notes.csv
   # if it's 1D data put 0 as second element
   # conversion key from param number to (z_index, theta_index)
   # there are this many complex parameters:
