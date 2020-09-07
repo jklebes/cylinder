@@ -40,7 +40,7 @@ def loop(single_run_lambda, range1, range2):
       #coeffs_names = ["param_"+str(i) for i in range(1,(1+2*num_field_coeffs[0])*(1+2*num_field_coeffs[1]))]
       coeffs_names= param_names[1:]
       var_dict = dict([(name, cov_matrix[i][i]) for (i, name) in enumerate(coeffs_names)])
-      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(coeffs_names) for (j, name2) in enumerate(coeffs_names) if i!= j])
+      covar_dict = dict([(name1+"_"+name2, cov_matrix[i][j]) for (i, name1) in enumerate(coeffs_names) for (j, name2) in enumerate(coeffs_names) if j>i])
       #print(means_dict)
       for name in means_dict:
         results_line[name+"_mean"].append(means_dict[name])
@@ -211,13 +211,14 @@ def single_run(n_steps,
     coeff_indices = [(n,m) for n in range(-num_field_coeffs[0], num_field_coeffs[0]+1) for m in range(-num_field_coeffs[1], num_field_coeffs[1]+1)]
     params_names.extend(["coeff_"+str(n)+"_"+str(m) for n,m in coeff_indices])
     me.params_names = params_names
+    se.save_temporary_matrices()
   observables_names =  ["abs_"+name for name in params_names]
   observables_names.extend(["amplitude_squared"])
   me.observables_names = observables_names
   #also input system constraint : steps with |amplitude| > 1 to be rejected
   me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=.99 )  
   #save temp matrices after initiaing metropolis engine, which called inital energy calculation and filled tmp matrices
-  se.save_temporary_matrices()
+  
  
   ########### start of data collection ############
   if method == "sequential":
@@ -276,10 +277,10 @@ def single_run(n_steps,
 # global params - will use values set here if not loop variable
 # coefficients
 alpha = -1
-C = 2
+C = 1
 u = 1
 n = 6
-kappa = 25
+kappa = .1
 gamma = 1
 temp = .1
 intrinsic_curvature = 0
@@ -287,7 +288,7 @@ intrinsic_curvature = 0
 # system dimensions
 initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
 radius = 1
-wavenumber = 1
+wavenumber = .5
 
 # simulation details
 num_field_coeffs = (9,2) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
@@ -303,17 +304,10 @@ if __name__ == "__main__":
   notes=parser.parse_args().notes
 
   # specify type, range of plot; title of experiment
-<<<<<<< HEAD
-  loop_type = ("amplitude", "C")
-  range1 = (0,)
-  range2 = (5,2,1,.5,.1)
+  loop_type = ("wavenumber", "intrinsic_curvature")
+  range1 = np.arange(0.05, 2, .1)
+  range2 = range(-10, 5, 2)
   n_steps = 800 
-=======
-  loop_type = ("alpha", "C")
-  range1 = (1,0,-0.01,-0.1, -1, -10)
-  range2 = (0, 0.01, 0.1, 1, 10)
-  n_steps = 1000 
->>>>>>> 468719b41aeb991a9dc5205e875ebf15547884b5
-  method= "fixed-amplitude"
+  method= "no-field"
 
   run_experiment(loop_type,  range1, range2)
