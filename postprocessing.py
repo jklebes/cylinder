@@ -37,12 +37,15 @@ def plot_timeseries(data, data2, title="timeseries.png"):
 
 #replot heatmap
 def replot_heatmap(data, outdir, title):
-  ax=sb.heatmap(data, xticklabels=1, yticklabels=1,cmap ="viridis", vmax=1, vmin=0) #viridis and hot
-  plt.title("abs c_0")
-  plt.xlabel("alpha")
-  plt.ylabel("wavenumber/r_0")
+  #round labels
+  data.index = [round(i,3) for i in data.index]
+  ax=sb.heatmap(data, xticklabels=1, yticklabels=1,cmap ="viridis", fmt='.2g')#, vmax=1, vmin=0) #viridis and hot
+  plt.title("|a| as a function of k, H_0")
+  plt.xlabel("H_0")
+  plt.ylabel("k")
   #ax.invert_yaxis()
   plt.savefig(os.path.join(outdir, title))
+  plt.close()
 
 if __name__=="__main__":
 

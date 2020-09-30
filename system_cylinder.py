@@ -21,6 +21,8 @@ class Cylinder():
     self.effective_gamma = gamma 
 
   ######## common terms in integrals ###########
+  def g_theta(self, amplitude, z):
+    return self.radius_rescaled(amplitude)**2 * (1 + amplitude * math.sin(self.wavenumber * z))**2
 
   def sqrt_g_theta(self, amplitude, z):
     return self.radius_rescaled(amplitude) * (1 + amplitude * math.sin(self.wavenumber * z))
