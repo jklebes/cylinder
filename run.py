@@ -12,10 +12,9 @@ import timeit
 import seaborn as sb
 import argparse
 import metropolisengine
-me_version = "0.2.19"#metropolisengine.__version__ #save version number
-import system_cylinder2D as cylinder2d
-import system_cylinder as cylinder
-
+import surfaces_and_fields.system_cylinder2D as cylinder2d
+import surfaces_and_fields.system_cylinder as cylinder
+me_version = "0.2.19"#metropolisengine.__version__ #save version number TODO get it automatically 
 
 def loop(single_run_lambda, range1, range2):
   """
