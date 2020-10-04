@@ -43,7 +43,6 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
     # selection rule eqaulvalent under either indexing scheme
     # (beta+const) + (beta2 + const) = (beta'+const) + (beta2' + const)
     self.quartic_selection_rule = self.generate_quartic_combinations(self.len_arrays_theta)
-    print("generated combos", self.quartic_selection_rule)
 
   def generate_quartic_combinations(self,len_arrays):
     # only done once, doesnt matter if slow
@@ -112,14 +111,13 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
     ## fill matrix A[i,j] from list A[diff], where i j k are matrix indices from 0 to 2n (corresponding to ordered list of coefficient's indices from -n to n)
     ## fill matrix D[i,j,k,l] where D[i+j-l-k]=A[diff]
     l = self.len_arrays_z
+    n_coeffs=self.num_field_coeffs_z
     # save to tmp location when first calcualted with new amplitude - gets transferred to permanent matrices accesed by calc_field_energy when amplitude is accepted
     for i in range(l): 
-      self.tmp_A_matrix[i] = self.tmp_A_integrals[2*l-i-2:3*l-2-i]
-      #print(i,self.A_integrals[-i+0+4*self.num_field_coeffs], "filled", self.A_matrix[i,0])
+      self.tmp_A_matrix[i,::-1] = self.tmp_A_integrals[i+2*n_coeffs:i+4*n_coeffs+1]
       for j in range(l):
         for k in range(l):
-          self.tmp_D_matrix[i,j,k] =  self.tmp_A_integrals[k-i-j+2*l-2:k-i-j+3*l-2] 
-          #print(i,j,k,self.A_integrals[-i-j+k+0+4*self.num_field_coeffs], "filled", self.D_matrix[i,j,k,0])
+          self.tmp_D_matrix[i,j,k,::-1] =  self.tmp_A_integrals[i+j-k+2*n_coeffs:i+j-k+4*n_coeffs+1] 
     self.tmp_A_integrals_0 = self.tmp_A_integrals[0]
 
 
@@ -158,14 +156,14 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
     D_complex_energy = 0+0j
     # hybrid einsum and loop for Acc* and Dccc*c* sums
     for beta in range(self.len_arrays_theta):
-    	A_complex_energy += np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
+    	A_complex_energy += np.einsum("ij, i, j -> ", self.A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
     for (index1, index2, index3, index4) in self.quartic_selection_rule:
-      D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs[index1], field_coeffs[index2], field_coeffs[index3].conjugate(), field_coeffs[index4].conjugate())
+      D_complex_energy +=  np.einsum("ijkl, i, j, k, l -> ", self.D_matrix, field_coeffs[index1], field_coeffs[index2], field_coeffs[index3].conjugate(), field_coeffs[index4].conjugate())
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
-    B_complex_energy = np.einsum("ijab, ai, bj -> ", self.B_matrix, field_coeffs.conjugate(), field_coeffs) #why the backwards list of indices?
+    B_complex_energy = np.einsum("ijab, ai, bj -> ", self.B_matrix, field_coeffs, field_coeffs.conjugate()) #why the backwards list of indices? array field coeffs is jiven in transpose (beta,j)?
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
-    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) 
+    assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7))
     return  self.alpha * A_complex_energy.real + self.C * B_complex_energy.real + 0.5 * self.u * D_complex_energy.real
 
   def save_temporary_matrices(self):
@@ -186,11 +184,11 @@ class Cylinder2D(system_cylinder1D.Cylinder1D):
     D_complex_energy = 0+0j
     # hybrid einsum and loop for Acc* and Dccc*c* sums
     for beta in range(self.len_arrays_theta):
-    	A_complex_energy += np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
+    	A_complex_energy += np.einsum("ij, i, j -> ", self.tmp_A_matrix, field_coeffs[beta], field_coeffs[beta].conjugate())
     for (index1, index2, index3, index4) in self.quartic_selection_rule:
-      D_complex_energy +=  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[index1], field_coeffs[index2], field_coeffs[index3].conjugate(), field_coeffs[index4].conjugate())
+      D_complex_energy +=  np.einsum("ijkl, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs[index1], field_coeffs[index2], field_coeffs[index3].conjugate(), field_coeffs[index4].conjugate())
     # 4D einsum for B integrals: energy term =  B_{j j' beta beta'}c_{beta j}c*_{beta' j'} (einstein summation convention)
-    B_complex_energy = np.einsum("ijab, ai, bj -> ", self.tmp_B_matrix, field_coeffs.conjugate(), field_coeffs) 
+    B_complex_energy = np.einsum("ijab, ai, bj -> ", self.tmp_B_matrix, field_coeffs, field_coeffs.conjugate()) 
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     #print("B complex energy", B_complex_energy)
     #print("from einsum", self.tmp_B_matrix, field_coeffs, field_coeffs.conjugate())

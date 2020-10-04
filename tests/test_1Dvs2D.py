@@ -91,9 +91,9 @@ class Test_Compare_Calc_Field_Energy(unittest.TestCase):
     self.sys_basic.evaluate_B_integrals(amplitude=0)
     self.sys_basic_2d.evaluate_B_integrals(amplitude=0)
     #how energy is calcualated in 1D case 
-    B_complex_energy_1d = np.einsum("ij, i, j -> ", self.sys_basic.tmp_B_integrals, self.field_coeffs.conjugate(), self.field_coeffs)
+    B_complex_energy_1d = np.einsum("ij, i, j -> ", self.sys_basic.tmp_B_integrals, self.field_coeffs, self.field_coeffs.conjugate())
     # how energy is calculated in 2d case
-    B_complex_energy_2d = np.einsum("ijab, ai, bj -> ", self.sys_basic_2d.tmp_B_matrix, self.field_coeffs_2d.conjugate(), self.field_coeffs_2d)
+    B_complex_energy_2d = np.einsum("ijab, ai, bj -> ", self.sys_basic_2d.tmp_B_matrix, self.field_coeffs_2d, self.field_coeffs_2d.conjugate())
     self.assertEqual(B_complex_energy_1d.real, B_complex_energy_2d.real)
 
   def test_field_energy_zero_amplitude(self):
@@ -124,12 +124,12 @@ class Test_Compare_Calc_Field_Energy(unittest.TestCase):
     self.sys_basic.evaluate_A_integrals(amplitude=.22)
     self.sys_basic_2d.evaluate_A_integrals(amplitude=.22)
     #how energy is calcualated in 1D case 
-    A_complex_energy_1d = np.einsum("ji, i, j -> ", self.sys_basic.tmp_A_matrix, self.field_coeffs, self.field_coeffs.conjugate())
+    A_complex_energy_1d = np.einsum("ij, i, j -> ", self.sys_basic.tmp_A_matrix, self.field_coeffs, self.field_coeffs.conjugate())
     # how energy is calculated in 2d case
     A_complex_energy_2d = 0+0j
     # hybrid einsum and loop for Acc* and Dccc*c* sums
     for beta in range(self.sys_basic_2d.len_arrays_theta):
-        A_complex_energy_2d += np.einsum("ji, i, j -> ", self.sys_basic_2d.tmp_A_matrix, self.field_coeffs_2d[beta], self.field_coeffs_2d[beta].conjugate())
+        A_complex_energy_2d += np.einsum("ij, i, j -> ", self.sys_basic_2d.tmp_A_matrix, self.field_coeffs_2d[beta], self.field_coeffs_2d[beta].conjugate())
     self.assertEqual(A_complex_energy_1d.real, A_complex_energy_2d.real)
 
 
@@ -137,7 +137,7 @@ class Test_Compare_Calc_Field_Energy(unittest.TestCase):
     self.sys_basic.evaluate_A_integrals(amplitude=-.5)
     self.sys_basic_2d.evaluate_A_integrals(amplitude=-.5)
     #how energy is calcualated in 1D case 
-    D_complex_energy_1d =  np.einsum("klij, i, j, k, l -> ", self.sys_basic.tmp_D_matrix, self.field_coeffs, self.field_coeffs, self.field_coeffs.conjugate(), self.field_coeffs.conjugate())
+    D_complex_energy_1d =  np.einsum("ijkl, i, j, k, l -> ", self.sys_basic.tmp_D_matrix, self.field_coeffs, self.field_coeffs, self.field_coeffs.conjugate(), self.field_coeffs.conjugate())
     # how energy is calculated in 2d case
     D_complex_energy_2d = 0+0j
     # hybrid einsum and loop for Acc* and Dccc*c* sums
@@ -147,7 +147,7 @@ class Test_Compare_Calc_Field_Energy(unittest.TestCase):
                #selection rule beta1 + beta2 == beta'1 + beta'2
                betaprime2 = beta1+beta2-betaprime1
                try: # betaprime2 may be out of range
-                 D_complex_energy_2d +=  np.einsum("klij, i, j, k, l -> ", self.sys_basic_2d.tmp_D_matrix, self.field_coeffs_2d[beta1], self.field_coeffs_2d[beta2], self.field_coeffs_2d[betaprime1].conjugate(), self.field_coeffs_2d[betaprime2].conjugate())
+                 D_complex_energy_2d +=  np.einsum("ijkl, i, j, k, l -> ", self.sys_basic_2d.tmp_D_matrix, self.field_coeffs_2d[beta1], self.field_coeffs_2d[beta2], self.field_coeffs_2d[betaprime1].conjugate(), self.field_coeffs_2d[betaprime2].conjugate())
                except KeyError:
                  pass
     self.assertEqual(D_complex_energy_1d.real, D_complex_energy_2d.real)
@@ -162,13 +162,13 @@ class Test_Compare_Calc_Field_Energy(unittest.TestCase):
     self.assertAlmostEqual(B_matrix_1d[1,2], B_matrix_2d[1,2,0,0])
     self.assertAlmostEqual(B_matrix_1d[2,2], B_matrix_2d[2,2,0,0])
 
-  def test_compare_A_energy(self):
+  def test_compare_B_energy(self):
     self.sys_basic.evaluate_B_integrals(amplitude=-.23)
     self.sys_basic_2d.evaluate_B_integrals(amplitude=-.23)
     #how energy is calcualated in 1D case 
-    B_complex_energy_1d = np.einsum("ij, i, j -> ", self.sys_basic.tmp_B_integrals, self.field_coeffs.conjugate(), self.field_coeffs)
+    B_complex_energy_1d = np.einsum("ij, i, j -> ", self.sys_basic.tmp_B_integrals, self.field_coeffs, self.field_coeffs.conjugate())
     # how energy is calculated in 2d case
-    B_complex_energy_2d = np.einsum("ijab, ai, bj -> ", self.sys_basic_2d.tmp_B_matrix, self.field_coeffs_2d.conjugate(), self.field_coeffs_2d)
+    B_complex_energy_2d = np.einsum("ijab, ai, bj -> ", self.sys_basic_2d.tmp_B_matrix,  self.field_coeffs_2d, self.field_coeffs_2d.conjugate())
     self.assertAlmostEqual(B_complex_energy_1d.real, B_complex_energy_2d.real)
 
   def test_field_energy(self):

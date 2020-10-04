@@ -141,11 +141,10 @@ class Cylinder1D(system_cylinder.Cylinder):
     :param field_coeffs: list of complex values as np array from lowest to highest index, i. e. [c_-n, ..., c_0 , ... c_n] value at index 0 is c_-n
     A, B, D matrices are orderd on the same scheme - because np array is faster than dict explcitly stating indices -n .. 0 .. n for matrix muktiplication
     """
-    A_complex_energy = np.einsum("ji, i, j -> ", self.A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
+    A_complex_energy = np.einsum("ij, i, j -> ", self.A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
                                                                               # because its the faster way to construct them
-    B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals, field_coeffs.conjugate(), field_coeffs) # B is filled directly with outcomes of B_integrals, not transposed
-    #print(field_coeffs)
-    D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
+    B_complex_energy = np.einsum("ij, i, j -> ", self.B_integrals,field_coeffs, field_coeffs.conjugate()) # B is filled directly with outcomes of B_integrals, not transposed
+    D_complex_energy =  np.einsum("ijkl, i, j, k, l -> ", self.D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
     #D_complex_energy2= 0+0j
     #for (i,ci) in enumerate(field_coeffs.conjugate()):
     #  for (j,cj) in enumerate(field_coeffs.conjugate()):
@@ -204,7 +203,7 @@ class Cylinder1D(system_cylinder.Cylinder):
     self.evaluate_B_integrals(amplitude) #only evaluates with new amplitude -> tmp storage location
     # then draw from tmp storage location
     A_complex_energy = np.einsum("ij, i, j -> ", self.tmp_A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
-    B_complex_energy = np.einsum("ij, i, j -> ", self.tmp_B_integrals, field_coeffs.conjugate(), field_coeffs) 
+    B_complex_energy = np.einsum("ij, i, j -> ", self.tmp_B_integrals, field_coeffs, field_coeffs.conjugate()) 
     D_complex_energy =  np.einsum("ijkl, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
