@@ -2,19 +2,19 @@ import scipy.integrate as integrate
 import unittest
 import run
 import numpy as np
-import system1D
-import system2D
+import surfaces_and_fields.system_cylinder1D as system1D
+import surfaces_and_fields.system_cylinder2D as system2D
 import random
 import math
 import copy
-import metropolis_engine
+import metropolisengine
 
 class TestIntegrandFactors(unittest.TestCase):
 
   def setUp(self):
-    self.sys_basic = system1D.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
-    self.sys_small_radius = system1D.System(radius=0.5, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
-    self.sys_n6 = system1D.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=6)
+    self.sys_basic = system1D.Cylinder1D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+    self.sys_small_radius = system1D.Cylinder1D(radius=0.5, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+    self.sys_n6 = system1D.Cylinder1D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=6)
 
   def tearDown(self):
     #self.widget.dispose()
@@ -23,9 +23,9 @@ class TestIntegrandFactors(unittest.TestCase):
 class Test_Compare_Calc_Field_Energy(unittest.TestCase):
 
   def setUp(self):
-    self.sys_basic = system1D.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs = 3) 
+    self.sys_basic = system1D.Cylinder1D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs = 3) 
                                                                                  # 1D field z-wavenumber = [-n ,..., 0, ...,  +n]
-    self.sys_basic_2d = system2D.System2D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs = (3, 0)) 
+    self.sys_basic_2d = system2D.Cylinder2D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs = (3, 0)) 
                                                                                  # functionally identical system with 2D field 
                                                                                  # theta-wavenumebr = [0] only, z-wavenumber = [-n ,..., 0, ...,  +n]
     random_values = [(random.uniform(-1,1)+random.uniform(-1,1)*1j) for i in range(7)] #random complex coeffs

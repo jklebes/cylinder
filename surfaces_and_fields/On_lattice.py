@@ -61,6 +61,7 @@ class Lattice():
 
   def random_initialize(self):
     #assuming that this is called on amplitude=0 cylinders
+    assert(self.amplitude==0) #if this fails implement initialize on a!=0 
     for z_index in range(self.z_len):
       for th_index in range(self.th_len):
         #fill lattice

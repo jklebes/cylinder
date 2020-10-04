@@ -2,19 +2,18 @@ import scipy.integrate as integrate
 import unittest
 import run
 import numpy as np
-import system1D as system
-import system2D
+import surfaces_and_fields.system_cylinder1D as system
+import surfaces_and_fields.system_cylinder2D as system2D
 import random
 import math
 import copy
-import metropolis_engine
 
 class TestIntegrandFactors(unittest.TestCase):
 
   def setUp(self):
-    self.sys_basic = system.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
-    self.sys_small_radius = system.System(radius=0.5, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
-    self.sys_n6 = system.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=6)
+    self.sys_basic = system.Cylinder1D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+    self.sys_small_radius = system.Cylinder1D(radius=0.5, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+    self.sys_n6 = system.Cylinder1D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=6)
 
   def tearDown(self):
     #self.widget.dispose()
@@ -71,9 +70,9 @@ class TestIntegrandFactors(unittest.TestCase):
 class Test_Calc_Field_Energy(unittest.TestCase):
 
   def setUp(self):
-    self.sys_basic = system.System(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
-    self.sys_low_wvn = system.System(radius=1, wavenumber=0.8, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
-    self.sys_high_wvn = system.System(radius=1, wavenumber=1.2, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+    self.sys_basic = system.Cylinder1D(radius=1, wavenumber=1, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+    self.sys_low_wvn = system.Cylinder1D(radius=1, wavenumber=0.8, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
+    self.sys_high_wvn = system.Cylinder1D(radius=1, wavenumber=1.2, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1)
 
   def tearDown(self):
     #self.widget.dispose()
@@ -83,9 +82,9 @@ class Test_Calc_Field_Energy(unittest.TestCase):
 class Test_Surface_Energy(unittest.TestCase):
 
   def setUp(self):
-    self.sys_basic = system.System(radius=1, wavenumber=1.001, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs=0) # not exactly wavenumber 1 to know expected stability: surface area should decrease with a !=0
-    self.sys_low_wvn = system.System(radius=1, wavenumber=0.8, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs=0)
-    self.sys_high_wvn = system.System(radius=1, wavenumber=1.2, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs=0)
+    self.sys_basic = system.Cylinder1D(radius=1, wavenumber=1.001, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs=0) # not exactly wavenumber 1 to know expected stability: surface area should decrease with a !=0
+    self.sys_low_wvn = system.Cylinder1D(radius=1, wavenumber=0.8, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs=0)
+    self.sys_high_wvn = system.Cylinder1D(radius=1, wavenumber=1.2, gamma=1, kappa=1, alpha=-1, C=1, u=1, n=1, num_field_coeffs=0)
 
   def tearDown(self):
     #self.widget.dispose()

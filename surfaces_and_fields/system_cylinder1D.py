@@ -1,7 +1,7 @@
 import math
 import scipy.integrate as integrate
 import numpy as np
-import surfaces_and_fields.system_cylinder
+import surfaces_and_fields.system_cylinder as system_cylinder
 
 class Cylinder1D(system_cylinder.Cylinder):
 
@@ -100,14 +100,16 @@ class Cylinder1D(system_cylinder.Cylinder):
     ## fill matrix A[i,j] from list A[diff], where i j k are matrix indices from 0 to 2n (corresponding to ordered list of coefficient's indices from -n to n)
     ## fill matrix D[i,j,k,l] where D[i+j-l-k]=A[diff]
     l = self.len_arrays
+    n_coeffs=self.num_field_coeffs
     # save to tmp location when first calcualted with new amplitude - gets transferred to permanent matrices accesed by calc_field_energy when amplitude is accepted
     for i in range(l): 
-      self.tmp_A_matrix[i] = self.tmp_A_integrals[2*l-i-2:3*l-2-i]
-      #print(i,self.A_integrals[-i+0+4*self.num_field_coeffs], "filled", self.A_matrix[i,0])
+      #print(self.tmp_A_matrix[i].shape, self.tmp_A_integrals[i+4*n_coeffs:i+2*n_coeffs-1:-1].shape)
+      #take a backwards slice out of self.tmp_A_integrals - but to avoid problems when ncoeffs=0
+      # it's taken forwards and filled into A_matrix backwards
+      self.tmp_A_matrix[i,::-1] = self.tmp_A_integrals[i+2*n_coeffs:i+4*n_coeffs+1]
       for j in range(l):
         for k in range(l):
-          self.tmp_D_matrix[i,j,k] =  self.tmp_A_integrals[k-i-j+2*l-2:k-i-j+3*l-2] 
-          #print(i,j,k,self.A_integrals[-i-j+k+0+4*self.num_field_coeffs], "filled", self.D_matrix[i,j,k,0])
+          self.tmp_D_matrix[i,j,k,::-1] =  self.tmp_A_integrals[i+j-k+2*n_coeffs:i+j-k+4*n_coeffs+1] 
     self.tmp_A_integrals_0 = self.tmp_A_integrals[0]
 
 
@@ -201,9 +203,9 @@ class Cylinder1D(system_cylinder.Cylinder):
     self.evaluate_A_integrals(amplitude)
     self.evaluate_B_integrals(amplitude) #only evaluates with new amplitude -> tmp storage location
     # then draw from tmp storage location
-    A_complex_energy = np.einsum("ji, i, j -> ", self.tmp_A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
+    A_complex_energy = np.einsum("ij, i, j -> ", self.tmp_A_matrix, field_coeffs, field_coeffs.conjugate()) # watch out for how A,D are transpose of expected
     B_complex_energy = np.einsum("ij, i, j -> ", self.tmp_B_integrals, field_coeffs.conjugate(), field_coeffs) 
-    D_complex_energy =  np.einsum("klij, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
+    D_complex_energy =  np.einsum("ijkl, i, j, k, l -> ", self.tmp_D_matrix, field_coeffs, field_coeffs, field_coeffs.conjugate(), field_coeffs.conjugate())
     assert (math.isclose(A_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(B_complex_energy.imag, 0, abs_tol=1e-7))
     assert (math.isclose(D_complex_energy.imag, 0, abs_tol=1e-7)) 

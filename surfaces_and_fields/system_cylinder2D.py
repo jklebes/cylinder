@@ -1,8 +1,7 @@
 import math
 import scipy.integrate as integrate
 import numpy as np
-import surfaces_and_fields.system_cylinder1D
-
+import surfaces_and_fields.system_cylinder1D as system_cylinder1D
 
 class Cylinder2D(system_cylinder1D.Cylinder1D):
   """

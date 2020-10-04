@@ -1,7 +1,7 @@
 import unittest
 import run
 import numpy as np
-import system1D as system
+import surfaces_and_fields.system_cylinder1D as system
 import random
 import math
 import copy
