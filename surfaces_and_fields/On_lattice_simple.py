@@ -77,7 +77,8 @@ class Lattice():
     #update a running avg of |a|
     #print(self.amplitude_average, self.step_counter, self.step_counter+1, self.amplitude_average*self.step_counter/(self.step_counter+1))
     self.amplitude_average *= self.step_counter/float(self.step_counter+1)
-    self.amplitude_average += abs(self.amplitude) / (self.step_counter+1)
+    self.amplitude_average += abs(self.amplitude) / float(self.step_counter+1)
+    assert(self.amplitude_average <1)
     #update a running avg of |Psi|(z) (1D array; avgd in theta direction)
     if self.amplitude>=0:
       avg_psi = np.array([sum(abs(col))/len(col) for col in self.lattice])
@@ -85,7 +86,7 @@ class Lattice():
       avg_psi=np.array([sum(abs(col))/len(col) for col in self.lattice[::-1]])
     #if a<0 flip the list
     self.field_average *= self.step_counter/float(self.step_counter+1)
-    self.field_average += avg_psi / (self.step_counter+1)
+    self.field_average += avg_psi / float(self.step_counter+1)
     #print(self.amplitude_average,self.field_average[1] )
     self.step_counter+=1
 

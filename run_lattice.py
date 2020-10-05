@@ -111,7 +111,7 @@ def run_experiment(exp_type,  range1, range2):
               "range1":range1, "range2": range2, 
               "radius":radius, "amplitude":initial_amplitude, "wavenumber": wavenumber, 
               "notes":notes, "start_time": now, 
-              "me-version": me_version}
+              "me-version": me_version, "n_initial_steps": n_initial_steps}
   exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   exp_notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   # run experiment of the requested type
@@ -180,8 +180,8 @@ if __name__ == "__main__":
   loop_type = ("wavenumber", "alpha")
   range1 = np.arange(0.05, 1.3, .2)
   range2 = np.arange(-2, 1.5, .5)
-  n_steps = 1500
+  n_steps = 15
   n_sub_steps = dims[0]*dims[1]
-  n_initial_steps = 500 #before measureing starts
+  n_initial_steps = 5 #before measureing starts
 
   run_experiment(loop_type,  range1, range2)
