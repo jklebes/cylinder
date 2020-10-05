@@ -10,14 +10,14 @@ import metropolisengine
 class Lattice():
   def __init__(self,dims = (100,50) ):
     #experiment variables
-    self.wavenumber = .2
+    self.wavenumber = 1
     self.radius=1
     self.kappa=0
     self.amplitude = 0
-    self.alpha = -1
-    self.u = 1
+    self.alpha = 1
+    self.u = 0
     self.C= 1
-    self.n= 0
+    self.n= 1
     self.Cnsquared = self.C*self.n**2
     self.temperature = .001
     #lattice characteristics

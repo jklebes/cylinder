@@ -4,30 +4,38 @@ import math
 import cmath
 import matplotlib.pyplot as plt
 
-import system_cylinder
+import surfaces_and_fields.system_cylinder as system_cylinder
 import metropolisengine
 
 class Lattice():
-  def __init__(self,dims = (100,50) ):
+  def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha, u, C, n, temperature, dims = (100,50), n_substeps=None ):
     #experiment variables
-    self.wavenumber = .2
-    self.radius=1
-    self.kappa=0
-    self.amplitude = 0
-    self.alpha = 1
-    self.u = 0
-    self.C= 1
-    self.n= 6
+    self.wavenumber = wavenumber
+    self.radius=radius
+    self.gamma=gamma
+    self.kappa=kappa
+    self.initial_amplitude = amplitude
+    self.intrinsic_curvature = intrinsic_curvature
+    self.initial_amplitude = amplitude
+    self.alpha = alpha
+    self.u = u
+    self.C= C
+    self.n= n
     self.Cnsquared = self.C*self.n**2
-    self.temperature = .001
+    self.temperature = temperature
     #lattice characteristics
     self.z_len, self.th_len = dims
+    if n_substeps is None:
+      self.n_substeps =self.z_len*self.th_len
+    else:
+      self.n_substeps= n_substeps
     cylinder_len_z = 2*math.pi / self.wavenumber # = wavelength lambda
     cylinder_radius_th = 2*math.pi*self.radius # circumference - in len units, not radians
     self.z_pixel_len = cylinder_len_z /self.z_len # length divided py number of pixels
     self.th_pixel_len = cylinder_radius_th /self.th_len
+    self.amplitude = self.initial_amplitude
     #set up metropolis engine coupled to bare cylinder system
-    self.surface = system_cylinder.Cylinder(wavenumber=self.wavenumber, radius=self.radius, kappa=self.kappa)
+    self.surface = system_cylinder.Cylinder(wavenumber=self.wavenumber, radius=self.radius, gamma=self.gamma, kappa=self.kappa, intrinsic_curvature=self.intrinsic_curvature)
     #Psi at each point 
     self.lattice = np.zeros((self.z_len, self.th_len), dtype=complex)
     #values also saved for convenience
@@ -53,14 +61,31 @@ class Lattice():
                                             "field": energy_fct_field_term}, 
                                   "all":{ "surface":energy_fct_surface_term,
                                           "field": energy_fct_field_term}}
-    self.me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=None, initial_real_params = [float(self.amplitude)], 
+    self.me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=None, initial_real_params = [float(self.initial_amplitude)], 
                                  covariance_matrix_complex=None, sampling_width=.05, temp=self.temperature
                                  , complex_sample_method=None)
-    self.me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>=.99 )  
+    self.me.set_reject_condition(lambda real_params, complex_params : real_params[0]>=.99 )  
     self.lattice_acceptance_counter = 0
+    self.step_counter = 0
+    self.amplitude_average= 0
+    self.field_average = np.zeros((self.z_len))
   
   def squared(self, c):
     return abs(c*c.conjugate())
+
+  def measure(self):
+    #update a running avg of |a|
+    self.amplitude_average *= self.step_counter/(self.step_counter+1)
+    self.amplitude_average += abs(self.amplitude) / (self.step_counter+1)
+    #update a running avg of |Psi|(z) (1D array; avgd in theta direction)
+    if self.amplitude>=0:
+      avg_psi = np.array([sum(abs(col))/len(col) for col in self.lattice])
+    else:
+      avg_psi=np.array([sum(abs(col))/len(col) for col in self.lattice[::-1]])
+    #if a<0 flip the list
+    self.field_average *= self.step_counter/(self.step_counter+1)
+    self.field_average += avg_psi / (self.step_counter+1)
+    print(self.amplitude_average,self.field_average[1] )
 
   def random_initialize(self):
     #assuming that this is called on amplitude=0 cylinders
@@ -86,8 +111,8 @@ class Lattice():
         left_value_th = self.lattice[z_index, th_index-1]
         self.dth[z_index, th_index]  =   value-left_value_th
         #additionally save average/interstitial values Psi(i-1/2) = (Psi(i)+Psi(i-1))/2
-        self.interstitial_psi[z_index, th_index] = value + left_value_th
-    self.interstitial_psi /= 2.0
+        self.interstitial_psi[z_index, th_index] = value #+ left_value_th
+    #self.interstitial_psi /= 2.0
 
   def surface_field_energy(self, amplitude):
     """calculates energy on proposed amplitude change"""
@@ -114,7 +139,7 @@ class Lattice():
       # Cn^2|A_th Psi(x)|^2  part of energy density
       energy_col += self.Cnsquared*sum(self.squared(interstitial_psi_col))*self.squared(col_A_th)*col_index_raise_and_sqrtg
       energy += energy_col
-    print("amplitude ", amplitude, "would get field energy", energy*self.z_pixel_len*self.th_pixel_len)
+    #print("amplitude ", amplitude, "would get field energy", energy*self.z_pixel_len*self.th_pixel_len)
     return energy*self.z_pixel_len*self.th_pixel_len
 
   def run(self, n_steps, n_sub_steps):
@@ -188,7 +213,7 @@ class Lattice():
     #i(A_th* Psi* d_th Psi)+c.c. = 2*Im(A_th*Psi* d_th Psi)
     old_cross_term = (A_th.conjugate()*self.interstitial_psi[index_z,index_th].conjugate()*
                       self.dth[index_z, index_th]).imag #except for *index raise,*2nC done later to both
-    new_interstitial_psi =  (new_value +left_value_th)/2
+    new_interstitial_psi =  (new_value)# +left_value_th)/2
     new_cross_term = (A_th.conjugate()*new_interstitial_psi.conjugate()*
                       new_derivative_th).imag
     diff_energy += self.C*2*self.n*index_raise*(new_cross_term - old_cross_term)
@@ -196,7 +221,7 @@ class Lattice():
     #diff in cross-term in(A_th* Psi* d_th Psi) and complex conjugate, for neightbor at i+1
     old_neighbor_cross_term = (A_th_neighbor.conjugate()*self.interstitial_psi[index_z,index_th+1].conjugate()*
                       self.dth[index_z, index_th+1]).imag #except for *index raise,*2nC done later to both
-    new_neighbor_interstitial_psi =  (right_value_th+new_value)/2
+    new_neighbor_interstitial_psi =  (right_value_th)#+new_value)/2
     new_neighbor_cross_term = (A_th_neighbor.conjugate()*new_neighbor_interstitial_psi.conjugate()*
                       new_neighbor_derivative_th).imag
     diff_energy += self.C*2*self.n*neighbor_index_raise*(new_neighbor_cross_term - old_neighbor_cross_term)
@@ -205,6 +230,9 @@ class Lattice():
     diff_energy += self.Cnsquared*index_raise*self.squared(A_th)*(self.squared(new_interstitial_psi)-
                    self.squared(self.interstitial_psi[index_z,index_th]))
     diff_energy*=sqrt_g
+    #diff_energy*=self.z_pixel_len*self.th_pixel_len 
+    #leaving this out like scaling effective temperature everywhere equally, 
+    # relative to temperature at which surface shape is sampled
     if self.me.metropolis_decision(0,diff_energy):
       #change stored value of pixel
       self.lattice[index_z,index_th] = new_value
@@ -243,7 +271,7 @@ class Lattice():
 
 if __name__ == "__main__":
   lattice = Lattice()
-  n_steps=1500
+  n_steps=500
   n_sub_steps=lattice.z_len*lattice.th_len
   lattice.run(n_steps, n_sub_steps)
   print(lattice.lattice)
