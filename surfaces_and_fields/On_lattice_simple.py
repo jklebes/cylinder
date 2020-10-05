@@ -64,7 +64,7 @@ class Lattice():
     self.me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=None, initial_real_params = [float(self.initial_amplitude)], 
                                  covariance_matrix_complex=None, sampling_width=.05, temp=self.temperature
                                  , complex_sample_method=None)
-    self.me.set_reject_condition(lambda real_params, complex_params : real_params[0]>=.99 )  
+    self.me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>.99 )  
     self.lattice_acceptance_counter = 0
     self.step_counter = 0
     self.amplitude_average= 0
@@ -74,10 +74,12 @@ class Lattice():
     return abs(c*c.conjugate())
 
   def measure(self):
+    self.amplitude=.9
     #update a running avg of |a|
-    #print(self.amplitude_average, self.step_counter, self.step_counter+1, self.amplitude_average*self.step_counter/(self.step_counter+1))
+    print(self.amplitude_average, self.step_counter, self.step_counter+1, self.amplitude_average*self.step_counter/float(self.step_counter+1))
     self.amplitude_average *= self.step_counter/float(self.step_counter+1)
     self.amplitude_average += abs(self.amplitude) / float(self.step_counter+1)
+    print(self.amplitude_average,'\n',)
     assert(self.amplitude_average <1)
     #update a running avg of |Psi|(z) (1D array; avgd in theta direction)
     if self.amplitude>=0:
