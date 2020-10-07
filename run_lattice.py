@@ -146,7 +146,7 @@ def plot_save(range1, range2, varname1, varname2, results, title, exp_dir):
       for (m,j) in enumerate(range2):
         field_avg = results[n][m]
         df = pd.DataFrame(data=field_avg)
-        title_ = title + "_"+ varname1 + "_"+str(round(i,3))+"_"+ varname2 + "_"+str(round(j,3))
+        title_ = title + "_"+ varname1 + "_"+str(round(i,5))+"_"+ varname2 + "_"+str(round(j,5))
         df.to_csv(os.path.join(exp_dir, title_ + ".csv"))
         plt.plot([z for z in range(len(field_avg))], field_avg)
         plt.savefig(os.path.join(exp_dir,title_+".png"))
