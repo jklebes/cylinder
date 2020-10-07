@@ -23,6 +23,9 @@ class Lattice():
     self.n= n
     self.Cnsquared = self.C*self.n**2
     self.temperature = temperature
+    self.temperature_lattice = .0001
+    self.temperature_factor = self.temperature_lattice/self.temperature#to get the desired lattice temperature divide deltaE by this factor in addition to temperature included in metropolis step
+    assert(1/self.temperature*1/self.temperature_factor = 1/self.temperature_lattice)
     #lattice characteristics
     self.z_len, self.th_len = dims
     if n_substeps is None:
@@ -235,9 +238,12 @@ class Lattice():
     diff_energy += self.Cnsquared*index_raise*self.squared(A_th)*(self.squared(new_interstitial_psi)-
                    self.squared(self.interstitial_psi[index_z,index_th]))
     diff_energy*=sqrt_g
-    #diff_energy*=self.z_pixel_len*self.th_pixel_len 
+    diff_energy*=self.z_pixel_len*self.th_pixel_len 
     #leaving this out like scaling effective temperature everywhere equally, 
     # relative to temperature at which surface shape is sampled
+    #instead do it explicitly by setting (lower) temperature of lattice step
+    # by dividing energy by this extra temperature factor 
+    diff_energy/= self.temperature_factor
     if self.me.metropolis_decision(0,diff_energy):
       #change stored value of pixel
       self.lattice[index_z,index_th] = new_value
