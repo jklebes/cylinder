@@ -25,7 +25,7 @@ class Lattice():
     self.temperature = temperature
     self.temperature_lattice = .0001
     self.temperature_factor = self.temperature_lattice/self.temperature#to get the desired lattice temperature divide deltaE by this factor in addition to temperature included in metropolis step
-    assert(1/self.temperature*1/self.temperature_factor = 1/self.temperature_lattice)
+    assert(1/self.temperature*1/self.temperature_factor == 1/self.temperature_lattice)
     #lattice characteristics
     self.z_len, self.th_len = dims
     if n_substeps is None:
@@ -79,10 +79,8 @@ class Lattice():
   def measure(self):
     self.amplitude=.9
     #update a running avg of |a|
-    print(self.amplitude_average, self.step_counter, self.step_counter+1, self.amplitude_average*self.step_counter/float(self.step_counter+1))
     self.amplitude_average *= self.step_counter/float(self.step_counter+1)
     self.amplitude_average += abs(self.amplitude) / float(self.step_counter+1)
-    print(self.amplitude_average,'\n',)
     assert(self.amplitude_average <1)
     #update a running avg of |Psi|(z) (1D array; avgd in theta direction)
     if self.amplitude>=0:
