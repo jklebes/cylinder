@@ -178,10 +178,10 @@ if __name__ == "__main__":
 
   # specify type, range of plot; title of experiment
   loop_type = ("wavenumber", "alpha")
-  range1 = np.arange(0.05, 1.3, .2)
-  range2 = np.arange(-2, 1.5, .5)
-  n_steps = 15
+  range1 = np.arange(0.05, 1.3, 2)
+  range2 = np.arange(-2, 1.5, 5)
+  n_steps = 1500
   n_sub_steps = dims[0]*dims[1]
-  n_initial_steps = 5 #before measureing starts
+  n_initial_steps = 0 #before measureing starts
 
   run_experiment(loop_type,  range1, range2)
