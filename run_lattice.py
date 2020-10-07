@@ -132,6 +132,9 @@ def plot_save(range1, range2, varname1, varname2, results, title, exp_dir):
     df = pd.DataFrame(index=range1, columns=range2, data=results)
     df.to_csv(os.path.join(exp_dir, title + ".csv"))
     #plot
+    #try rounding
+    df.rename( lambda x: round(x,5), axis='index')
+    df.rename( lambda x:round(x,5), axis='columns')
     print("plotting png")
     sb.heatmap(df, cmap = "viridis")
     plt.savefig(os.path.join(exp_dir, title + ".png"))
@@ -180,7 +183,7 @@ if __name__ == "__main__":
   loop_type = ("wavenumber", "alpha")
   range1 = np.arange(0.05, 1.3, 2)
   range2 = np.arange(-2, 1.5, 5)
-  n_steps = 1500
+  n_steps = 15
   n_sub_steps = dims[0]*dims[1]
   n_initial_steps = 0 #before measureing starts
 
