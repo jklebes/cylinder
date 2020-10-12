@@ -77,7 +77,6 @@ class Lattice():
     return abs(c*c.conjugate())
 
   def measure(self):
-    self.amplitude=.9
     #update a running avg of |a|
     self.amplitude_average *= self.step_counter/float(self.step_counter+1)
     self.amplitude_average += abs(self.amplitude) / float(self.step_counter+1)
@@ -152,13 +151,12 @@ class Lattice():
     for i in range(n_steps):
       print(i)
       #metropolis step shape
-      self.record_avgs()
-      #surface_accepted = self.me.step_real_group()
-      #if surface_accepted:
-        #self.amplitude = self.me.real_params[0]
+      self.measure()
+      surface_accepted = self.me.step_real_group()
+      if surface_accepted:
+        self.amplitude = self.me.real_params[0]
         #maybe reset self.energy
       #lattice step
-      self.amplitude=.9
       for i in range(n_sub_steps):
         self.step_lattice(self.amplitude)
     self.avg_amplitude_profile/=n_steps
@@ -196,10 +194,10 @@ class Lattice():
     #effect on derivative at the location
     left_value_z = self.lattice[index_z-1, index_th]
     left_value_th = self.lattice[index_z, index_th-1]
-    new_derivative_z = new_value-left_value_z
-    new_derivative_th = new_value -left_value_th
+    new_derivative_z = (new_value-left_value_z)/self.z_pixel_len
+    new_derivative_th = (new_value -left_value_th)/self.th_pixel_len
     #term |d_i psi|^2 in energy
-    diff_derivative_z = self.squared(new_derivative_z) - self.squared(self.dz[index_z, index_th])
+    diff_derivative_z = (self.squared(new_derivative_z) - self.squared(self.dz[index_z, index_th]))
     diff_derivative_th = (self.squared(new_derivative_th) - self.squared(self.dth[index_z, index_th]))*index_raise
     
     diff_energy += self.C*( diff_derivative_z + diff_derivative_th )
@@ -207,9 +205,9 @@ class Lattice():
     #effect on derivative at neighboring locations i_z+1, i_th +1
     right_value_z = self.lattice[index_z+1, index_th]
     right_value_th = self.lattice[index_z, index_th+1]
-    new_neighbor_derivative_z = right_value_z-new_value
-    new_neighbor_derivative_th = right_value_th-new_value
-    diff_neighbor_derivative_z = self.squared(new_neighbor_derivative_z) - self.squared(self.dz[index_z+1, index_th]) 
+    new_neighbor_derivative_z = (right_value_z-new_value)/self.z_pixel_len
+    new_neighbor_derivative_th = (right_value_th-new_value)/self.th_pixel_len
+    diff_neighbor_derivative_z = (self.squared(new_neighbor_derivative_z) - self.squared(self.dz[index_z+1, index_th]) )
     diff_neighbor_derivative_th = (self.squared(new_neighbor_derivative_th) - self.squared(self.dth[index_z, index_th+1]))*neighbor_index_raise
     
     diff_energy += self.C*( diff_neighbor_derivative_z + diff_neighbor_derivative_th )
@@ -222,7 +220,7 @@ class Lattice():
     new_interstitial_psi =  (new_value)# +left_value_th)/2
     new_cross_term = (A_th.conjugate()*new_interstitial_psi.conjugate()*
                       new_derivative_th).imag
-    diff_energy += self.C*2*self.n*index_raise*(new_cross_term - old_cross_term)
+    diff_energy += self.C*2*self.n*index_raise*(new_cross_term - old_cross_term) 
 
     #diff in cross-term in(A_th* Psi* d_th Psi) and complex conjugate, for neightbor at i+1
     old_neighbor_cross_term = (A_th_neighbor.conjugate()*self.interstitial_psi[index_z,index_th+1].conjugate()*
