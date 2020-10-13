@@ -121,10 +121,21 @@ def run_experiment(exp_type,  range1, range2):
     print("experiment type not found: ", exp_type)
     print("please set exp_type to one of", list(functions_dict.keys()))
     results = {}
+
   # save and plot results
   for name in results:
     plot_save(range1=range1, range2=range2, varname1 = exp_type[0],varname2 = exp_type[1],results=results[name], title=name, exp_dir=exp_dir)
+  if outdir is not None and os.path.isdir(outdir):
+  me.save_time_series()
+  df = me.df #pd.DataFrame()
+  #print(outdir, title, me.params_names, states)
+  df.to_csv(os.path.join(outdir, title + ".csv"))
 
+  #dump in files for order of magnitude estimate to start next simulation from
+  f = open('last_sigma.pickle', 'wb')
+  pickle.dump(me.real_group_sampling_width, f)
+
+  
 def plot_save(range1, range2, varname1, varname2, results, title, exp_dir):
   print(results)
   if isinstance(results[0][0], float) or isinstance(results[0][0], int):

@@ -62,29 +62,29 @@ functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fs
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature,
                                           dims=dims, temperature_lattice=temperature_lattice), #anything we might ever want to vary as exp loop
-                  ("amplitude", "C"): lambda var_a, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, 
+                  ("amplitude", "C"): lambda var_a, var_C: single_run(n_steps=n_steps,  outdir = outdir, 
                                           title = ("a"+str(round(var_a,2))+"_C"+str(round(var_C,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature, amplitude=var_a,
                                           dims=dims, temperature_lattice=temperature_lattice),
-                  ("wavenumber", "kappa"): lambda var_wvn, var_kappa: single_run(n_steps=n_steps, method=method, outdir = outdir, 
+                  ("wavenumber", "kappa"): lambda var_wvn, var_kappa: single_run(n_steps=n_steps,  outdir = outdir, 
                                           title = ("wvn"+str(round(var_wvn,2))+"_kappa"+str(round(var_kappa,2))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=var_kappa, radius=radius,
                                           wavenumber=var_wvn, intrinsic_curvature = intrinsic_curvature,
                                           dims=dims, temperature_lattice=temperature_lattice),
-                  ("wavenumber", "alpha"): lambda var_wvn, var_alpha: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,5))+"_alpha"+str(round(var_alpha,5))),
+                  ("wavenumber", "alpha"): lambda var_wvn, var_alpha: single_run(n_steps=n_steps, outdir = outdir, title = ("wvn"+str(round(var_wvn,5))+"_alpha"+str(round(var_alpha,5))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=var_alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=var_wvn, intrinsic_curvature = intrinsic_curvature,
                                           dims=dims, temperature_lattice=temperature_lattice),                   
-                  ("wavenumber", "intrinsic_curvature"): lambda var_wvn, var_H0: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("wvn"+str(round(var_wvn,5))+"_H0"+str(round(var_H0,5))),
+                  ("wavenumber", "intrinsic_curvature"): lambda var_wvn, var_H0: single_run(n_steps=n_steps, outdir = outdir, title = ("wvn"+str(round(var_wvn,5))+"_H0"+str(round(var_H0,5))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=var_wvn, intrinsic_curvature = var_H0, 
                                           dims=dims, temperature_lattice=temperature_lattice),                   
-                  ("alpha", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps, method=method, outdir = outdir, title = ("alpha"+str(round(var_alpha,5))+"_C"+str(round(var_C, 5))),
+                  ("alpha", "C"): lambda var_alpha, var_C: single_run(n_steps=n_steps,  outdir = outdir, title = ("alpha"+str(round(var_alpha,5))+"_C"+str(round(var_C, 5))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=var_alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature,
@@ -177,7 +177,7 @@ def single_run(n_steps,
               alpha, C, n, u, 
               gamma, kappa, radius, intrinsic_curvature,
               dims, temperature_lattice, 
-              wavenumber, field_type="lattice", method = "sequential", 
+              wavenumber,  
               amplitude=None, field_coeffs=None, outdir = None, title = None):
   """
   run a single simulation of lengths nsteps and given method 
@@ -280,8 +280,6 @@ def single_run(n_steps,
           if accepted: se.save_temporary_matrices()
           for ii in range(fieldsteps_per_ampstep):
             me.step_complex_group() # no need to save and look at "accept" flag when only field coeffs change
-            #print("field_coeffs", me.complex_params)
-        print("measure", i , "sampling widths", me.real_group_sampling_width, me.complex_group_sampling_width, me.real_params,me.complex_params, me.energy)# "cov", me.covariance_matrix[0,0], me.covariance_matrix[1,1])
         me.measure() #update mean, covariance matrix, other parameters' mean by sampling this step
     elif method == "simultaneous":
       for i in range(n_steps):
@@ -311,7 +309,6 @@ def single_run(n_steps,
     #save the simulations's data: avg field 
     # profile, field energy history
     lattice.plot_save(outdir, title)
-  print("finifshed lattice")
   ########## save, resturn results ################
   if outdir is not None and os.path.isdir(outdir):
     me.save_time_series()
@@ -343,7 +340,7 @@ alpha = -1
 C = 1
 u = 1
 n = 6
-kappa = .1
+kappa = 0
 gamma = 1
 temp = .1
 intrinsic_curvature = 0
@@ -357,10 +354,10 @@ wavenumber = .5
 num_field_coeffs = (6,2) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
 measure_every =10
-fieldsteps_per_ampstep = 0  #only relevant for sequential
+fieldsteps_per_ampstep = 10  #only relevant for sequential
 
 #for lattice simulations
-dims=(100,50)
+dims=(50,25)
 temperature_lattice=temp
 n_substeps = dims[0]*dims[1]
 
@@ -375,8 +372,8 @@ if __name__ == "__main__":
   loop_type = ("wavenumber", "alpha")
   range1 = np.arange(0.05, 2, .5)
   range2 = range(-1, 2, 1)
-  n_steps = 1000
-  field_type = "lattice"
-  method= "no-field"
+  n_steps = 10
+  field_type = "fourier"
+  method= "sequential"
 
   run_experiment(loop_type,  range1, range2)
