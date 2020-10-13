@@ -157,7 +157,7 @@ class Lattice():
 
   def run(self, n_steps, n_sub_steps):
     for i in range(n_steps):
-      print(i, self.amplitude)
+      #print(i, self.amplitude)
       #metropolis step shape
       self.measure_avgs() #running avgs amplitude, field profile
       #self.measure() # add to lists
@@ -168,6 +168,8 @@ class Lattice():
       #lattice step
       for i in range(n_sub_steps):
         self.step_lattice(self.amplitude)
+      #pass on info on change in field energy to metropolis engine, when field changed but amplitude didn;t
+      self.me.energy["field"] = self.surface_field_energy(self.amplitude)
       self.me.measure()
   
   def plot_save(self, exp_dir, title):
