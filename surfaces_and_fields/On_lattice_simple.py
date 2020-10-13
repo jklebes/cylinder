@@ -2,13 +2,20 @@ import numpy as np
 import random
 import math
 import cmath
+import os
+import pandas as pd
 import matplotlib.pyplot as plt
-
-import surfaces_and_fields.system_cylinder as system_cylinder
+try:
+  import surfaces_and_fields.system_cylinder as system_cylinder
+except ModuleNotFoundError:
+  #differnt if this file is run ( __name__=="__main__" )
+  #then relatve import:
+  import system_cylinder as system_cylinder
 import metropolisengine
 
 class Lattice():
-  def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha, u, C, n, temperature, dims = (100,50), n_substeps=None ):
+  def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
+                u, C, n, temperature, temperature_lattice, dims = (100,50), n_substeps=None ):
     #experiment variables
     self.wavenumber = wavenumber
     self.radius=radius
@@ -23,7 +30,7 @@ class Lattice():
     self.n= n
     self.Cnsquared = self.C*self.n**2
     self.temperature = temperature
-    self.temperature_lattice = .0001
+    self.temperature_lattice = temperature_lattice
     self.temperature_factor = self.temperature_lattice/self.temperature#to get the desired lattice temperature divide deltaE by this factor in addition to temperature included in metropolis step
     assert(1/self.temperature*1/self.temperature_factor == 1/self.temperature_lattice)
     #lattice characteristics
@@ -63,10 +70,10 @@ class Lattice():
     energy_fct_by_params_group = { "real": {"surface": energy_fct_surface_term, 
                                             "field": energy_fct_field_term}, 
                                   "all":{ "surface":energy_fct_surface_term,
-                                          "field": energy_fct_field_term}}
+                                        "field": energy_fct_field_term}}
     self.me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=None, initial_real_params = [float(self.initial_amplitude)], 
                                  covariance_matrix_complex=None, sampling_width=.05, temp=self.temperature
-                                 , complex_sample_method=None)
+                                 ,complex_sample_method=None)
     self.me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>.99 )  
     self.lattice_acceptance_counter = 0
     self.step_counter = 0
@@ -76,7 +83,7 @@ class Lattice():
   def squared(self, c):
     return abs(c*c.conjugate())
 
-  def measure(self):
+  def measure_avgs(self):
     #update a running avg of |a|
     self.amplitude_average *= self.step_counter/float(self.step_counter+1)
     self.amplitude_average += abs(self.amplitude) / float(self.step_counter+1)
@@ -117,7 +124,8 @@ class Lattice():
         self.dth[z_index, th_index]  =   value-left_value_th
         #additionally save average/interstitial values Psi(i-1/2) = (Psi(i)+Psi(i-1))/2
         self.interstitial_psi[z_index, th_index] = value #+ left_value_th
-    #self.interstitial_psi /= 2.0
+    self.dz/= self.z_pixel_len
+    self.dth/= self.th_pixel_len
 
   def surface_field_energy(self, amplitude):
     """calculates energy on proposed amplitude change"""
@@ -149,9 +157,10 @@ class Lattice():
 
   def run(self, n_steps, n_sub_steps):
     for i in range(n_steps):
-      print(i)
+      print(i, self.amplitude)
       #metropolis step shape
-      self.measure()
+      self.measure_avgs() #running avgs amplitude, field profile
+      #self.measure() # add to lists
       surface_accepted = self.me.step_real_group()
       if surface_accepted:
         self.amplitude = self.me.real_params[0]
@@ -159,8 +168,18 @@ class Lattice():
       #lattice step
       for i in range(n_sub_steps):
         self.step_lattice(self.amplitude)
-    self.avg_amplitude_profile/=n_steps
+      self.me.measure()
   
+  def plot_save(self, exp_dir, title):
+    #plot and save field energy history?
+    #plot and save average field profile <|Psi|>
+    field_avg=self.field_average
+    df = pd.DataFrame(data=field_avg)
+    df.to_csv(os.path.join(exp_dir, title + ".csv"))
+    plt.plot([z for z in range(len(field_avg))], field_avg)
+    plt.savefig(os.path.join(exp_dir,title+".png"))
+    plt.close()
+
   def record_avgs(self):
     for z_index in range(self.z_len):
       col = self.lattice[z_index]
@@ -277,8 +296,10 @@ class Lattice():
     plt.show()
 
 if __name__ == "__main__":
-  lattice = Lattice()
-  n_steps=500
+  lattice = Lattice(amplitude=0, wavenumber=1, radius=1, gamma=1, kappa=0, intrinsic_curvature=0,
+                    alpha=-1, u=1, C=1, n=6, temperature=.001, temperature_lattice = .001,
+                    dims=(50,25))
+  n_steps=1000
   n_sub_steps=lattice.z_len*lattice.th_len
   lattice.run(n_steps, n_sub_steps)
   print(lattice.lattice)
