@@ -373,7 +373,7 @@ if __name__ == "__main__":
   range1 = np.arange(0.05, 2, .5)
   range2 = range(-1, 2, 1)
   n_steps = 10
-  field_type = "fourier"
+  field_type = "lattice"
   method= "sequential"
 
   run_experiment(loop_type,  range1, range2)

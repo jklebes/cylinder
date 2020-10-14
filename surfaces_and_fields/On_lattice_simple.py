@@ -243,7 +243,7 @@ class Lattice():
     #diff in cross-term in(A_th* Psi* d_th Psi) and complex conjugate, for neightbor at i+1
     old_neighbor_cross_term = (A_th_neighbor.conjugate()*self.lattice[index_z,index_th+1].conjugate()*
                       self.dth[index_z, index_th+1]).imag #except for *index raise,*2nC done later to both
-    new_neighbor_cross_term = (A_th_neighbor.conjugate()*new_neighbor_interstitial_psi.conjugate()*
+    new_neighbor_cross_term = (A_th_neighbor.conjugate()*self.lattice[index_z,index_th+1].conjugate()*
                       new_neighbor_derivative_th).imag
     diff_energy += self.C*2*self.n*neighbor_index_raise*(new_neighbor_cross_term - old_neighbor_cross_term)
 
