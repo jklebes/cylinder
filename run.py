@@ -141,7 +141,7 @@ def run_experiment(exp_type,  range1, range2):
   #save descritpion about how the experiment was run
   exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "me_temp":temp, 
               "C": C,"kappa": kappa, "gamma": gamma, "alpha": alpha, 
-              "n":n, "u":u, "range1":range1, 
+              "n":n, "u":u, "range1":range1, "intrinsic curvature": intrinsic_curvature,
               "range2": range2, "radius":radius, "amplitude":initial_amplitude, 
               "wavenumber": wavenumber, "measure every n ampsteps":measure_every, 
               "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, 
@@ -351,7 +351,7 @@ radius = 1
 wavenumber = .5
 
 # simulation details - for fourier fields
-num_field_coeffs = (6,2) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
+num_field_coeffs = (2,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
 initial_sampling_width = .025
 measure_every =10
 fieldsteps_per_ampstep = 10  #only relevant for sequential

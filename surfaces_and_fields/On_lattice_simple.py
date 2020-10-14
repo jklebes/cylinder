@@ -53,7 +53,6 @@ class Lattice():
     #self.dz_squared = np.zeros((self.z_len, self.th_len))
     self.dz = np.zeros((self.z_len, self.th_len), dtype=complex)
     self.dth = np.zeros((self.z_len, self.th_len), dtype=complex)
-    self.interstitial_psi = np.zeros((self.z_len, self.th_len), dtype=complex)
     # note: these are left derivatives:
     # derivative stored at i refers to difference between i-1, i positions in corrseponding 
     # grid of lattice values
@@ -122,35 +121,32 @@ class Lattice():
         # involves multiplying these by A_th(i-1/2) in various combinations
         left_value_th = self.lattice[z_index, th_index-1]
         self.dth[z_index, th_index]  =   value-left_value_th
-        #additionally save average/interstitial values Psi(i-1/2) = (Psi(i)+Psi(i-1))/2
-        self.interstitial_psi[z_index, th_index] = value #+ left_value_th
     self.dz/= self.z_pixel_len
     self.dth/= self.th_pixel_len
 
   def surface_field_energy(self, amplitude):
     """calculates energy on proposed amplitude change"""
     energy=0
-    for z_index in range(-1,self.z_len-1):
+    for z_index in range(0,self.z_len):
       z_loc = z_index * self.z_pixel_len
       z_loc_interstitial = (z_index-.5) * self.z_pixel_len
       col_sqrtg = self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)
-      col_interstitial_sqrtg = self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)
-      col_index_raise_and_sqrtg = self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_index_raise_and_sqrtg = self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
       col_A_th = self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)
       psi_col = self.lattice[z_index]
       psi_squared_column = self.psi_squared[z_index]
       #TODO could do *sqrtg at the end to whole column, if covariant laplacian returned value/sqrt_g
       energy_col = (self.alpha*sum(psi_squared_column)+self.u/2*sum(psi_squared_column**2)) *col_sqrtg
       dz_col = self.dz[z_index]
-      energy_col += self.C*sum(self.squared(dz_col))*col_interstitial_sqrtg #TODO check this squares elementwise, then sums
+      energy_col += self.C*sum(self.squared(dz_col))*col_sqrtg #TODO check this squares elementwise, then sums
       dth_col = self.dth[z_index]
-      interstitial_psi_col = self.interstitial_psi[z_index]
       #C|dth Psi(x)|^2 part of energy density
       energy_col += self.C*sum(self.squared(dth_col))*col_index_raise_and_sqrtg
       #-iCn(A_th* Psi* dth Psi(x)) and c.c. part of energy density
-      energy_col += self.C*self.n*2*sum((col_A_th.conjugate()*interstitial_psi_col.conjugate()*dth_col).imag)*col_index_raise_and_sqrtg
+      energy_col += self.C*self.n*2*sum((col_A_th.conjugate()*psi_col.conjugate()*dth_col).imag)*col_index_raise_and_sqrtg
       # Cn^2|A_th Psi(x)|^2  part of energy density
-      energy_col += self.Cnsquared*sum(self.squared(interstitial_psi_col))*self.squared(col_A_th)*col_index_raise_and_sqrtg
+      energy_col += self.Cnsquared*sum(self.squared(psi_col))*self.squared(col_A_th)*col_index_raise_and_sqrtg
+
       energy += energy_col
     #print("amplitude ", amplitude, "would get field energy", energy*self.z_pixel_len*self.th_pixel_len)
     return energy*self.z_pixel_len*self.th_pixel_len
@@ -200,6 +196,7 @@ class Lattice():
     neighbor_index_raise = 1/self.surface.g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
     
     sqrt_g = (self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude))
+    #TODO choose which one to use
     #sqrt_g_interstitial = (self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))
     # random new value with magnitude similar to old value
     new_value = cmath.rect(random.gauss(abs(self.lattice[index_z, index_th]),1), random.uniform(0, 2*math.pi))
