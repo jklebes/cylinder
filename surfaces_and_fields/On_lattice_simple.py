@@ -233,7 +233,7 @@ class Lattice():
     #diff in cross-term in(A_th* Psi* d_th Psi) and complex conjugate, at spatial location i_th-1/2
     # (stored at array location i)
     #i(A_th* Psi* d_th Psi)+c.c. = 2*Im(A_th*Psi* d_th Psi)
-    old_cross_term = (A_th.conjugate()*self.interstitial_psi[index_z,index_th].conjugate()*
+    old_cross_term = (A_th.conjugate()*self.lattice[index_z,index_th].conjugate()*
                       self.dth[index_z, index_th]).imag #except for *index raise,*2nC done later to both
     new_interstitial_psi =  (new_value)# +left_value_th)/2
     new_cross_term = (A_th.conjugate()*new_interstitial_psi.conjugate()*
@@ -241,16 +241,14 @@ class Lattice():
     diff_energy += self.C*2*self.n*index_raise*(new_cross_term - old_cross_term) 
 
     #diff in cross-term in(A_th* Psi* d_th Psi) and complex conjugate, for neightbor at i+1
-    old_neighbor_cross_term = (A_th_neighbor.conjugate()*self.interstitial_psi[index_z,index_th+1].conjugate()*
+    old_neighbor_cross_term = (A_th_neighbor.conjugate()*self.lattice[index_z,index_th+1].conjugate()*
                       self.dth[index_z, index_th+1]).imag #except for *index raise,*2nC done later to both
-    new_neighbor_interstitial_psi =  (right_value_th)#+new_value)/2
     new_neighbor_cross_term = (A_th_neighbor.conjugate()*new_neighbor_interstitial_psi.conjugate()*
                       new_neighbor_derivative_th).imag
     diff_energy += self.C*2*self.n*neighbor_index_raise*(new_neighbor_cross_term - old_neighbor_cross_term)
 
-    #diff term n^2|A_th Psi| at spatial location i_th-1/2
-    diff_energy += self.Cnsquared*index_raise*self.squared(A_th)*(self.squared(new_interstitial_psi)-
-                   self.squared(self.interstitial_psi[index_z,index_th]))
+    diff_energy += self.Cnsquared*index_raise*self.squared(A_th)*(self.squared(new_value)-
+                   self.squared(self.lattice[index_z,index_th]))
     diff_energy*=sqrt_g
     diff_energy*=self.z_pixel_len*self.th_pixel_len 
     #leaving this out like scaling effective temperature everywhere equally, 
@@ -272,8 +270,6 @@ class Lattice():
       #dth
       self.dth[index_z, index_th] = new_derivative_th 
       self.dth[index_z, index_th+1] = new_neighbor_derivative_th
-      self.interstitial_psi[index_z, index_th] = new_interstitial_psi
-      self.interstitial_psi[index_z, index_th+1] = new_neighbor_interstitial_psi
       
       
   def plot(self):
