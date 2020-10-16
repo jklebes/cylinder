@@ -357,7 +357,7 @@ measure_every =10
 fieldsteps_per_ampstep = 10  #only relevant for sequential
 
 #for lattice simulations
-dims=(50,25)
+dims=(100,50/.01)
 temperature_lattice=temp
 n_substeps = dims[0]*dims[1]
 
@@ -372,7 +372,7 @@ if __name__ == "__main__":
   loop_type = ("wavenumber", "alpha")
   range1 = np.arange(0.05, 2, .5)
   range2 = range(-1, 2, 1)
-  n_steps = 10
+  n_steps = 200
   field_type = "lattice"
   method= "sequential"
 

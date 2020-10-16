@@ -157,9 +157,9 @@ class Lattice():
       #metropolis step shape
       self.measure_avgs() #running avgs amplitude, field profile
       #self.measure() # add to lists
-      surface_accepted = self.me.step_real_group()
-      if surface_accepted:
-        self.amplitude = self.me.real_params[0]
+      #surface_accepted = self.me.step_real_group()
+      #if surface_accepted:
+        #self.amplitude = self.me.real_params[0]
         #maybe reset self.energy
       #lattice step
       for i in range(n_sub_steps):
