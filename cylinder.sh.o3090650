@@ -1,0 +1,10 @@
+## Running job 3090650.1 on host dc1s3b1d.arc3.leeds.ac.uk
+##
+## Resources granted:
+##
+## h_vmem = 1G
+## h_rt   = 48:00:00
+## disk   = 1G
+
+in try
+before single run <function <lambda> at 0x2b8d96396620>

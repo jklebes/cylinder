@@ -1,0 +1,431 @@
+## Running job 3088360.1 on host dc2s5b1c.arc3.leeds.ac.uk
+##
+## Resources granted:
+##
+## h_vmem = 1G
+## h_rt   = 48:00:00
+## disk   = 1G
+
+in try
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[ 0.35419873-0.42423218j  0.06339157-0.27363654j  0.35507091-0.56763562j
+  ...  0.54872155+0.42135104j -0.08313531+0.18703776j
+  -0.18494996-0.27289104j]
+ [-0.41425892+0.36803393j  0.00313624+0.63490114j  0.07706073+0.36088949j
+  ... -0.03134438-0.1242403j   0.10681423+0.31454249j
+  -0.37565637+0.33994026j]
+ [ 0.09991959+0.08774799j  0.06358762-0.62772228j  0.36304506-0.18895961j
+  ... -0.18049731-0.49014922j  0.32791224-0.13006952j
+  -0.11437401+0.17817389j]
+ ...
+ [ 0.80772725-0.12114904j -0.05711262+0.07873974j  0.01209135+0.02047989j
+  ...  0.85477795-0.03973903j -0.156586  -0.18847614j
+  -0.370238  +0.89617992j]
+ [ 0.27869586+0.91484235j -0.29835606-0.54154215j  0.29756602-0.66896042j
+  ... -0.1549878 +0.34391926j  0.19913842-0.04952953j
+   0.34448524-0.78278843j]
+ [-0.05693331-0.04827461j  0.63590292+0.09843216j -0.3696091 +0.3726488j
+  ...  0.2643177 -0.13921558j  0.24195575+0.21891343j
+  -0.17581077+0.32345405j]]
+initialized energy dict, self.energy =  {'field': 1656.4669074360222, 'surface': 13.82300767579509}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ... -0.001858                   0.049643
+1         0.025186           0.000634  ... -0.025186                   0.050470
+2         0.025186           0.000634  ... -0.025186                   0.050110
+3         0.025186           0.000634  ... -0.025186                   0.049752
+4         0.027231           0.000742  ... -0.027231                   0.050581
+..             ...                ...  ...       ...                        ...
+795       0.025535           0.000652  ...  0.025535                   0.398664
+796       0.002941           0.000009  ...  0.002941                   0.400331
+797       0.002941           0.000009  ...  0.002941                   0.399614
+798       0.002941           0.000009  ...  0.002941                   0.398900
+799       0.002941           0.000009  ...  0.002941                   0.398187
+
+[800 rows x 6 columns]
+{'abs_amplitude': [11, 4.8240232, 163.76372], 'amplitude_squared': [10, 4.9766903, 158.94098], 'field_energy': [0, 11.648046, 68.7669], 'surface_energy': [10, 4.991531, 158.46841], 'param_0': [0, 6.841769, 117.07498], 'real_group_sampling_width': [793, 1.0514452, 7.608575]}
+{'abs_amplitude': [11, 4.8240232, 163.76372], 'amplitude_squared': [10, 4.9766903, 158.94098], 'field_energy': [0, 11.648046, 68.7669], 'surface_energy': [10, 4.991531, 158.46841], 'param_0': [0, 6.841769, 117.07498], 'real_group_sampling_width': [793, 1.0514452, 7.608575]}
+global t_0 11
+result_means {'abs_amplitude': 0.03691539781125628, 'amplitude_squared': 0.002197680688420719, 'field_energy': 63.28073095569364, 'surface_energy': 13.819832205156724, 'param_0': -0.001789158116220203, 'real_group_sampling_width': 0.26902740894594607, 'global_cutoff': 11}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.03691539781125628, 'amplitude_squared': 0.002197680688420719, 'field_energy': 63.28073095569364, 'surface_energy': 13.819832205156724, 'param_0': -0.001789158116220203, 'real_group_sampling_width': 0.26902740894594607, 'global_cutoff': 11} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.03691539781125628, 'amplitude_squared': 0.002197680688420719, 'field_energy': 63.28073095569364, 'surface_energy': 13.819832205156724, 'param_0': -0.001789158116220203, 'real_group_sampling_width': 0.26902740894594607, 'global_cutoff': 11} cov_matrix None
+means dict {'abs_amplitude': 0.03691539781125628, 'amplitude_squared': 0.002197680688420719, 'field_energy': 63.28073095569364, 'surface_energy': 13.819832205156724, 'param_0': -0.001789158116220203, 'real_group_sampling_width': 0.26902740894594607, 'global_cutoff': 11} var dict {} covar dict {} results line defaultdict(<class 'list'>, {})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[-0.33398224-0.10665311j -0.61334537+0.57861047j  0.01199374-0.52764957j
+  ...  0.25145685+0.01599985j -0.12224403+0.16231309j
+   0.04351308-0.19176642j]
+ [ 0.02382758+0.1467357j   0.34722092-0.15536172j  0.20870524-0.15918471j
+  ... -0.41564433+0.73510845j -0.00153105+0.01906393j
+  -0.3102122 +0.3917441j ]
+ [-0.002063  +0.09530415j -0.82415891+0.48995579j -0.52680779-0.21610446j
+  ...  0.70520854+0.20438487j -0.02007139-0.33694006j
+   0.13213356+0.54581054j]
+ ...
+ [-0.04768956-0.08621653j  0.37174963-0.335295j   -0.41133229+0.30147245j
+  ... -0.18984226-0.28018234j  0.43927678+0.66232401j
+   0.02676445+0.25670095j]
+ [ 0.02538807+0.02432069j  0.52506611-0.81686805j  0.4072863 -0.20542418j
+  ... -0.0257982 -0.48198386j  0.16558922+0.07812646j
+  -0.62044617+0.34821615j]
+ [-0.2022062 -0.02591905j -0.27493164+0.17070671j  0.86676364-0.25057322j
+  ... -0.32676384+0.02489109j -0.1356476 -0.4283629j
+  -0.05385803-0.37958096j]]
+initialized energy dict, self.energy =  {'field': 1633.619258708257, 'surface': 13.82300767579509}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.012556           0.000158  ...  0.012556                   0.050833
+1         0.012556           0.000158  ...  0.012556                   0.050470
+2         0.007299           0.000053  ...  0.007299                   0.051311
+3         0.016963           0.000288  ...  0.016963                   0.052167
+4         0.006863           0.000047  ... -0.006863                   0.053036
+..             ...                ...  ...       ...                        ...
+795       0.036975           0.001367  ... -0.036975                   0.407294
+796       0.036975           0.001367  ... -0.036975                   0.406564
+797       0.073741           0.005438  ... -0.073741                   0.408262
+798       0.017821           0.000318  ...  0.017821                   0.409965
+799       0.078439           0.006153  ... -0.078439                   0.411673
+
+[800 rows x 6 columns]
+{'abs_amplitude': [10, 5.7573357, 137.38994], 'amplitude_squared': [3, 5.68671, 140.3272], 'field_energy': [0, 12.098552, 66.20627], 'surface_energy': [3, 5.69934, 140.01622], 'param_0': [59, 6.5415792, 113.42827], 'real_group_sampling_width': [782, 2.93874, 6.465356]}
+{'abs_amplitude': [10, 5.7573357, 137.38994], 'amplitude_squared': [3, 5.68671, 140.3272], 'field_energy': [0, 12.098552, 66.20627], 'surface_energy': [3, 5.69934, 140.01622], 'param_0': [59, 6.5415792, 113.42827], 'real_group_sampling_width': [782, 2.93874, 6.465356]}
+global t_0 59
+result_means {'abs_amplitude': 0.041580177644199766, 'amplitude_squared': 0.0027728730256315645, 'field_energy': 62.36460670086751, 'surface_energy': 13.819006326517275, 'param_0': -0.014765431771397282, 'real_group_sampling_width': 0.3032919239856945, 'global_cutoff': 59}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.041580177644199766, 'amplitude_squared': 0.0027728730256315645, 'field_energy': 62.36460670086751, 'surface_energy': 13.819006326517275, 'param_0': -0.014765431771397282, 'real_group_sampling_width': 0.3032919239856945, 'global_cutoff': 59} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.041580177644199766, 'amplitude_squared': 0.0027728730256315645, 'field_energy': 62.36460670086751, 'surface_energy': 13.819006326517275, 'param_0': -0.014765431771397282, 'real_group_sampling_width': 0.3032919239856945, 'global_cutoff': 59} cov_matrix None
+means dict {'abs_amplitude': 0.041580177644199766, 'amplitude_squared': 0.0027728730256315645, 'field_energy': 62.36460670086751, 'surface_energy': 13.819006326517275, 'param_0': -0.014765431771397282, 'real_group_sampling_width': 0.3032919239856945, 'global_cutoff': 59} var dict {} covar dict {} results line defaultdict(<class 'list'>, {'abs_amplitude_mean': [0.03691539781125628], 'amplitude_squared_mean': [0.002197680688420719], 'field_energy_mean': [63.28073095569364], 'surface_energy_mean': [13.819832205156724], 'param_0_mean': [-0.001789158116220203], 'real_group_sampling_width_mean': [0.26902740894594607], 'global_cutoff_mean': [11], 'time_per_experiment': [120.1116360090673]})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[ 0.01866718-0.40044803j  0.64055986-0.1147807j   0.03282073+0.06457816j
+  ... -0.23829376+0.55090698j  0.02275808+0.02118957j
+  -0.06064327-0.41450999j]
+ [-0.40800802-0.17744428j  0.29769855+0.58414233j  0.03909459-0.06730751j
+  ...  0.06733209+0.0032196j   0.39470561-0.69455936j
+   0.05292606-0.05478217j]
+ [-0.03765763+0.74884688j -0.12474865-0.09782214j  0.17530608-0.0366154j
+  ... -0.42202517-0.89630526j -0.13766634-0.26668119j
+  -0.10325416+0.26692406j]
+ ...
+ [-0.07854519+0.1249683j  -0.07274317+0.0683865j  -0.01158004-0.24243099j
+  ... -0.49041063-0.57128375j  0.17385908+0.0340523j
+  -0.65513101+0.18435301j]
+ [ 0.01806842+0.00336296j  0.13802452+0.4012374j   0.84071937+0.47611132j
+  ...  0.25027426-0.40793116j -0.55839289-0.50828364j
+  -0.05180945-0.01609747j]
+ [ 0.09994935-0.6207221j  -0.44585517-0.64609924j  0.07943021-0.20604292j
+  ... -0.46798489-0.02472656j -0.24456782+0.12024793j
+   0.36249789-0.00698322j]]
+initialized energy dict, self.energy =  {'field': 1767.2052319032175, 'surface': 13.82300767579509}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ... -0.000621                   0.049643
+1         0.000000           0.000000  ... -0.000621                   0.049288
+2         0.039961           0.001597  ... -0.039961                   0.050110
+3         0.039961           0.001597  ... -0.039961                   0.049752
+4         0.028512           0.000813  ... -0.028512                   0.050581
+..             ...                ...  ...       ...                        ...
+795       0.057628           0.003321  ...  0.057628                   0.407492
+796       0.057628           0.003321  ...  0.057628                   0.406762
+797       0.057628           0.003321  ...  0.057628                   0.406033
+798       0.057628           0.003321  ...  0.057628                   0.405307
+799       0.057628           0.003321  ...  0.057628                   0.404584
+
+[800 rows x 6 columns]
+{'abs_amplitude': [0, 4.4894614, 178.41783], 'amplitude_squared': [7, 4.3151426, 184.00319], 'field_energy': [0, 12.083255, 66.290085], 'surface_energy': [7, 4.3205657, 183.77223], 'param_0': [0, 5.024676, 159.41327], 'real_group_sampling_width': [787, 1.9436814, 7.2028265]}
+{'abs_amplitude': [0, 4.4894614, 178.41783], 'amplitude_squared': [7, 4.3151426, 184.00319], 'field_energy': [0, 12.083255, 66.290085], 'surface_energy': [7, 4.3205657, 183.77223], 'param_0': [0, 5.024676, 159.41327], 'real_group_sampling_width': [787, 1.9436814, 7.2028265]}
+global t_0 7
+result_means {'abs_amplitude': 0.04179381429128441, 'amplitude_squared': 0.002642822635107612, 'field_energy': 64.12888871308108, 'surface_energy': 13.819190281098715, 'param_0': -0.000489238233096319, 'real_group_sampling_width': 0.2621685929916678, 'global_cutoff': 7}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.04179381429128441, 'amplitude_squared': 0.002642822635107612, 'field_energy': 64.12888871308108, 'surface_energy': 13.819190281098715, 'param_0': -0.000489238233096319, 'real_group_sampling_width': 0.2621685929916678, 'global_cutoff': 7} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.04179381429128441, 'amplitude_squared': 0.002642822635107612, 'field_energy': 64.12888871308108, 'surface_energy': 13.819190281098715, 'param_0': -0.000489238233096319, 'real_group_sampling_width': 0.2621685929916678, 'global_cutoff': 7} cov_matrix None
+means dict {'abs_amplitude': 0.04179381429128441, 'amplitude_squared': 0.002642822635107612, 'field_energy': 64.12888871308108, 'surface_energy': 13.819190281098715, 'param_0': -0.000489238233096319, 'real_group_sampling_width': 0.2621685929916678, 'global_cutoff': 7} var dict {} covar dict {} results line defaultdict(<class 'list'>, {'abs_amplitude_mean': [0.03691539781125628, 0.041580177644199766], 'amplitude_squared_mean': [0.002197680688420719, 0.0027728730256315645], 'field_energy_mean': [63.28073095569364, 62.36460670086751], 'surface_energy_mean': [13.819832205156724, 13.819006326517275], 'param_0_mean': [-0.001789158116220203, -0.014765431771397282], 'real_group_sampling_width_mean': [0.26902740894594607, 0.3032919239856945], 'global_cutoff_mean': [11, 59], 'time_per_experiment': [120.1116360090673, 118.5984897352755]})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[-2.98267853e-01-0.02430879j  1.65152704e-01-0.02366091j
+   8.24224742e-04-0.039639j   ... -3.19412562e-01+0.73818058j
+  -5.45235467e-02-0.08714772j  1.66553322e-01-0.09766716j]
+ [-6.64261122e-01+0.04443926j -6.17886325e-01+0.09533977j
+   1.48978037e-01+0.26590782j ... -4.39463526e-01+0.34587472j
+  -6.98336713e-02+0.28981632j  1.69435503e-02-0.01214807j]
+ [-3.81706208e-01+0.1704535j   5.03807851e-01-0.1346723j
+   3.20148026e-01+0.24698563j ... -7.53412538e-01+0.57550339j
+  -1.44296076e-01-0.03420646j -3.96005794e-02-0.16229428j]
+ ...
+ [-7.24599482e-01-0.52656099j -3.33037777e-01+0.00390239j
+   6.04600833e-03+0.00365205j ...  7.95688687e-01-0.45329026j
+  -6.53701966e-02+0.37566504j -9.32671150e-01+0.28334896j]
+ [ 1.54023460e-01+0.54219851j  9.56111655e-03-0.00684882j
+  -9.18214414e-01+0.36719432j ...  1.02706468e-01-0.40299865j
+   7.03510069e-01+0.68181094j  7.74362939e-01+0.02633917j]
+ [ 3.73292280e-01+0.14758359j -9.09488897e-01+0.10612767j
+  -1.33515353e-02+0.00793362j ... -4.15731576e-01-0.63781664j
+   1.44157784e-01+0.20827132j  5.42619705e-01+0.75944923j]]
+initialized energy dict, self.energy =  {'field': 1888.1786647057222, 'surface': 8.63937979737193}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ...  0.001001                   0.049643
+1         0.000000           0.000000  ...  0.001001                   0.049288
+2         0.000000           0.000000  ...  0.001001                   0.048936
+3         0.000000           0.000000  ...  0.001001                   0.048587
+4         0.017397           0.000303  ... -0.017397                   0.049396
+..             ...                ...  ...       ...                        ...
+795       0.011406           0.000130  ... -0.011406                   0.427908
+796       0.011406           0.000130  ... -0.011406                   0.427141
+797       0.011406           0.000130  ... -0.011406                   0.426376
+798       0.008302           0.000069  ...  0.008302                   0.428155
+799       0.027601           0.000762  ... -0.027601                   0.429939
+
+[800 rows x 6 columns]
+{'abs_amplitude': [25, 5.7753196, 134.36485], 'amplitude_squared': [25, 5.8612623, 132.39468], 'field_energy': [0, 11.9611435, 66.96684], 'surface_energy': [25, 5.8475056, 132.70616], 'param_0': [23, 10.247028, 75.92445], 'real_group_sampling_width': [785, 1.9337268, 8.2741785]}
+{'abs_amplitude': [25, 5.7753196, 134.36485], 'amplitude_squared': [25, 5.8612623, 132.39468], 'field_energy': [0, 11.9611435, 66.96684], 'surface_energy': [25, 5.8475056, 132.70616], 'param_0': [23, 10.247028, 75.92445], 'real_group_sampling_width': [785, 1.9337268, 8.2741785]}
+global t_0 25
+result_means {'abs_amplitude': 0.04325179820232048, 'amplitude_squared': 0.002770062791139493, 'field_energy': 62.763977565920364, 'surface_energy': 8.639148587641827, 'param_0': 0.0025748158256206307, 'real_group_sampling_width': 0.26663224134353086, 'global_cutoff': 25}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.04325179820232048, 'amplitude_squared': 0.002770062791139493, 'field_energy': 62.763977565920364, 'surface_energy': 8.639148587641827, 'param_0': 0.0025748158256206307, 'real_group_sampling_width': 0.26663224134353086, 'global_cutoff': 25} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.04325179820232048, 'amplitude_squared': 0.002770062791139493, 'field_energy': 62.763977565920364, 'surface_energy': 8.639148587641827, 'param_0': 0.0025748158256206307, 'real_group_sampling_width': 0.26663224134353086, 'global_cutoff': 25} cov_matrix None
+means dict {'abs_amplitude': 0.04325179820232048, 'amplitude_squared': 0.002770062791139493, 'field_energy': 62.763977565920364, 'surface_energy': 8.639148587641827, 'param_0': 0.0025748158256206307, 'real_group_sampling_width': 0.26663224134353086, 'global_cutoff': 25} var dict {} covar dict {} results line defaultdict(<class 'list'>, {})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[ 4.05135435e-02-0.60284963j -5.19165754e-01-0.56371375j
+  -3.61317975e-01-0.22352938j ... -7.71876461e-02+0.1184514j
+  -5.99000122e-02-0.14855122j  2.65542189e-02+0.01711029j]
+ [ 1.30624925e-01-0.03554911j -8.60852600e-02+0.15907094j
+   1.04653155e-01+0.42845685j ...  1.77366299e-01+0.05872572j
+   8.98399499e-03+0.05601206j -5.34944088e-01-0.60820295j]
+ [ 2.59492392e-01+0.21899518j -2.54100146e-01-0.59458952j
+  -1.79850261e-01-0.13655747j ...  2.30942359e-01+0.74624226j
+  -2.33592244e-01-0.05636821j  2.70896699e-01+0.6680705j ]
+ ...
+ [ 4.28509764e-01+0.80185356j  1.52595494e-01+0.20330336j
+   8.46852409e-02+0.32674003j ...  1.60499616e-01+0.01754745j
+  -4.25405074e-01-0.67050184j -6.66891662e-02-0.44166395j]
+ [-1.36439055e-01-0.16112933j  1.07463876e-01+0.80870232j
+  -7.73942524e-01+0.44954765j ...  7.62050959e-01-0.19713j
+   4.08666782e-02+0.32575122j -3.01170200e-02-0.04175396j]
+ [-4.78491163e-04-0.22584573j  2.63209621e-01+0.38214168j
+   2.16976068e-01+0.35104252j ...  2.59855619e-01-0.22993932j
+   9.70499932e-01+0.11350616j  3.15185672e-01+0.75112715j]]
+initialized energy dict, self.energy =  {'field': 1812.2253272415503, 'surface': 8.63937979737193}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ...  0.004166                   0.049643
+1         0.062191           0.003868  ...  0.062191                   0.050470
+2         0.016131           0.000260  ...  0.016131                   0.051311
+3         0.016131           0.000260  ...  0.016131                   0.050945
+4         0.016131           0.000260  ...  0.016131                   0.050581
+..             ...                ...  ...       ...                        ...
+795       0.028147           0.000792  ... -0.028147                   0.400124
+796       0.028147           0.000792  ... -0.028147                   0.399407
+797       0.022829           0.000521  ... -0.022829                   0.401075
+798       0.022829           0.000521  ... -0.022829                   0.400358
+799       0.022829           0.000521  ... -0.022829                   0.399643
+
+[800 rows x 6 columns]
+{'abs_amplitude': [59, 4.4582825, 166.43181], 'amplitude_squared': [58, 4.1746316, 177.97978], 'field_energy': [0, 12.669102, 63.22469], 'surface_energy': [58, 4.15361, 178.88052], 'param_0': [57, 8.461034, 87.93252], 'real_group_sampling_width': [789, 1.0855623, 11.054178]}
+{'abs_amplitude': [59, 4.4582825, 166.43181], 'amplitude_squared': [58, 4.1746316, 177.97978], 'field_energy': [0, 12.669102, 63.22469], 'surface_energy': [58, 4.15361, 178.88052], 'param_0': [57, 8.461034, 87.93252], 'real_group_sampling_width': [789, 1.0855623, 11.054178]}
+global t_0 59
+result_means {'abs_amplitude': 0.04325709214345585, 'amplitude_squared': 0.0028799563250410773, 'field_energy': 62.91608751340861, 'surface_energy': 8.63913909070388, 'param_0': 0.0009441301743919637, 'real_group_sampling_width': 0.281300504261531, 'global_cutoff': 59}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.04325709214345585, 'amplitude_squared': 0.0028799563250410773, 'field_energy': 62.91608751340861, 'surface_energy': 8.63913909070388, 'param_0': 0.0009441301743919637, 'real_group_sampling_width': 0.281300504261531, 'global_cutoff': 59} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.04325709214345585, 'amplitude_squared': 0.0028799563250410773, 'field_energy': 62.91608751340861, 'surface_energy': 8.63913909070388, 'param_0': 0.0009441301743919637, 'real_group_sampling_width': 0.281300504261531, 'global_cutoff': 59} cov_matrix None
+means dict {'abs_amplitude': 0.04325709214345585, 'amplitude_squared': 0.0028799563250410773, 'field_energy': 62.91608751340861, 'surface_energy': 8.63913909070388, 'param_0': 0.0009441301743919637, 'real_group_sampling_width': 0.281300504261531, 'global_cutoff': 59} var dict {} covar dict {} results line defaultdict(<class 'list'>, {'abs_amplitude_mean': [0.04325179820232048], 'amplitude_squared_mean': [0.002770062791139493], 'field_energy_mean': [62.763977565920364], 'surface_energy_mean': [8.639148587641827], 'param_0_mean': [0.0025748158256206307], 'real_group_sampling_width_mean': [0.26663224134353086], 'global_cutoff_mean': [25], 'time_per_experiment': [117.84725011140108]})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[ 0.02239938+0.33995942j  0.31915311-0.57306907j  0.21761618-0.61136991j
+  ... -0.05515116-0.26379271j  0.19818373-0.39357323j
+  -0.89188899-0.12417218j]
+ [-0.73814895-0.44034189j  0.94393642-0.17650599j  0.44393031-0.66410049j
+  ...  0.00829125+0.03192176j -0.37627094-0.05630892j
+  -0.09592313+0.12746325j]
+ [ 0.31068401-0.12480966j  0.39908769+0.17575866j -0.32215167-0.73016871j
+  ...  0.86753236+0.16131131j  0.02161326+0.0037284j
+   0.74790849-0.65157719j]
+ ...
+ [-0.37009267+0.17272306j -0.25395157-0.55255529j  0.30404743-0.00596429j
+  ...  0.58023013+0.06863179j  0.47520865-0.87838716j
+   0.33995394-0.77639765j]
+ [ 0.01585106+0.1811293j  -0.6114214 +0.50163708j  0.53110685-0.83230382j
+  ... -0.59007768-0.23386751j  0.09739012-0.29887059j
+   0.22020736+0.74727534j]
+ [-0.04710589+0.27921162j  0.03083333-0.08317115j  0.00589964-0.00600863j
+  ...  0.7215693 +0.25323106j -0.42819795+0.84804803j
+   0.24996066-0.42793512j]]
+initialized energy dict, self.energy =  {'field': 1906.679957990823, 'surface': 8.63937979737193}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ...  0.003324                   0.049643
+1         0.008897           0.000079  ... -0.008897                   0.050470
+2         0.008897           0.000079  ... -0.008897                   0.050110
+3         0.019441           0.000378  ... -0.019441                   0.050945
+4         0.019441           0.000378  ... -0.019441                   0.050581
+..             ...                ...  ...       ...                        ...
+795       0.064877           0.004209  ... -0.064877                   0.393436
+796       0.077611           0.006023  ... -0.077611                   0.395082
+797       0.077611           0.006023  ... -0.077611                   0.394375
+798       0.077611           0.006023  ... -0.077611                   0.393669
+799       0.077611           0.006023  ... -0.077611                   0.392966
+
+[800 rows x 6 columns]
+{'abs_amplitude': [38, 4.5704904, 166.9405], 'amplitude_squared': [36, 4.4569416, 171.64236], 'field_energy': [0, 12.476189, 64.2023], 'surface_energy': [36, 4.438458, 172.35716], 'param_0': [159, 5.833173, 110.06017], 'real_group_sampling_width': [745, 5.7391973, 9.7574625]}
+{'abs_amplitude': [38, 4.5704904, 166.9405], 'amplitude_squared': [36, 4.4569416, 171.64236], 'field_energy': [0, 12.476189, 64.2023], 'surface_energy': [36, 4.438458, 172.35716], 'param_0': [159, 5.833173, 110.06017], 'real_group_sampling_width': [745, 5.7391973, 9.7574625]}
+global t_0 159
+result_means {'abs_amplitude': 0.0474024799361877, 'amplitude_squared': 0.003344575461590236, 'field_energy': 62.69733900362045, 'surface_energy': 8.639099849882687, 'param_0': 0.009690462993884126, 'real_group_sampling_width': 0.3261127164552364, 'global_cutoff': 159}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.0474024799361877, 'amplitude_squared': 0.003344575461590236, 'field_energy': 62.69733900362045, 'surface_energy': 8.639099849882687, 'param_0': 0.009690462993884126, 'real_group_sampling_width': 0.3261127164552364, 'global_cutoff': 159} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.0474024799361877, 'amplitude_squared': 0.003344575461590236, 'field_energy': 62.69733900362045, 'surface_energy': 8.639099849882687, 'param_0': 0.009690462993884126, 'real_group_sampling_width': 0.3261127164552364, 'global_cutoff': 159} cov_matrix None
+means dict {'abs_amplitude': 0.0474024799361877, 'amplitude_squared': 0.003344575461590236, 'field_energy': 62.69733900362045, 'surface_energy': 8.639099849882687, 'param_0': 0.009690462993884126, 'real_group_sampling_width': 0.3261127164552364, 'global_cutoff': 159} var dict {} covar dict {} results line defaultdict(<class 'list'>, {'abs_amplitude_mean': [0.04325179820232048, 0.04325709214345585], 'amplitude_squared_mean': [0.002770062791139493, 0.0028799563250410773], 'field_energy_mean': [62.763977565920364, 62.91608751340861], 'surface_energy_mean': [8.639148587641827, 8.63913909070388], 'param_0_mean': [0.0025748158256206307, 0.0009441301743919637], 'real_group_sampling_width_mean': [0.26663224134353086, 0.281300504261531], 'global_cutoff_mean': [25, 59], 'time_per_experiment': [117.84725011140108, 118.05067304894328]})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[ 0.52297553+0.73340791j  0.1254598 +0.0120324j  -0.56745786-0.36706461j
+  ...  0.1581132 -0.47342017j -0.71050656-0.33905156j
+   0.77501305-0.17042467j]
+ [ 0.08468298-0.04819581j  0.75573171-0.44328851j  0.05147172-0.13871319j
+  ... -0.05352976+0.03282736j -0.64774461-0.66787747j
+  -0.02481342-0.53322991j]
+ [-0.54808991-0.60391289j -0.07670432-0.02726038j -0.31120339-0.32675116j
+  ...  0.3628633 +0.76504053j  0.78256197+0.55397447j
+   0.70575661+0.40604494j]
+ ...
+ [-0.38862114+0.7255964j   0.31868977+0.12168761j -0.06090573-0.05631683j
+  ... -0.39694262+0.66430203j  0.58099575+0.07768552j
+  -0.26647702-0.12072011j]
+ [ 0.0585036 +0.0331112j  -0.16902365+0.32675266j  0.49884198+0.24555654j
+  ...  0.48572164+0.09713537j -0.31044842+0.77870938j
+  -0.01892844-0.03379109j]
+ [-0.02349116-0.0183274j  -0.03428015+0.03988813j  0.05192193+0.32375529j
+  ...  0.22374888-0.42456604j -0.16309556+0.11864282j
+  -0.7761288 +0.28855156j]]
+initialized energy dict, self.energy =  {'field': 2108.680480729791, 'surface': 6.283185307179585}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ... -0.007354                   0.049643
+1         0.038063           0.001449  ...  0.038063                   0.050470
+2         0.038063           0.001449  ...  0.038063                   0.050110
+3         0.017878           0.000320  ...  0.017878                   0.050945
+4         0.041987           0.001763  ...  0.041987                   0.051794
+..             ...                ...  ...       ...                        ...
+795       0.025385           0.000644  ... -0.025385                   0.393177
+796       0.025385           0.000644  ... -0.025385                   0.392472
+797       0.025385           0.000644  ... -0.025385                   0.391770
+798       0.025385           0.000644  ... -0.025385                   0.391069
+799       0.025385           0.000644  ... -0.025385                   0.390371
+
+[800 rows x 6 columns]
+{'abs_amplitude': [0, 10.380349, 77.16503], 'amplitude_squared': [324, 5.770912, 82.655914], 'field_energy': [0, 14.470141, 55.35537], 'surface_energy': [324, 5.7866383, 82.43128], 'param_0': [71, 11.732015, 62.2229], 'real_group_sampling_width': [695, 13.949226, 7.5989876]}
+{'abs_amplitude': [0, 10.380349, 77.16503], 'amplitude_squared': [324, 5.770912, 82.655914], 'field_energy': [0, 14.470141, 55.35537], 'surface_energy': [324, 5.7866383, 82.43128], 'param_0': [71, 11.732015, 62.2229], 'real_group_sampling_width': [695, 13.949226, 7.5989876]}
+global t_0 324
+result_means {'abs_amplitude': 0.040838013727091185, 'amplitude_squared': 0.0024549669615616353, 'field_energy': 62.327824874463445, 'surface_energy': 6.285555027563322, 'param_0': -0.012837973691534204, 'real_group_sampling_width': 0.35544173563082604, 'global_cutoff': 324}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.040838013727091185, 'amplitude_squared': 0.0024549669615616353, 'field_energy': 62.327824874463445, 'surface_energy': 6.285555027563322, 'param_0': -0.012837973691534204, 'real_group_sampling_width': 0.35544173563082604, 'global_cutoff': 324} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.040838013727091185, 'amplitude_squared': 0.0024549669615616353, 'field_energy': 62.327824874463445, 'surface_energy': 6.285555027563322, 'param_0': -0.012837973691534204, 'real_group_sampling_width': 0.35544173563082604, 'global_cutoff': 324} cov_matrix None
+means dict {'abs_amplitude': 0.040838013727091185, 'amplitude_squared': 0.0024549669615616353, 'field_energy': 62.327824874463445, 'surface_energy': 6.285555027563322, 'param_0': -0.012837973691534204, 'real_group_sampling_width': 0.35544173563082604, 'global_cutoff': 324} var dict {} covar dict {} results line defaultdict(<class 'list'>, {})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[-0.57839048+0.37380858j -0.11776051+0.14468869j -0.08104811-0.006351j
+  ...  0.14279469-0.27932077j -0.44279858+0.51931439j
+  -0.27890404-0.18294155j]
+ [-0.49594   +0.5148428j  -0.01364723-0.08616264j  0.71201761+0.03512397j
+  ... -0.35059754+0.6653341j   0.42212735+0.42157992j
+   0.94768934+0.11739454j]
+ [-0.46400351-0.07167973j  0.00261849-0.01202138j  0.49263613-0.66600937j
+  ...  0.37332631+0.22780028j -0.0433838 -0.9308587j
+  -0.28395347+0.32041696j]
+ ...
+ [ 0.57910904+0.23224891j  0.07708285+0.5448698j   0.44770625+0.12675751j
+  ... -0.38473614-0.09060409j -0.68414831+0.42490669j
+   0.46722847-0.02852982j]
+ [-0.09476217-0.86789082j  0.22694977-0.18708143j  0.20646259-0.41629965j
+  ...  0.1851988 -0.47484719j -0.06173539+0.01046139j
+   0.82095647-0.11052686j]
+ [-0.39003677-0.51947991j -0.01122996-0.56838195j -0.12545624-0.43830859j
+  ... -0.00313199+0.6696354j  -0.04966426-0.37261361j
+   0.9551852 +0.11916438j]]
+initialized energy dict, self.energy =  {'field': 2256.4524373989857, 'surface': 6.283185307179585}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000       0.000000e+00  ...  0.004323                   0.049643
+1         0.070434       4.960987e-03  ... -0.070434                   0.050470
+2         0.070434       4.960987e-03  ... -0.070434                   0.050110
+3         0.004755       2.260929e-05  ... -0.004755                   0.050945
+4         0.000679       4.615404e-07  ...  0.000679                   0.051794
+..             ...                ...  ...       ...                        ...
+795       0.039535       1.563023e-03  ... -0.039535                   0.334893
+796       0.015624       2.441099e-04  ... -0.015624                   0.336294
+797       0.015624       2.441099e-04  ... -0.015624                   0.335692
+798       0.015624       2.441099e-04  ... -0.015624                   0.335092
+799       0.015624       2.441099e-04  ... -0.015624                   0.334494
+
+[800 rows x 6 columns]
+{'abs_amplitude': [0, 10.567515, 75.798325], 'amplitude_squared': [0, 9.576153, 83.64528], 'field_energy': [0, 14.070736, 56.92666], 'surface_energy': [0, 9.601752, 83.42227], 'param_0': [39, 24.026201, 31.715376], 'real_group_sampling_width': [781, 1.0, 20.0]}
+{'abs_amplitude': [0, 10.567515, 75.798325], 'amplitude_squared': [0, 9.576153, 83.64528], 'field_energy': [0, 14.070736, 56.92666], 'surface_energy': [0, 9.601752, 83.42227], 'param_0': [39, 24.026201, 31.715376], 'real_group_sampling_width': [781, 1.0, 20.0]}
+global t_0 39
+result_means {'abs_amplitude': 0.038063610928009466, 'amplitude_squared': 0.002363580814602946, 'field_energy': 62.67548365723218, 'surface_energy': 6.2854625472307895, 'param_0': 0.003647718083461873, 'real_group_sampling_width': 0.23268593878133131, 'global_cutoff': 39}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.038063610928009466, 'amplitude_squared': 0.002363580814602946, 'field_energy': 62.67548365723218, 'surface_energy': 6.2854625472307895, 'param_0': 0.003647718083461873, 'real_group_sampling_width': 0.23268593878133131, 'global_cutoff': 39} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.038063610928009466, 'amplitude_squared': 0.002363580814602946, 'field_energy': 62.67548365723218, 'surface_energy': 6.2854625472307895, 'param_0': 0.003647718083461873, 'real_group_sampling_width': 0.23268593878133131, 'global_cutoff': 39} cov_matrix None
+means dict {'abs_amplitude': 0.038063610928009466, 'amplitude_squared': 0.002363580814602946, 'field_energy': 62.67548365723218, 'surface_energy': 6.2854625472307895, 'param_0': 0.003647718083461873, 'real_group_sampling_width': 0.23268593878133131, 'global_cutoff': 39} var dict {} covar dict {} results line defaultdict(<class 'list'>, {'abs_amplitude_mean': [0.040838013727091185], 'amplitude_squared_mean': [0.0024549669615616353], 'field_energy_mean': [62.327824874463445], 'surface_energy_mean': [6.285555027563322], 'param_0_mean': [-0.012837973691534204], 'real_group_sampling_width_mean': [0.35544173563082604], 'global_cutoff_mean': [324], 'time_per_experiment': [118.35711820796132]})
+before single run <function <lambda> at 0x2aadf79196a8>
+initialized
+ [[ 0.37988953-1.73262609e-01j  0.3216292 -7.21256796e-01j
+  -0.16232482+6.73348011e-01j ... -0.25003368-5.43845519e-01j
+  -0.11672218+2.46118225e-01j  0.08764589+8.03202239e-01j]
+ [ 0.37409102+4.90524260e-02j  0.00648002+1.23883019e-03j
+   0.25724364-1.52994673e-01j ...  0.69235688-3.44339304e-01j
+  -0.0326253 +2.32237501e-01j -0.5681655 +1.22925026e-01j]
+ [-0.536006  +6.05205650e-02j -0.41275572+8.11240075e-01j
+  -0.15402928+2.34812672e-01j ... -0.48313581+3.10251416e-01j
+   0.63596027+6.18750435e-01j -0.00543456+9.28037884e-03j]
+ ...
+ [ 0.00216545+6.80524869e-04j -0.73337162+5.94449060e-01j
+  -0.30875206+6.14676957e-01j ...  0.02805833-4.81875678e-01j
+  -0.26047263-4.52625890e-01j -0.27925253+7.59500831e-01j]
+ [-0.06493874+5.37644022e-01j  0.01441493-1.33429547e-02j
+   0.42476366+5.55153302e-01j ...  0.19343205-6.22466388e-01j
+  -0.16248022-8.15670276e-01j  0.55924343+1.56926221e-01j]
+ [-0.06163223-3.21563846e-02j -0.38435722-5.40307076e-02j
+  -0.21760594-1.91823302e-01j ... -0.92513686+2.74204896e-01j
+   0.01032912-5.70619167e-01j -0.28514312+5.65095871e-01j]]
+initialized energy dict, self.energy =  {'field': 2158.0842652416954, 'surface': 6.283185307179585}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+finifshed lattice
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.018875           0.000356  ... -0.018875                   0.050833
+1         0.018875           0.000356  ... -0.018875                   0.050470
+2         0.018875           0.000356  ... -0.018875                   0.050110
+3         0.012187           0.000149  ... -0.012187                   0.050945
+4         0.010610           0.000113  ... -0.010610                   0.051794
+..             ...                ...  ...       ...                        ...
+795       0.012396           0.000154  ... -0.012396                   0.379905
+796       0.012396           0.000154  ... -0.012396                   0.379224
+797       0.012396           0.000154  ... -0.012396                   0.378545
+798       0.012396           0.000154  ... -0.012396                   0.377868
+799       0.012396           0.000154  ... -0.012396                   0.377194
+
+[800 rows x 6 columns]
+{'abs_amplitude': [8, 6.6760225, 118.7833], 'amplitude_squared': [8, 5.9417515, 133.46233], 'field_energy': [0, 14.960599, 53.540638], 'surface_energy': [8, 5.9731812, 132.76007], 'param_0': [65, 8.10642, 90.792244], 'real_group_sampling_width': [740, 5.0386877, 12.106327]}
+{'abs_amplitude': [8, 6.6760225, 118.7833], 'amplitude_squared': [8, 5.9417515, 133.46233], 'field_energy': [0, 14.960599, 53.540638], 'surface_energy': [8, 5.9731812, 132.76007], 'param_0': [65, 8.10642, 90.792244], 'real_group_sampling_width': [740, 5.0386877, 12.106327]}
+global t_0 65
+result_means {'abs_amplitude': 0.0421290769455979, 'amplitude_squared': 0.0026837166463939523, 'field_energy': 62.062187156977615, 'surface_energy': 6.285771435281185, 'param_0': -0.008376264964959343, 'real_group_sampling_width': 0.2686487991278343, 'global_cutoff': 65}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.0421290769455979, 'amplitude_squared': 0.0026837166463939523, 'field_energy': 62.062187156977615, 'surface_energy': 6.285771435281185, 'param_0': -0.008376264964959343, 'real_group_sampling_width': 0.2686487991278343, 'global_cutoff': 65} None
+param names ['param_0'] observables names ['abs_amplitude', 'amplitude_squared'] means_dict {'abs_amplitude': 0.0421290769455979, 'amplitude_squared': 0.0026837166463939523, 'field_energy': 62.062187156977615, 'surface_energy': 6.285771435281185, 'param_0': -0.008376264964959343, 'real_group_sampling_width': 0.2686487991278343, 'global_cutoff': 65} cov_matrix None
+means dict {'abs_amplitude': 0.0421290769455979, 'amplitude_squared': 0.0026837166463939523, 'field_energy': 62.062187156977615, 'surface_energy': 6.285771435281185, 'param_0': -0.008376264964959343, 'real_group_sampling_width': 0.2686487991278343, 'global_cutoff': 65} var dict {} covar dict {} results line defaultdict(<class 'list'>, {'abs_amplitude_mean': [0.040838013727091185, 0.038063610928009466], 'amplitude_squared_mean': [0.0024549669615616353, 0.002363580814602946], 'field_energy_mean': [62.327824874463445, 62.67548365723218], 'surface_energy_mean': [6.285555027563322, 6.2854625472307895], 'param_0_mean': [-0.012837973691534204, 0.003647718083461873], 'real_group_sampling_width_mean': [0.35544173563082604, 0.23268593878133131], 'global_cutoff_mean': [324, 39], 'time_per_experiment': [118.35711820796132, 118.16465439274907]})
+plotting png
+plotting png
+plotting png
+plotting png
+plotting png
+plotting png
+plotting png
+plotting png

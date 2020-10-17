@@ -73,7 +73,7 @@ class Lattice():
     self.me = metropolisengine.MetropolisEngine(energy_functions = energy_fct_by_params_group,  initial_complex_params=None, initial_real_params = [float(self.initial_amplitude)], 
                                  covariance_matrix_complex=None, sampling_width=.05, temp=self.temperature
                                  ,complex_sample_method=None)
-    self.me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>.99 )  
+    self.me.set_reject_condition(lambda real_params, complex_params : abs(real_params[0])>.8 )  
     self.lattice_acceptance_counter = 0
     self.step_counter = 0
     self.amplitude_average= 0
@@ -157,9 +157,9 @@ class Lattice():
       #metropolis step shape
       self.measure_avgs() #running avgs amplitude, field profile
       #self.measure() # add to lists
-      #surface_accepted = self.me.step_real_group()
-      #if surface_accepted:
-        #self.amplitude = self.me.real_params[0]
+      surface_accepted = self.me.step_real_group()
+      if surface_accepted:
+        self.amplitude = self.me.real_params[0]
         #maybe reset self.energy
       #lattice step
       for i in range(n_sub_steps):

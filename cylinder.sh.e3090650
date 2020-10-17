@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "run.py", line 379, in <module>
+    run_experiment(loop_type,  range1, range2)
+  File "run.py", line 165, in run_experiment
+    results = loop(functions_dict[exp_type], range1, range2)
+  File "run.py", line 38, in loop
+    param_names, observables_names, means_dict, cov_matrix = single_run_lambda(var1, var2) 
+  File "run.py", line 81, in <lambda>
+    dims=dims, temperature_lattice=temperature_lattice),                   
+  File "run.py", line 254, in single_run
+    dims = dims, n_substeps=n_substeps)
+  File "/nobackup/fsjsk/cylinder/surfaces_and_fields/On_lattice_simple.py", line 50, in __init__
+    self.lattice = np.zeros((self.z_len, self.th_len), dtype=complex)
+TypeError: 'float' object cannot be interpreted as an integer

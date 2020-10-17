@@ -1,0 +1,9 @@
+/nobackup/fsjsk/cylinder/surfaces_and_fields/system_cylinder.py:102: IntegrationWarning: The maximum number of subdivisions (50) has been achieved.
+  If increasing the limit yields no improvement it is advised to analyze 
+  the integrand in order to determine the difficulties.  If the position of a 
+  local difficulty can be determined (singularity, discontinuity) one will 
+  probably gain from splitting up the interval and calling the integrator 
+  on the subranges.  Perhaps a special-purpose integrator should be used.
+  Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
+/nobackup/fsjsk/cylinder/surfaces_and_fields/system_cylinder.py:102: IntegrationWarning: The integral is probably divergent, or slowly convergent.
+  Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)

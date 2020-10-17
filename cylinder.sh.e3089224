@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "run.py", line 379, in <module>
+    run_experiment(loop_type,  range1, range2)
+  File "run.py", line 165, in run_experiment
+    results = loop(functions_dict[exp_type], range1, range2)
+  File "run.py", line 38, in loop
+    param_names, observables_names, means_dict, cov_matrix = single_run_lambda(var1, var2) 
+  File "run.py", line 81, in <lambda>
+    dims=dims, temperature_lattice=temperature_lattice),                   
+  File "run.py", line 308, in single_run
+    lattice.run(n_steps, n_substeps)
+  File "/nobackup/fsjsk/cylinder/surfaces_and_fields/On_lattice_simple.py", line 166, in run
+    self.step_lattice(self.amplitude)
+  File "/nobackup/fsjsk/cylinder/surfaces_and_fields/On_lattice_simple.py", line 236, in step_lattice
+    old_cross_term = (A_th.conjugate()*self.interstitial_psi[index_z,index_th].conjugate()*
+AttributeError: 'Lattice' object has no attribute 'interstitial_psi'
