@@ -1,5 +1,7 @@
 #all the output
 out/
+cylinder.sh.e*
+cylinder.sh.o*
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,code,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,code,linux
