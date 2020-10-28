@@ -54,7 +54,7 @@ if __name__ == "__main__":
   #overwriting the relevant fiedls in the hardcoded list abovve
 
   #decide on file name
-  filename = var1name+"_"+str(round(var1,5)+"_"+ var2name+"_"+str(round(var2,5))
+  filename = var1name+"_"+str(round(var1,5))+"_"+ var2name+"_"+str(round(var2,5))
 
   #run a single simulation as in run file
   run.single_run(n_steps=n_steps, field_type=field_type, method=method,
@@ -63,5 +63,5 @@ if __name__ == "__main__":
                 alpha=alpha, C=C, n=n, u=u, 
                 gamma=gamma, kappa=kappa, radius=radius, intrinsic_curvature=intrinsic_curvature,
                 dims=dims, temperature_lattice=temperature_lattice, n_substeps=n_substeps,
-                wavenumber=wavenumber,  radius=radius,
+                wavenumber=wavenumber,  
                 amplitude=amplitude, field_coeffs=None, outdir = '.', title = filename)
