@@ -40,16 +40,13 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='get description')
   #from varfile
   #first line of file: what to vary
-  parser.add_argument('--var1name', dest = 'var1name',  type=str, nargs=1, required=True)
-  parser.add_argument('--var2name', dest = 'var2name',  type=str, nargs=1, required=True)
-  var1name=parser.parse_args().var1name
-  var2name=parser.parse_args().var2name
+  parser.add_argument('--varnames', dest = 'varnames',  type=str, nargs=2, required=True)
+  var1name=parser.parse_args().varnames[0]
+  var2name=parser.parse_args().varnames[1]
 
-  #input as command ilne argument via taskarray:
-  parser.add_argument('--var1', dest = "var1",  type=str, nargs=1, required=True)
-  parser.add_argument('--var2', dest = "var2",  type=str, nargs=1, required=True)  
-  var1=parser.parse_args().var1
-  var2=parser.parse_args().var2
+  parser.add_argument('--varline', dest = 'varline',  type=str, nargs=2, required=True)
+  var1=parser.parse_args().varline[0]
+  var2=parser.parse_args().varline[1]
 
   #meta move to assign value from file to alpha, C, wavenumber, or whatever
   exec(var1name+" = "+ var1)
