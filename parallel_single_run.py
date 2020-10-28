@@ -41,12 +41,12 @@ if __name__ == "__main__":
   #from varfile
   #first line of file: what to vary
   parser.add_argument('--varnames', dest = 'varnames',  type=str, nargs=2, required=True)
-  var1name=parser.parse_args().varnames[0]
-  var2name=parser.parse_args().varnames[1]
-
   parser.add_argument('--varline', dest = 'varline',  type=str, nargs=2, required=True)
-  var1=parser.parse_args().varline[0]
-  var2=parser.parse_args().varline[1]
+  args=parser.parse_args()
+  var1name=args.varnames[0]
+  var2name=args.varnames[1]
+  var1=args.varline[0]
+  var2=args.varline[1]
 
   #meta move to assign value from file to alpha, C, wavenumber, or whatever
   exec(var1name+" = "+ var1)
@@ -54,7 +54,7 @@ if __name__ == "__main__":
   #overwriting the relevant fiedls in the hardcoded list abovve
 
   #decide on file name
-  filename = var1name+"_"+str(round(var1,5))+"_"+ var2name+"_"+str(round(var2,5))
+  filename = var1name+"_"+var1+"_"+ var2name+"_"+var2
 
   #run a single simulation as in run file
   run.single_run(n_steps=n_steps, field_type=field_type, method=method,
