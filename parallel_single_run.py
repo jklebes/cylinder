@@ -4,11 +4,13 @@ import os
 import datetime
 import timeit
 import argparse
+import pandas as pd
 import run 
+
 
 if __name__ == "__main__":
   #everything temporarily hardcoded here, should be input file
-  n_steps = 1000
+  n_steps = 100
   field_type = "lattice"
   method= "sequential"  
   #coefficients
@@ -57,7 +59,7 @@ if __name__ == "__main__":
   filename = var1name+"_"+var1+"_"+ var2name+"_"+var2
 
   #run a single simulation as in run file
-  run.single_run(n_steps=n_steps, field_type=field_type, method=method,
+  results = run.single_run(n_steps=n_steps, field_type=field_type, method=method,
                 num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep=fieldsteps_per_ampstep, 
                 measure_every=measure_every,
                 alpha=alpha, C=C, n=n, u=u, 
@@ -65,3 +67,8 @@ if __name__ == "__main__":
                 dims=dims, temperature_lattice=temperature_lattice, n_substeps=n_substeps,
                 wavenumber=wavenumber,  
                 amplitude=amplitude, field_coeffs=None, outdir = '.', title = filename)
+  #returns me.params_names, me.observables_names, result_means (dict), me.covariance_matrix_complex
+  #save results 
+  data =pd.DataFrame(result_means)
+  data.to_csv(filename+"_mean.csv")
+
