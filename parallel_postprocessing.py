@@ -18,17 +18,18 @@ if __name__ == "__main__":
 
   for filename in filenames:
     filedata= pd.read_csv(filename, index_col=0, header=0)
+    print(filedata)
     vs = filename.split("_")
     #varname1=vs[0]
     #varname2=vs[2]
     filevar1 = vs[1]
     filevar2 = vs[3]
     for colname in colnames:
-      data[colname][filevar1][filevar2]= filedata[colname]
+      data[colname][filevar1][filevar2]= filedata[colname][0]
   
   for colname in colnames:
     df = pd.DataFrame(data[colname])
-    df.to_csv("colname.csv", index_col=0:)
+    df.to_csv(colname+".csv")
 
   
 

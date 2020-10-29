@@ -10,7 +10,7 @@ import run
 
 if __name__ == "__main__":
   #everything temporarily hardcoded here, should be input file
-  n_steps = 100
+  n_steps = 1500
   field_type = "lattice"
   method= "sequential"  
   #coefficients
@@ -20,13 +20,13 @@ if __name__ == "__main__":
   n = 6
   kappa = 0
   gamma = 1
-  temp = .1
+  temp = .01
   intrinsic_curvature = 0
 
   # system dimensions
   amplitude= 0  #also fixed system amplitude for when amplitude is static
   radius = 1
-  wavenumber = .5
+  wavenumber = 1
 
   # simulation details - for fourier fields
   num_field_coeffs = (2,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
@@ -59,7 +59,7 @@ if __name__ == "__main__":
   filename = var1name+"_"+var1+"_"+ var2name+"_"+var2
 
   #run a single simulation as in run file
-  results = run.single_run(n_steps=n_steps, field_type=field_type, method=method,
+  results = run.single_run(temp=temp, n_steps=n_steps, field_type=field_type, method=method,
                 num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep=fieldsteps_per_ampstep, 
                 measure_every=measure_every,
                 alpha=alpha, C=C, n=n, u=u, 
@@ -69,6 +69,7 @@ if __name__ == "__main__":
                 amplitude=amplitude, field_coeffs=None, outdir = '.', title = filename)
   #returns me.params_names, me.observables_names, result_means (dict), me.covariance_matrix_complex
   #save results 
-  data =pd.DataFrame(result_means)
+  d = dict([(key, [results[2][key]]) for key in results[2]])
+  data =pd.DataFrame.from_dict(d)
   data.to_csv(filename+"_mean.csv")
 

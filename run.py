@@ -172,7 +172,7 @@ def run_experiment(exp_type,  range1, range2):
     plot_save(range1=range1, range2=range2, results=results[name], title=name, exp_dir=exp_dir)
 
 
-def single_run(n_steps, field_type, method, 
+def single_run(temp, n_steps, field_type, method, 
               num_field_coeffs, fieldsteps_per_ampstep, measure_every,
               alpha, C, n, u, 
               gamma, kappa, radius, intrinsic_curvature, n_substeps,
