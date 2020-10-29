@@ -24,7 +24,7 @@ if __name__ == "__main__":
     filevar1 = vs[1]
     filevar2 = vs[3]
     for colname in colnames:
-    data[colname][filevar1][filevar2]= filedata[colname]
+      data[colname][filevar1][filevar2]= filedata[colname]
   
   for colname in colnames:
     df = pd.DataFrame(data[colname])
