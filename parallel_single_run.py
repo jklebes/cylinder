@@ -9,37 +9,14 @@ import run
 
 
 if __name__ == "__main__":
-  #everything temporarily hardcoded here, should be input file
-  n_steps = 1500
-  field_type = "lattice"
-  method= "sequential"  
-  #coefficients
-  alpha = -1
-  C = 1
-  u = 1
-  n = 6
-  kappa = 0
-  gamma = 1
-  temp = .01
-  intrinsic_curvature = 0
 
-  # system dimensions
-  amplitude= 0  #also fixed system amplitude for when amplitude is static
-  radius = 1
-  wavenumber = 1
-
-  # simulation details - for fourier fields
-  num_field_coeffs = (2,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
-  initial_sampling_width = .025
-  measure_every =10
-  fieldsteps_per_ampstep = 10  #only relevant for sequential
-
-  #for lattice simulations
-  dims=(100,50)
   temperature_lattice=temp
   n_substeps = dims[0]*dims[1]
 
   parser = argparse.ArgumentParser(description='get description')
+  parser.add_argument('-i', '--input', default="infile.txt",
+                      help='file to read parameters from', dest=infilename
+                      type=str)
   #from varfile
   #first line of file: what to vary
   parser.add_argument('--varnames', dest = 'varnames',  type=str, nargs=2, required=True)
@@ -50,6 +27,36 @@ if __name__ == "__main__":
   var1=args.varline[0]
   var2=args.varline[1]
 
+  #new argparser to read input file
+  fileparser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+  fileparser.add_argument('--temp', type=float)
+  fileparser.add_argument('--n_steps', type=int)
+  fileparser.add_argument('--field_type', type=str)
+  fileparser.add_argument('--method', type=str)
+  fileparser.add_argument('--num_field_coeffs', required=False)
+  fileparser.add_argument('--fieldsteps_per_ampstep', required=False)
+  fileparser.add_argument('--measure_every', type=int)
+  fileparser.add_argument('--alpha', type=float)
+  fileparser.add_argument('--C', type=float)
+  fileparser.add_argument('--n', type=float)
+  fileparser.add_argument('--u', type=float)
+  fileparser.add_argument('--gamma', type=float)
+  fileparser.add_argument('--kappa', type=float)
+  fileparser.add_argument('--radius', type=float)
+  fileparser.add_argument('--intrinsic_curvature', type=float)
+  fileparser.add_argument('--dims', nargs=2, type=int)
+  fileparser.add_argument('--temperature_lattice', required=False, default=None, type=float)
+  fileparser.add_argument('--n_substeps', required=False, default=None, type=int)
+  fileparser.add_argument('--wavenumber', type=float)
+  fileparser.add_argument('--amplitude', type=float)
+  fileparser.add_argument('--field_coeffs', required=False, default=None)
+  fileparser.add_argument('--outdir', required=False, default='.', type=str)
+  args= fileparser.parse_args(['@'+infilename])
+  if args.temperature_lattice is None:
+    args.temperature_lattice==args.temp
+  if args.n_substeps is None:
+    args.n_substeps = dims[0]*dims[1]
+
   #meta move to assign value from file to alpha, C, wavenumber, or whatever
   exec(var1name+" = "+ var1)
   exec(var2name+" = "+ var2)
@@ -59,14 +66,16 @@ if __name__ == "__main__":
   filename = var1name+"_"+var1+"_"+ var2name+"_"+var2
 
   #run a single simulation as in run file
-  results = run.single_run(temp=temp, n_steps=n_steps, field_type=field_type, method=method,
-                num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep=fieldsteps_per_ampstep, 
-                measure_every=measure_every,
-                alpha=alpha, C=C, n=n, u=u, 
-                gamma=gamma, kappa=kappa, radius=radius, intrinsic_curvature=intrinsic_curvature,
-                dims=dims, temperature_lattice=temperature_lattice, n_substeps=n_substeps,
-                wavenumber=wavenumber,  
-                amplitude=amplitude, field_coeffs=None, outdir = '.', title = filename)
+  results = run.single_run(temp=args.temp, n_steps=args.n_steps, field_type=args.field_type, 
+                method=args.method,
+                num_field_coeffs=args.num_field_coeffs, fieldsteps_per_ampstep=args.fieldsteps_per_ampstep, 
+                measure_every=args.measure_every,
+                alpha=args.alpha, C=args.C, n=args.n, u=args.u, 
+                gamma=args.gamma, kappa=args.kappa, radius=args.radius, 
+                intrinsic_curvature=args.intrinsic_curvature,
+                dims=args.dims, temperature_lattice=args.temperature_lattice, n_substeps=args.n_substeps,
+                wavenumber=args.wavenumber,  
+                amplitude=args.amplitude, field_coeffs=None, outdir = '.', title = filename)
   #returns me.params_names, me.observables_names, result_means (dict), me.covariance_matrix_complex
   #save results 
   d = dict([(key, [results[2][key]]) for key in results[2]])
