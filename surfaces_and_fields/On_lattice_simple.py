@@ -48,6 +48,8 @@ class Lattice():
     self.surface = system_cylinder.Cylinder(wavenumber=self.wavenumber, radius=self.radius, gamma=self.gamma, kappa=self.kappa, intrinsic_curvature=self.intrinsic_curvature)
     #Psi at each point 
     self.lattice = np.zeros((self.z_len, self.th_len), dtype=complex)
+    #running avg at each point
+    self.avg_lattice = np.zeros((self.z_len, self.th_len), dtype=complex)
     #values also saved for convenience
     self.psi_squared = np.zeros((self.z_len, self.th_len)) 
     #self.dz_squared = np.zeros((self.z_len, self.th_len))
@@ -87,15 +89,20 @@ class Lattice():
     self.amplitude_average *= self.step_counter/float(self.step_counter+1)
     self.amplitude_average += abs(self.amplitude) / float(self.step_counter+1)
     assert(self.amplitude_average <1)
+    divisor = float(self.step_counter+1)
     #update a running avg of |Psi|(z) (1D array; avgd in theta direction)
+    #update each cell in avg_lattice with running time avg
+    self.avg_lattice *= self.step_counter/divisor 
+    self.avg_lattice += self.lattice / divisor 
     if self.amplitude>=0:
       avg_psi = np.array([sum(abs(col))/len(col) for col in self.lattice])
-    else:
+    else: #add mirrored version so that we get wde mart matched to wide part etc
       avg_psi=np.array([sum(abs(col))/len(col) for col in self.lattice[::-1]])
     #if a<0 flip the list
-    self.field_average *= self.step_counter/float(self.step_counter+1)
-    self.field_average += avg_psi / float(self.step_counter+1)
+    self.field_average *= self.step_counter/divisor 
+    self.field_average += avg_psi / divisor 
     #print(self.amplitude_average,self.field_average[1] )
+    
     self.step_counter+=1
 
   def random_initialize(self):
@@ -177,6 +184,11 @@ class Lattice():
     plt.plot([z for z in range(len(field_avg))], field_avg)
     plt.savefig(os.path.join(exp_dir,title+"_profile.png"))
     plt.close()
+    #also dump final snapshot - df of complex values
+    df_snapshot = pd.DataFrame(data=self.lattice)
+    df_snapshot.to_csv(os.path.join(exp_dir, title + "_snapshot.csv"))
+    df_snapshot = pd.DataFrame(data=self.avg_lattice)
+    df_snapshot.to_csv(os.path.join(exp_dir, title + "_avglattice.csv"))
 
   def record_avgs(self):
     for z_index in range(self.z_len):
