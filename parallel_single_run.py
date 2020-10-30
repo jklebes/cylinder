@@ -8,14 +8,17 @@ import pandas as pd
 import run 
 
 
-if __name__ == "__main__":
+def convert_arg_line_to_args(arg_line):
+    for arg in arg_line.split():
+        if not arg.strip():
+            continue
+        yield arg
 
-  temperature_lattice=temp
-  n_substeps = dims[0]*dims[1]
+if __name__ == "__main__":
 
   parser = argparse.ArgumentParser(description='get description')
   parser.add_argument('-i', '--input', default="infile.txt",
-                      help='file to read parameters from', dest=infilename
+                      help='file to read parameters from', dest='infilename',
                       type=str)
   #from varfile
   #first line of file: what to vary
@@ -26,14 +29,16 @@ if __name__ == "__main__":
   var2name=args.varnames[1]
   var1=args.varline[0]
   var2=args.varline[1]
+  infilename = args.infilename
 
   #new argparser to read input file
   fileparser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+  fileparser.convert_arg_line_to_args = convert_arg_line_to_args
   fileparser.add_argument('--temp', type=float)
   fileparser.add_argument('--n_steps', type=int)
   fileparser.add_argument('--field_type', type=str)
   fileparser.add_argument('--method', type=str)
-  fileparser.add_argument('--num_field_coeffs', required=False)
+  fileparser.add_argument('--num_field_coeffs', required=False, nargs=2)
   fileparser.add_argument('--fieldsteps_per_ampstep', required=False)
   fileparser.add_argument('--measure_every', type=int)
   fileparser.add_argument('--alpha', type=float)
@@ -44,7 +49,7 @@ if __name__ == "__main__":
   fileparser.add_argument('--kappa', type=float)
   fileparser.add_argument('--radius', type=float)
   fileparser.add_argument('--intrinsic_curvature', type=float)
-  fileparser.add_argument('--dims', nargs=2, type=int)
+  fileparser.add_argument('--dims', type=int, nargs=2)
   fileparser.add_argument('--temperature_lattice', required=False, default=None, type=float)
   fileparser.add_argument('--n_substeps', required=False, default=None, type=int)
   fileparser.add_argument('--wavenumber', type=float)
@@ -53,9 +58,9 @@ if __name__ == "__main__":
   fileparser.add_argument('--outdir', required=False, default='.', type=str)
   args= fileparser.parse_args(['@'+infilename])
   if args.temperature_lattice is None:
-    args.temperature_lattice==args.temp
+    args.temperature_lattice=args.temp
   if args.n_substeps is None:
-    args.n_substeps = dims[0]*dims[1]
+    args.n_substeps = args.dims[0]*args.dims[1]
 
   #meta move to assign value from file to alpha, C, wavenumber, or whatever
   exec(var1name+" = "+ var1)

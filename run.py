@@ -256,7 +256,7 @@ def single_run(temp, n_steps, field_type, method,
     #to facilitate extracting its data: ampltiude,energy history and averages
     me = lattice.me
   else:
-    print("could not set up.   choose field_type from : ('lattice', 'fourier')")
+    print("could not set up.   choose field_type from : ('lattice', 'fourier').  field_type recieved:", field_type)
   params_names=["amplitude"]
   if field_type=="fourier" and method != "no-field":
     coeff_indices = [(n,m) for n in range(-num_field_coeffs[0], num_field_coeffs[0]+1) for m in range(-num_field_coeffs[1], num_field_coeffs[1]+1)]

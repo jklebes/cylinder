@@ -173,12 +173,10 @@ class Lattice():
     #plot and save average field profile <|Psi|>
     field_avg=self.field_average
     df = pd.DataFrame(data=field_avg)
-    df.to_csv(os.path.join(exp_dir, title + ".csv"))
+    df.to_csv(os.path.join(exp_dir, title + "_profile.csv"))
     plt.plot([z for z in range(len(field_avg))], field_avg)
     plt.savefig(os.path.join(exp_dir,title+"_profile.png"))
     plt.close()
-    df_profile = {"z": [z for z in range(len(field_avg))], "avg_psi": field_avg}
-    df_profile.to_csv(os.path.join(exp_dir,title+"_profile.csv"))
 
   def record_avgs(self):
     for z_index in range(self.z_len):
