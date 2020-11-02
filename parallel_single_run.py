@@ -62,6 +62,29 @@ if __name__ == "__main__":
   if args.n_substeps is None:
     args.n_substeps = args.dims[0]*args.dims[1]
 
+  temp=args.temp
+  n_steps=args.n_steps
+  field_type=args.field_type
+  method=args.method
+  num_field_coeffs=args.num_field_coeffs
+  fieldsteps_per_ampstep=args.fieldsteps_per_ampstep
+  measure_every=args.measure_every
+  alpha=args.alpha
+  C=args.C
+  n=args.n
+  u=args.u
+  gamma=args.gamma
+  kappa=args.kappa
+  radius=args.radius
+  intrinsic_curvature=args.intrinsic_curvature
+  dims=args.dims
+  temperature_lattice=args.temperature_lattice
+  n_substeps=args.n_substeps
+  wavenumber=args.wavenumber
+  amplitude=args.amplitude
+  field_coeffs=args.field_coeffs
+  outdir=args.outdir
+
   #meta move to assign value from file to alpha, C, wavenumber, or whatever
   exec(var1name+" = "+ var1)
   exec(var2name+" = "+ var2)
@@ -71,16 +94,16 @@ if __name__ == "__main__":
   filename = var1name+"_"+var1+"_"+ var2name+"_"+var2
 
   #run a single simulation as in run file
-  results = run.single_run(temp=args.temp, n_steps=args.n_steps, field_type=args.field_type, 
-                method=args.method,
-                num_field_coeffs=args.num_field_coeffs, fieldsteps_per_ampstep=args.fieldsteps_per_ampstep, 
-                measure_every=args.measure_every,
-                alpha=args.alpha, C=args.C, n=args.n, u=args.u, 
-                gamma=args.gamma, kappa=args.kappa, radius=args.radius, 
-                intrinsic_curvature=args.intrinsic_curvature,
-                dims=args.dims, temperature_lattice=args.temperature_lattice, n_substeps=args.n_substeps,
-                wavenumber=args.wavenumber,  
-                amplitude=args.amplitude, field_coeffs=None, outdir = '.', title = filename)
+  results = run.single_run(temp=temp, n_steps=n_steps, field_type=field_type, 
+                method=method,
+                num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep=fieldsteps_per_ampstep, 
+                measure_every=measure_every,
+                alpha=alpha, C=C, n=n, u=u, 
+                gamma=gamma, kappa=kappa, radius=radius, 
+                intrinsic_curvature=intrinsic_curvature,
+                dims=dims, temperature_lattice=temperature_lattice, n_substeps=n_substeps,
+                wavenumber=wavenumber,  
+                amplitude=amplitude, field_coeffs=field_coeffs, outdir = outdir, title = filename)
   #returns me.params_names, me.observables_names, result_means (dict), me.covariance_matrix_complex
   #save results 
   d = dict([(key, [results[2][key]]) for key in results[2]])
