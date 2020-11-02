@@ -34,14 +34,18 @@ class Lattice():
     self.temperature_factor = self.temperature_lattice/self.temperature#to get the desired lattice temperature divide deltaE by this factor in addition to temperature included in metropolis step
     assert(1/self.temperature*1/self.temperature_factor == 1/self.temperature_lattice)
     #lattice characteristics
-    self.z_len, self.th_len = dims
+    #don't use literally the z-direction number of lattice points provided, but scale with wavenumber
     if n_substeps is None:
       self.n_substeps =self.z_len*self.th_len
     else:
       self.n_substeps= n_substeps
     cylinder_len_z = 2*math.pi / self.wavenumber # = wavelength lambda
     cylinder_radius_th = 2*math.pi*self.radius # circumference - in len units, not radians
+    # so that z-direction pixel length is the same and results are comparable with different wavenumber
+    self.z_len = dims[0]/self.wavenumber
+    self.th_len = dims[1]
     self.z_pixel_len = cylinder_len_z /self.z_len # length divided py number of pixels
+    assert(isclose(self.z_pixel_len,2*math.pi/dims[0])) #should be same as for wavenumber 1, length 2pi, dims[0] pixels
     self.th_pixel_len = cylinder_radius_th /self.th_len
     self.amplitude = self.initial_amplitude
     #set up metropolis engine coupled to bare cylinder system
