@@ -45,7 +45,7 @@ class Lattice():
     self.z_len = int(round(dims[0]/self.wavenumber))
     self.th_len = dims[1]
     self.z_pixel_len = cylinder_len_z /self.z_len # length divided py number of pixels
-    assert(isclose(self.z_pixel_len,2*math.pi/dims[0])) #should be same as for wavenumber 1, length 2pi, dims[0] pixels
+    #assert(math.isclose(self.z_pixel_len,2*math.pi/float(dims[0]))) #should be same as for wavenumber 1, length 2pi, dims[0] pixels
     self.th_pixel_len = cylinder_radius_th /self.th_len
     self.amplitude = self.initial_amplitude
     #set up metropolis engine coupled to bare cylinder system
