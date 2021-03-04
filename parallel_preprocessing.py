@@ -6,6 +6,11 @@ import timeit
 import argparse
 import numpy as np
 
+class LoadFromFile (argparse.Action):
+    def __call__ (self, parser, namespace, values, option_string = None):
+        with values as f:
+            parser.parse_args(f.read().split(), namespace)
+
 if __name__ == "__main__":
 
   #read args on what 2 things to vary

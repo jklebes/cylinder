@@ -75,6 +75,9 @@ class Cylinder():
       return ( self.sqrt_g_theta(amplitude, z) *
               self.sqrt_g_z(amplitude, z))
 
+  def A_th_squared_integrand(self, amplitude, z):
+    return self.A_theta(amplitude, z)**2 * self.sqrt_g_z(amplitude,z)/self.sqrt_g_theta(amplitude,z) #sqrt{g}*index raising 1/g_thth
+
 
   def evaluate_A_integral_0(self, amplitude):
     #useful in no-field simulations
@@ -110,4 +113,13 @@ class Cylinder():
     """
     return  (self.effective_gamma * self.evaluate_A_integral_0(amplitude) + 
              self.kappa * self.calc_bending_energy(amplitude))
+
+  def calc_field_bending_energy(self, amplitude, magnitudesquared, Cnsquared):
+    """
+    utility that lets us compare what the energy landscape would look like with
+    bending energy' from coupling an
+    ideally ordered field |Psi|^2=-alpha/u univformaly everywhere
+    """
+    A_th_squared_integral, error = integrate.quad(lambda z: self.A_th_squared_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)
+    return Cnsquared*magnitudesquared*A_th_squared_integral
                 

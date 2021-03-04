@@ -4,6 +4,7 @@ import math
 import cmath
 import os
 import pandas as pd
+import scipy
 import matplotlib.pyplot as plt
 try:
   import surfaces_and_fields.system_cylinder as system_cylinder
@@ -35,15 +36,15 @@ class Lattice():
     assert(1/self.temperature*1/self.temperature_factor == 1/self.temperature_lattice)
     #lattice characteristics
     #don't use literally the z-direction number of lattice points provided, but scale with wavenumber
-    if n_substeps is None:
-      self.n_substeps =self.z_len*self.th_len
-    else:
-      self.n_substeps= n_substeps
     cylinder_len_z = 2*math.pi / self.wavenumber # = wavelength lambda
     cylinder_radius_th = 2*math.pi*self.radius # circumference - in len units, not radians
     # so that z-direction pixel length is the same and results are comparable with different wavenumber
     self.z_len = int(round(dims[0]/self.wavenumber))
-    self.th_len = dims[1]
+    self.th_len =dims[1]
+    if n_substeps is None:
+      self.n_substeps =self.z_len*self.th_len
+    else:
+      self.n_substeps = n_substeps
     self.z_pixel_len = cylinder_len_z /self.z_len # length divided py number of pixels
     #assert(math.isclose(self.z_pixel_len,2*math.pi/float(dims[0]))) #should be same as for wavenumber 1, length 2pi, dims[0] pixels
     self.th_pixel_len = cylinder_radius_th /self.th_len
@@ -84,6 +85,17 @@ class Lattice():
     self.step_counter = 0
     self.amplitude_average= 0
     self.field_average = np.zeros((self.z_len))
+
+    #dynamic step size
+    self.acceptance_counter=0
+    self.step_counter=0
+    self.target_acceptance = .5 #TODO: hard code as fct of nuber of parameter space dims
+    self.ppf_alpha = -1 * scipy.stats.norm.ppf(self.target_acceptance / 2)
+    self.m = 1
+    self.ratio = ( #  a constant - no need to recalculate 
+        (1 - (1 / self.m)) * math.sqrt(2 * math.pi) * math.exp(self.ppf_alpha ** 2 / 2) / 2 * self.ppf_alpha + 1 / (
+        self.m * self.target_acceptance * (1 - self.target_acceptance)))
+    self.sampling_width=.01
   
   def squared(self, c):
     return abs(c*c.conjugate())
@@ -201,7 +213,10 @@ class Lattice():
 
   def step_lattice(self, amplitude):
     #choose a location
-    index_z, index_th = (random.randrange(-1,self.z_len-1), random.randrange(-1,self.th_len-1))
+    index_z, index_th = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
+    self.step_lattice_loc(amplitude, index_z, index_th)
+
+  def step_lattice_loc(self, amplitude, index_z, index_th):
     z_loc = self.z_pixel_len * index_z 
     z_loc_interstitial = self.z_pixel_len * (index_z -.5)
     z_loc_neighbor_interstitial = self.z_pixel_len * (index_z +.5)
@@ -215,7 +230,12 @@ class Lattice():
     #TODO choose which one to use
     #sqrt_g_interstitial = (self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))
     # random new value with magnitude similar to old value
-    new_value = cmath.rect(random.gauss(abs(self.lattice[index_z, index_th]),1), random.uniform(0, 2*math.pi))
+    #TODO dynamic stepsize
+    stepsize=self.sampling_width#choose something order of magnitude of predicted width of distribution
+    stepsize *= sqrt_g
+    #print("sampling stepsize", stepsize)
+    value=self.lattice[index_z, index_th]
+    new_value = complex(value.real+random.gauss(0,stepsize), value.imag+random.gauss(0,stepsize))
     new_psi_squared = self.squared(new_value)
     #energy difference of switching the pixel:
     old_psi_squared = self.psi_squared[index_z, index_th]
@@ -266,13 +286,14 @@ class Lattice():
     diff_energy += self.Cnsquared*index_raise*self.squared(A_th)*(self.squared(new_value)-
                    self.squared(self.lattice[index_z,index_th]))
     diff_energy*=sqrt_g
-    diff_energy*=self.z_pixel_len*self.th_pixel_len 
+    diff_energy*=self.z_pixel_len*self.th_pixel_len #- included in renormalizing coefficients
     #leaving this out like scaling effective temperature everywhere equally, 
     # relative to temperature at which surface shape is sampled
     #instead do it explicitly by setting (lower) temperature of lattice step
     # by dividing energy by this extra temperature factor 
     diff_energy/= self.temperature_factor
-    if self.me.metropolis_decision(0,diff_energy):
+    accept = self.me.metropolis_decision(0,diff_energy)
+    if accept:
       #change stored value of pixel
       self.lattice[index_z,index_th] = new_value
       #change stored values of dth, dz across its boundaries
@@ -286,7 +307,20 @@ class Lattice():
       #dth
       self.dth[index_z, index_th] = new_derivative_th 
       self.dth[index_z, index_th+1] = new_neighbor_derivative_th
+      self.acceptance_counter+=1
+    self.update_sigma(accept)
       
+  def update_sigma(self, accept):
+    self.step_counter+=1
+    step_number_factor = max((self.step_counter / self.m, 200))
+    steplength_c = self.sampling_width * self.ratio
+    if accept:
+      self.sampling_width += steplength_c * (1 - self.target_acceptance) / step_number_factor
+    else:
+      self.sampling_width -= steplength_c * self.target_acceptance / step_number_factor
+    assert (self.sampling_width) > 0
+    #print(self.step_counter)
+    #print("acceptance" , self.acceptance_counter, self.acceptance_counter/self.step_counter,self.sampling_width)
       
   def plot(self):
     zs = [i for i in range(self.z_len)]
@@ -307,10 +341,10 @@ class Lattice():
     plt.show()
 
 if __name__ == "__main__":
-  lattice = Lattice(amplitude=0, wavenumber=1, radius=1, gamma=1, kappa=0, intrinsic_curvature=0,
-                    alpha=-1, u=1, C=1, n=6, temperature=.001, temperature_lattice = .001,
+  lattice = Lattice(amplitude=0, wavenumber=.2, radius=1, gamma=1, kappa=0, intrinsic_curvature=0,
+                  alpha=-1, u=1, C=1, n=6, temperature=.01, temperature_lattice = .01,
                     dims=(50,25))
-  n_steps=1000
+  n_steps=10000
   n_sub_steps=lattice.z_len*lattice.th_len
   lattice.run(n_steps, n_sub_steps)
   print(lattice.lattice)
