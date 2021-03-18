@@ -53,9 +53,17 @@ class Cylinder():
       self.sqrt_g_theta(amplitude, z) /
       (self.sqrt_g_z(amplitude,z))**5)
 
+
+  def Kthth_linear_integrand(self, amplitude, z):
+    """
+    integrand related to cross term -4KththH_0 
+    Kzz sqrt(g) =-1
+    """
+    return -1
+
   def Kzz_linear_integrand(self, amplitude, z):
     """
-    integrand related to cross term -2KzzH_0 
+    integrand related to cross term -4KzzH_0 
     Kzz sqrt(g) = R'' sqrt(gzz) / gthth
     """
     return ( self.radius_rescaled(amplitude)*amplitude * self.wavenumber**2 * math.sin(self.wavenumber*z) *#minus omitted, cancelled wth (-) from -2KzzH0 later
@@ -105,14 +113,15 @@ class Cylinder():
       Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
       #for interaction with intrinsic mean curvature H0 
       Kzz_linear_integral, error = integrate.quad(lambda z: self.Kzz_linear_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
-      return (Kzz_integral + Kthth_integral + 2*self.intrinsic_curvature*Kzz_linear_integral)
+      Kthth_linear_integral, error = integrate.quad(lambda z: self.Kthth_linear_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
+      return (Kzz_integral + Kthth_integral - 4*self.intrinsic_curvature*(Kzz_linear_integral+Kthth_linear_integral))
 
   def calc_surface_energy(self, amplitude):
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
     return  (self.effective_gamma * self.evaluate_A_integral_0(amplitude) + 
-             self.kappa * self.calc_bending_energy(amplitude))
+             .5*self.kappa * self.calc_bending_energy(amplitude))
 
   def calc_field_bending_energy(self, amplitude, magnitudesquared, Cnsquared):
     """
