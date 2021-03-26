@@ -63,13 +63,19 @@ functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fs
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature,
                                           dims=dims, temperature_lattice=temperature_lattice), #anything we might ever want to vary as exp loop
                   ("amplitude", "C"): lambda var_a, var_C: single_run(n_steps=n_steps,  outdir = outdir, 
-                                          title = ("a"+str(round(var_a,2))+"_C"+str(round(var_C,2))),
+                                          title = ("a"+str(round(var_a,3))+"_C"+str(round(var_C,3))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=var_C, n=n, u=u, gamma=gamma, kappa=kappa, radius=radius,
                                           wavenumber=wavenumber, intrinsic_curvature = intrinsic_curvature, amplitude=var_a,
                                           dims=dims, temperature_lattice=temperature_lattice),
+                  ("wavenumber", "gamma"): lambda var_wvn, var_gamma: single_run(n_steps=n_steps,  outdir = outdir, 
+                                          title = ("wvn"+str(round(var_wvn,3))+"_gamma"+str(round(var_kappa,3))),
+                                          num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
+                                          alpha=alpha, C=C, n=n, u=u, gamma=var_gamma, kappa=kappa, radius=radius,
+                                          wavenumber=var_wvn, intrinsic_curvature = intrinsic_curvature,
+                                          dims=dims, temperature_lattice=temperature_lattice),
                   ("wavenumber", "kappa"): lambda var_wvn, var_kappa: single_run(n_steps=n_steps,  outdir = outdir, 
-                                          title = ("wvn"+str(round(var_wvn,2))+"_kappa"+str(round(var_kappa,2))),
+                                          title = ("wvn"+str(round(var_wvn,3))+"_kappa"+str(round(var_kappa,3))),
                                           num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep = fieldsteps_per_ampstep, 
                                           alpha=alpha, C=C, n=n, u=u, gamma=gamma, kappa=var_kappa, radius=radius,
                                           wavenumber=var_wvn, intrinsic_curvature = intrinsic_curvature,
@@ -199,7 +205,10 @@ def single_run(temp, n_steps, field_type, method,
     amplitude = initial_amplitude #take from global
   if os.path.isfile("./last_sigma.pickle") and os.path.getsize("./last_sigma.pickle"):
     f = open('last_sigma.pickle', 'rb')
-    sampling_width = pickle.load(f)
+    try:
+      sampling_width = pickle.load(f)
+    except EOFError: #very occasionally it rads nothing bcuase file is being written
+      sampling_width=.05 
   else:
     sampling_width = .05
   #relating to fourier space field coeffs

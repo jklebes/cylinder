@@ -18,7 +18,7 @@ class Cylinder():
     self.kappa = kappa
     self.intrinsic_curvature = intrinsic_curvature
     #effective surface tension including H_0^2 constant
-    self.effective_gamma = gamma 
+    self.effective_gamma = gamma + kappa*2*intrinsic_curvature**2
 
   ######## common terms in integrals ###########
   def g_theta(self, amplitude, z):
@@ -66,7 +66,7 @@ class Cylinder():
     integrand related to cross term -4KzzH_0 
     Kzz sqrt(g) = R'' sqrt(gzz) / gthth
     """
-    return ( self.radius_rescaled(amplitude)*amplitude * self.wavenumber**2 * math.sin(self.wavenumber*z) *#minus omitted, cancelled wth (-) from -2KzzH0 later
+    return ( -self.radius_rescaled(amplitude)*amplitude * self.wavenumber**2 * math.sin(self.wavenumber*z) *
              self.sqrt_g_theta(amplitude, z) / self.g_z(amplitude, z))
 
   def A_integrand_real_part(self, diff, amplitude, z):
@@ -105,15 +105,12 @@ class Cylinder():
     """
     calculate bending as (K_i^i)**2.  Gaussian curvature and cross term 2 K_th^th K_z^z are omitted due to gauss-bonnet theorem.
     """
-    if amplitude == 0:
-      Kthth_integral, error = integrate.quad(lambda z: 1.0 / self.radius ** 2, 0, 2 * math.pi / self.wavenumber)
-      return Kthth_integral
     else:
       Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)
       Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
       #for interaction with intrinsic mean curvature H0 
       Kzz_linear_integral, error = integrate.quad(lambda z: self.Kzz_linear_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
-      Kthth_linear_integral, error = integrate.quad(lambda z: self.Kthth_linear_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
+      Kthth_linear_integral =  -2* math.pi / self.wavenumber
       return (Kzz_integral + Kthth_integral - 4*self.intrinsic_curvature*(Kzz_linear_integral+Kthth_linear_integral))
 
   def calc_surface_energy(self, amplitude):

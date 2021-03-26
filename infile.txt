@@ -1,12 +1,12 @@
---n_steps 3000
---field_type lattice
---method  sequential  
+--n_steps 500
+--field_type fourier
+--method  no-field
 --alpha -1
 --C .001
 --u 1
 --n 6
---kappa 0
---gamma 1
+--kappa 1
+--gamma 0
 --temp .001
 --intrinsic_curvature  0
 --amplitude 0  

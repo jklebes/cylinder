@@ -7,7 +7,6 @@ from collections import defaultdict
 if __name__ == "__main__":
   #should be in the relevant directory alread
   filenames = glob.glob("*_mean.csv")
-  print(filenames)
   
   filename0 = filenames[0]
   data0= pd.read_csv(filename0, index_col=0, header=0)
@@ -18,12 +17,11 @@ if __name__ == "__main__":
 
   for filename in filenames:
     filedata= pd.read_csv(filename, index_col=0, header=0)
-    print(filedata)
     vs = filename.split("_")
     #varname1=vs[0]
     #varname2=vs[2]
     filevar1 = vs[1]
-    filevar2 = vs[3]
+    filevar2 = vs[-2]
     for colname in colnames:
       data[colname][filevar1][filevar2]= filedata[colname][0]
   
