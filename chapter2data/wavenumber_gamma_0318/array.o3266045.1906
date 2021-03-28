@@ -1,0 +1,30 @@
+## Running job 3266045.1906 on host dc1s3b1c.arc3.leeds.ac.uk
+##
+## Resources granted:
+##
+## h_vmem = 1G
+## h_rt   = 00:30:00
+## disk   = 1G
+
+initialized energy dict, self.energy =  {'surface': 25.567940211033815}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.013912       1.935357e-04  ... -0.013912                   0.117134
+1         0.000141       2.000950e-08  ... -0.000141                   0.114323
+2         0.000141       2.000950e-08  ... -0.000141                   0.106415
+3         0.000951       9.048792e-07  ...  0.000951                   0.101429
+4         0.000951       9.048792e-07  ...  0.000951                   0.094413
+..             ...                ...  ...       ...                        ...
+495       0.002822       7.963062e-06  ... -0.002822                   0.108480
+496       0.015812       2.500332e-04  ...  0.015812                   0.108470
+497       0.000457       2.091835e-07  ...  0.000457                   0.108460
+498       0.019032       3.622354e-04  ...  0.019032                   0.109487
+499       0.013034       1.698753e-04  ...  0.013034                   0.110522
+
+[500 rows x 5 columns]
+{'abs_amplitude': [171, 1.0, 330.0], 'amplitude_squared': [13, 2.2421305, 217.65013], 'surface_energy': [13, 2.2427053, 217.59435], 'param_0': [0, 1.0, 501.0], 'real_group_sampling_width': [441, 6.116142, 9.810106]}
+{'abs_amplitude': [171, 1.0, 330.0], 'amplitude_squared': [13, 2.2421305, 217.65013], 'surface_energy': [13, 2.2427053, 217.59435], 'param_0': [0, 1.0, 501.0], 'real_group_sampling_width': [441, 6.116142, 9.810106]}
+global t_0 171
+result_means {'abs_amplitude': 0.007629392623683817, 'amplitude_squared': 9.08977142980459e-05, 'surface_energy': 25.568436434106644, 'param_0': 0.0006912388251964475, 'real_group_sampling_width': 0.0906117604588613, 'global_cutoff': 171}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.007629392623683817, 'amplitude_squared': 9.08977142980459e-05, 'surface_energy': 25.568436434106644, 'param_0': 0.0006912388251964475, 'real_group_sampling_width': 0.0906117604588613, 'global_cutoff': 171} None

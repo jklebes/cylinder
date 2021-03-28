@@ -1,0 +1,30 @@
+## Running job 3266045.1736 on host dc1s3b1c.arc3.leeds.ac.uk
+##
+## Resources granted:
+##
+## h_vmem = 1G
+## h_rt   = 00:30:00
+## disk   = 1G
+
+initialized energy dict, self.energy =  {'surface': 25.013628711046696}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ...  0.000601                   0.123189
+1         0.008753           0.000077  ... -0.008753                   0.120233
+2         0.006769           0.000046  ... -0.006769                   0.120162
+3         0.006769           0.000046  ... -0.006769                   0.111850
+4         0.006610           0.000044  ... -0.006610                   0.106609
+..             ...                ...  ...       ...                        ...
+495       0.017930           0.000321  ... -0.017930                   0.131223
+496       0.022077           0.000487  ... -0.022077                   0.131211
+497       0.008256           0.000068  ... -0.008256                   0.129952
+498       0.007087           0.000050  ...  0.007087                   0.132438
+499       0.014534           0.000211  ...  0.014534                   0.134968
+
+[500 rows x 5 columns]
+{'abs_amplitude': [23, 1.8138418, 263.52905], 'amplitude_squared': [55, 1.3180325, 338.38315], 'surface_energy': [55, 1.318557, 338.24854], 'param_0': [138, 1.0245886, 354.28854], 'real_group_sampling_width': [482, 1.0, 19.0]}
+{'abs_amplitude': [23, 1.8138418, 263.52905], 'amplitude_squared': [55, 1.3180325, 338.38315], 'surface_energy': [55, 1.318557, 338.24854], 'param_0': [138, 1.0245886, 354.28854], 'real_group_sampling_width': [482, 1.0, 19.0]}
+global t_0 138
+result_means {'abs_amplitude': 0.008945784721683954, 'amplitude_squared': 0.00012141460694072992, 'surface_energy': 25.014098618921043, 'param_0': 0.0004498469640336241, 'real_group_sampling_width': 0.10731214194283875, 'global_cutoff': 138}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.008945784721683954, 'amplitude_squared': 0.00012141460694072992, 'surface_energy': 25.014098618921043, 'param_0': 0.0004498469640336241, 'real_group_sampling_width': 0.10731214194283875, 'global_cutoff': 138} None

@@ -146,6 +146,7 @@ class Lattice():
         self.dth[z_index, th_index]  =   value-left_value_th
     self.dz/= self.z_pixel_len
     self.dth/= self.th_pixel_len
+  
 
   def surface_field_energy(self, amplitude):
     """calculates energy on proposed amplitude change"""
@@ -285,6 +286,7 @@ class Lattice():
 
     diff_energy += self.Cnsquared*index_raise*self.squared(A_th)*(self.squared(new_value)-
                    self.squared(self.lattice[index_z,index_th]))
+    #The naive or 0th order scaling: \alpha, u by cell area; c by cell area but was /lx^2, /ly^2 earlier
     diff_energy*=sqrt_g
     diff_energy*=self.z_pixel_len*self.th_pixel_len #- included in renormalizing coefficients
     #leaving this out like scaling effective temperature everywhere equally, 

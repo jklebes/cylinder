@@ -1,0 +1,30 @@
+## Running job 3266045.1928 on host dc2s1b3a.arc3.leeds.ac.uk
+##
+## Resources granted:
+##
+## h_vmem = 1G
+## h_rt   = 00:30:00
+## disk   = 1G
+
+initialized energy dict, self.energy =  {'surface': 9.38567099827656}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.003697           0.000014  ...  0.003697                   0.106018
+1         0.003697           0.000014  ...  0.003697                   0.098684
+2         0.004463           0.000020  ... -0.004463                   0.094060
+3         0.004463           0.000020  ... -0.004463                   0.087553
+4         0.004463           0.000020  ... -0.004463                   0.081497
+..             ...                ...  ...       ...                        ...
+495       0.013682           0.000187  ...  0.013682                   0.121440
+496       0.006023           0.000036  ... -0.006023                   0.120272
+497       0.019342           0.000374  ...  0.019342                   0.119118
+498       0.001956           0.000004  ...  0.001956                   0.120247
+499       0.002163           0.000005  ... -0.002163                   0.120235
+
+[500 rows x 5 columns]
+{'abs_amplitude': [4, 1.0821958, 459.25146], 'amplitude_squared': [1, 1.0011921, 499.40466], 'surface_energy': [1, 1.0012275, 499.387], 'param_0': [2, 1.8918091, 263.76868], 'real_group_sampling_width': [492, 1.0255702, 8.775606]}
+{'abs_amplitude': [4, 1.0821958, 459.25146], 'amplitude_squared': [1, 1.0011921, 499.40466], 'surface_energy': [1, 1.0012275, 499.387], 'param_0': [2, 1.8918091, 263.76868], 'real_group_sampling_width': [492, 1.0255702, 8.775606]}
+global t_0 4
+result_means {'abs_amplitude': 0.007903282738644851, 'amplitude_squared': 0.00010040184438991369, 'surface_energy': 9.386125022108255, 'param_0': 0.0003983566051180225, 'real_group_sampling_width': 0.087335969459668, 'global_cutoff': 4}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.007903282738644851, 'amplitude_squared': 0.00010040184438991369, 'surface_energy': 9.386125022108255, 'param_0': 0.0003983566051180225, 'real_group_sampling_width': 0.087335969459668, 'global_cutoff': 4} None

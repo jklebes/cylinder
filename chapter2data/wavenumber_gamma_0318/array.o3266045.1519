@@ -1,0 +1,30 @@
+## Running job 3266045.1519 on host dc1s8b1b.arc3.leeds.ac.uk
+##
+## Resources granted:
+##
+## h_vmem = 1G
+## h_rt   = 00:30:00
+## disk   = 1G
+
+initialized energy dict, self.energy =  {'surface': 37.14369214741523}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.000000           0.000000  ...  0.001046                   0.186695
+1         0.000000           0.000000  ...  0.001046                   0.173780
+2         0.012755           0.000163  ... -0.012755                   0.165638
+3         0.004335           0.000019  ...  0.004335                   0.157877
+4         0.007007           0.000049  ... -0.007007                   0.161568
+..             ...                ...  ...       ...                        ...
+495       0.017619           0.000310  ... -0.017619                   0.189965
+496       0.021964           0.000482  ... -0.021964                   0.191772
+497       0.018768           0.000352  ... -0.018768                   0.191753
+498       0.017505           0.000306  ...  0.017505                   0.195423
+499       0.005233           0.000027  ... -0.005233                   0.201057
+
+[500 rows x 5 columns]
+{'abs_amplitude': [15, 1.1296617, 430.21732], 'amplitude_squared': [3, 1.0439159, 477.04993], 'surface_energy': [3, 1.044373, 476.84113], 'param_0': [3, 1.1306893, 440.4393], 'real_group_sampling_width': [480, 3.3291295, 6.3079553]}
+{'abs_amplitude': [15, 1.1296617, 430.21732], 'amplitude_squared': [3, 1.0439159, 477.04993], 'surface_energy': [3, 1.044373, 476.84113], 'param_0': [3, 1.1306893, 440.4393], 'real_group_sampling_width': [480, 3.3291295, 6.3079553]}
+global t_0 15
+result_means {'abs_amplitude': 0.013776580038630939, 'amplitude_squared': 0.00029266458300102646, 'surface_energy': 37.14414035604012, 'param_0': 0.0012256556683065928, 'real_group_sampling_width': 0.1420180162586385, 'global_cutoff': 15}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.013776580038630939, 'amplitude_squared': 0.00029266458300102646, 'surface_energy': 37.14414035604012, 'param_0': 0.0012256556683065928, 'real_group_sampling_width': 0.1420180162586385, 'global_cutoff': 15} None

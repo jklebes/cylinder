@@ -1,0 +1,30 @@
+## Running job 3266045.501 on host dc2s3b1a.arc3.leeds.ac.uk
+##
+## Resources granted:
+##
+## h_vmem = 1G
+## h_rt   = 00:30:00
+## disk   = 1G
+
+initialized energy dict, self.energy =  {'surface': 50.47148853308192}
+complex_sample_method None not recognized
+defaulting to multivariate-gaussian
+     abs_amplitude  amplitude_squared  ...   param_0  real_group_sampling_width
+0         0.225870           0.051017  ...  0.225870                   0.459630
+1         0.350028           0.122520  ...  0.350028                   0.438095
+2         0.308120           0.094938  ...  0.308120                   0.427582
+3         0.308120           0.094938  ...  0.308120                   0.398004
+4         0.291413           0.084922  ...  0.291413                   0.379356
+..             ...                ...  ...       ...                        ...
+495       0.325559           0.105988  ...  0.325559                   0.135902
+496       0.285109           0.081287  ...  0.285109                   0.138513
+497       0.302460           0.091482  ...  0.302460                   0.137184
+498       0.289296           0.083692  ...  0.289296                   0.134583
+499       0.296703           0.088032  ...  0.296703                   0.134570
+
+[500 rows x 5 columns]
+{'abs_amplitude': [0, 1.3427958, 373.10214], 'amplitude_squared': [0, 1.3615006, 367.97632], 'surface_energy': [1, 1.0897616, 458.81595], 'param_0': [0, 1.3427958, 373.10214], 'real_group_sampling_width': [444, 3.4681633, 16.435213]}
+{'abs_amplitude': [0, 1.3427958, 373.10214], 'amplitude_squared': [0, 1.3615006, 367.97632], 'surface_energy': [1, 1.0897616, 458.81595], 'param_0': [0, 1.3427958, 373.10214], 'real_group_sampling_width': [444, 3.4681633, 16.435213]}
+global t_0 1
+result_means {'abs_amplitude': 0.30637477009431674, 'amplitude_squared': 0.09402205053426448, 'surface_energy': 50.39584208289881, 'param_0': 0.30637477009431674, 'real_group_sampling_width': 0.10977348555497399, 'global_cutoff': 1}
+single run returning ['param_0'] ['abs_amplitude', 'amplitude_squared'] {'abs_amplitude': 0.30637477009431674, 'amplitude_squared': 0.09402205053426448, 'surface_energy': 50.39584208289881, 'param_0': 0.30637477009431674, 'real_group_sampling_width': 0.10977348555497399, 'global_cutoff': 1} None

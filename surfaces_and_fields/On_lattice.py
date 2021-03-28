@@ -38,9 +38,10 @@ class Lattice():
     # note: these are left derivatives:
     # derivative stored at i refers to difference between i-1, i positions in corrseponding 
     # grid of lattice values
-
+    #rescaling: save these for when a does not change
+    self.rescale_factors = np.zeros((self.z_len))
     self.random_initialize()
-    print("initialized\n", self.lattice)
+    #print("initialized\n", self.lattice)
 
     #simple option with no influence from field energy to surface shape
     energy_fct_surface_term = lambda real_params, complex_params : self.surface.calc_surface_energy(*real_params) 
@@ -69,6 +70,8 @@ class Lattice():
         self.lattice[z_index, th_index] = value
         #fill stored energy density, 
         self.psi_squared[z_index, th_index] = self.squared(value) 
+        #fill rescale factors for initial a=0
+        self.rescale_factors[z_index] = self.rescale_factor(z_loc=z_index*self.z_pixel_len, amplitude=0)
     for z_index in range(self.z_len):
       for th_index in range(self.th_len):    
         #dz
@@ -90,7 +93,22 @@ class Lattice():
         self.dth[z_index, th_index]  =  self.covariant_laplacian_theta(value, left_value_th, right_value_th,
                                        z_loc=z_index*self.z_pixel_len, amplitude=0)
 
-  
+  def rescale_factor(z_loc, amplitude):
+      #need the cell wider and narrower dimension
+      qz = self.z_pixel_len*self.sqrt_g_zz(z_loc, amplitude)/self.cutoff_length #number of implicit modes in cell
+      qth = self.th_pixel_len*self.sqrt_g_thth(z_loc, amplitude)/self.cutoff_length #number of implicit modes in cell
+      small_q=min(qz,qth)
+      big_q=max(qz, qth)
+      #approximate the central square as a cicle over q space with equal area
+      correction = math.log(alpha+c*(small_q*2/math.sqrt(math.pi))**2)/(2*c)-math.log(alpha)/(2*c)
+      #add a bit for the rectangle's side
+      sidewidth=(big_q-small_q)
+      sideintegral = math.atan(big_q*math.sqrt(c) / math.sqrt(alpa)) - math.atan(small_q* math.sqrt(c) /math.sqrt(alpha))
+      sideintegral *= 1/math.sqrt(alpha*c)
+      correction+=4*sidewidth*sideintegral
+      #combinatorics factor is 16
+      return 16*u*factor
+
   def left_derivative(self, index_z, index_th):
     #choose a formula for numerical derivative on a lattice
     #left or right derivative is fine for an energy density of |d_thPsi|^2, |d_zPsi|^2 parts
