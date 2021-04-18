@@ -42,5 +42,5 @@ if __name__ == "__main__":
   varfile.write(var1name +" "+var2name+ "\n")
   for var1 in var1range:
       for var2 in var2range:
-          varfile.write(str(round(var1,5)) + " " + str(round(var2,5)) +"\n")
+          varfile.write(str(round(var1, 5)) + " " + str(round(var2, 5)) +"\n")
   varfile.close()

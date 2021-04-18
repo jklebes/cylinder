@@ -1,18 +1,19 @@
 --n_steps 500
---field_type fourier
---method  no-field
+--field_type lattice
+--method  sequential
 --alpha -1
---C .001
+--C 1
 --u 1
 --n 6
---kappa 1
---gamma 0
---temp .001
+--kappa 0
+--gamma 1
+--temp 1
+--temp_final .0000000001
 --intrinsic_curvature  0
 --amplitude 0  
 --radius 1
 --wavenumber  1
 --num_field_coeffs 2 3
---measure_every 10
---fieldsteps_per_ampstep  10  
+--measure_every 50
+--fieldsteps_per_ampstep  100  
 --dims 50 50

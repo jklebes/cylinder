@@ -35,6 +35,7 @@ if __name__ == "__main__":
   fileparser = argparse.ArgumentParser(fromfile_prefix_chars='@')
   fileparser.convert_arg_line_to_args = convert_arg_line_to_args
   fileparser.add_argument('--temp', type=float)
+  fileparser.add_argument('--temp_final', type=float, required=False, default=None)
   fileparser.add_argument('--n_steps', type=int)
   fileparser.add_argument('--field_type', type=str)
   fileparser.add_argument('--method', type=str)
@@ -58,11 +59,14 @@ if __name__ == "__main__":
   fileparser.add_argument('--outdir', required=False, default='.', type=str)
   args= fileparser.parse_args(['@'+infilename])
   if args.temperature_lattice is None:
-    args.temperature_lattice=args.temp
+    args.temperature_lattice=1
   if args.n_substeps is None:
     args.n_substeps = args.dims[0]*args.dims[1]
+  if args.temp_final is None:
+    args.temp_final = args.temp
 
   temp=args.temp
+  temp_final=args.temp_final
   n_steps=args.n_steps
   field_type=args.field_type
   method=args.method
@@ -92,16 +96,16 @@ if __name__ == "__main__":
 
   #decide on file name
   filename = var1name+"_"+var1+"_"+ var2name+"_"+var2
-
+  
   #run a single simulation as in run file
-  results = run.single_run(temp=temp, n_steps=n_steps, field_type=field_type, 
+  results = run.single_run(temp=temp, temp_final=temp_final, n_steps=n_steps, field_type=field_type, 
                 method=method,
                 num_field_coeffs=num_field_coeffs, fieldsteps_per_ampstep=fieldsteps_per_ampstep, 
                 measure_every=measure_every,
                 alpha=alpha, C=C, n=n, u=u, 
                 gamma=gamma, kappa=kappa, radius=radius, 
                 intrinsic_curvature=intrinsic_curvature,
-                dims=dims, temperature_lattice=temperature_lattice, n_substeps=n_substeps,
+                dims=dims, n_substeps=n_substeps,
                 wavenumber=wavenumber,  
                 amplitude=amplitude, field_coeffs=field_coeffs, outdir = outdir, title = filename)
   #returns me.params_names, me.observables_names, result_means (dict), me.covariance_matrix_complex

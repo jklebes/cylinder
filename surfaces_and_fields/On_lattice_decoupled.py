@@ -177,27 +177,25 @@ class Lattice():
   
 
   def surface_field_energy(self, amplitude):
-    """calculates energy on proposed amplitude change"""
+    """calculates energy on proposed amplitude change
+    in the decoupled version, don't get a surface tension from field energy per area
+    this is unfortunately very large and fluctuation-dominated.  let's ignore that with thejustification
+    that the same molecules would have similar energy from thermal fluctuations when they're not part 
+    of the surface.
+    just get the spin connection part"""
     energy=0
     for z_index in range(0,self.z_len):
       z_loc = z_index * self.z_pixel_len
       z_loc_interstitial = (z_index-.5) * self.z_pixel_len
-      col_sqrtg = self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)
       col_index_raise_and_sqrtg = self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
       col_A_th = self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)
       psi_col = self.lattice[z_index]
-      psi_squared_column = self.psi_squared[z_index]
-      #TODO could do *sqrtg at the end to whole column, if covariant laplacian returned value/sqrt_g
-      energy_col = (self.alpha*sum(psi_squared_column)+self.u/2*sum(psi_squared_column**2)) *col_sqrtg
-      dz_col = self.dz[z_index]
-      energy_col += self.C*sum(self.squared(dz_col))*col_sqrtg #TODO check this squares elementwise, then sums
-      dth_col = self.dth[z_index]
-      #C|dth Psi(x)|^2 part of energy density
-      energy_col += self.C*sum(self.squared(dth_col))*col_index_raise_and_sqrtg
       #-iCn(A_th* Psi* dth Psi(x)) and c.c. part of energy density
-      energy_col += self.C*self.n*2*sum((col_A_th.conjugate()*psi_col.conjugate()*dth_col).imag)*col_index_raise_and_sqrtg
+      # not even including d_th-A_th cross term, which enalizes rotations on the curved parts
+      # any rotations occuring in field are fluctuations, too
+      #energy_col += self.C*self.n*2*sum((col_A_th.conjugate()*psi_col.conjugate()*dth_col).imag)*col_index_raise_and_sqrtg
       # Cn^2|A_th Psi(x)|^2  part of energy density
-      energy_col += self.Cnsquared*sum(self.squared(psi_col))*self.squared(col_A_th)*col_index_raise_and_sqrtg
+      energy_col = self.Cnsquared*sum(self.squared(psi_col))*self.squared(col_A_th)*col_index_raise_and_sqrtg
 
       energy += energy_col
     #print("amplitude ", amplitude, "would get field energy", energy*self.z_pixel_len*self.th_pixel_len)
@@ -225,7 +223,6 @@ class Lattice():
       #self.field_energy_time_series.append(field_energy)
       self.me.energy["field"] = field_energy
       self.me.measure()
-      #lower temperature
 
   def update_rescale_params(self, amplitude):
     """
