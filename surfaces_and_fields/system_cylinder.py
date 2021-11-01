@@ -105,13 +105,12 @@ class Cylinder():
     """
     calculate bending as (K_i^i)**2.  Gaussian curvature and cross term 2 K_th^th K_z^z are omitted due to gauss-bonnet theorem.
     """
-    else:
-      Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)
-      Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
-      #for interaction with intrinsic mean curvature H0 
-      Kzz_linear_integral, error = integrate.quad(lambda z: self.Kzz_linear_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
-      Kthth_linear_integral =  -2* math.pi / self.wavenumber
-      return (Kzz_integral + Kthth_integral - 4*self.intrinsic_curvature*(Kzz_linear_integral+Kthth_linear_integral))
+    Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)
+    Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
+    #for interaction with intrinsic mean curvature H0 
+    Kzz_linear_integral, error = integrate.quad(lambda z: self.Kzz_linear_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
+    Kthth_linear_integral =  -2* math.pi / self.wavenumber
+    return (Kzz_integral + Kthth_integral - 4*self.intrinsic_curvature*(Kzz_linear_integral+Kthth_linear_integral))
 
   def calc_surface_energy(self, amplitude):
     """

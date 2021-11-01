@@ -1,9 +1,12 @@
 #all the output
 out/
+2021-*/
+fixed_surfaces/
 cylinder.sh.e*
 cylinder.sh.o*
 cylinder_taskarray.sh.e*
 cylinder_taskarray.sh.o*
+*.png
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,code,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,code,linux
@@ -97,6 +100,7 @@ doc/_build/
 # IPython
 profile_default/
 ipython_config.py
+.ipynb_checkpoints/
 
 # pyenv
 .python-version
