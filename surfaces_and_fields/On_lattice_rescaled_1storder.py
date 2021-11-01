@@ -18,7 +18,7 @@ import metropolisengine
 
 class Lattice(lattice.Lattice):
   def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
-                u, C, n, temperature, temperature_final, dims = (100,50), n_substeps=None, fieldsteps_per_ampstep=1):
+                u, C, n, temperature, temperature_final, dims = (100,50), n_substeps=None):
     # all needs to happen before random_initialize in parent init:
     # alpha given is for areas 1:
     # therefore use an alpha_0 roughly smallest area * alpha
@@ -58,7 +58,7 @@ class Lattice(lattice.Lattice):
     self.correction /= dims[0]*dims[1]
     print(self.correction, "per cell") 
     super().__init__(amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
-                     u, C, n, temperature, temperature_final, dims, n_substeps, fieldsteps_per_ampstep)
+                     u, C, n, temperature, temperature_final, dims, n_substeps)
     biggest_celldims =  (self.z_pixel_len * self.surface.sqrt_g_z(z=math.pi/(2*self.wavenumber), amplitude=.99), self.th_pixel_len * self.surface.sqrt_g_theta(z=math.pi/(2*self.wavenumber), amplitude=.99))
     #self.energy_const = -self.get_background_energy(biggest_celldims, ordered_reference=False) 
     print("setting total average background energy per area", self.energy_const)
@@ -84,6 +84,28 @@ class Lattice(lattice.Lattice):
     # 2* 1/2 kBT per cell
     # energy per unit area = kbT * number of cells per area = kbT / area per cell
     ans = -self.temperature
+    #a Order(u) correction to background energy
+    # integral of q/(alpha+cq^2) from 1/50 to 1
+    upper_limit=1*self.area_factor
+    lower_limit = (1/max((self.z_len, self.th_len)))*self.area_factor
+    #alpha on this lattice spacing scales with area.  self.alpha realtes to unit area
+    alpha_cell = self.alpha  * area
+    #c is invariant, for isotropic lattice scaling
+    #for anisotropc cells, this is probably where problems come from.  one side is short and gradient energy high.
+    try:
+      integral=math.pi/self.C *(math.log(self.C*upper_limit**2+alpha_cell) - math.log(self.C*lower_limit**2+alpha_cell)) 
+    except ValueError:
+      if self.C*upper_limit**2+alpha_cell>0: #only second log is the problem
+        print("tried taking the log of (c q**2 + alpha)=" , self.C*lower_limit**2+self.alpha, "in flcutuation order(u) correction,")
+        lower_limit = math.sqrt(abs(alpha_cell)/self.C)+.0000001
+        print("dialing back to correlation up to length", 1/lower_limit, "only in <Psi^4> addition to background")
+        integral=math.pi/self.C *(math.log(self.C*upper_limit**2+alpha_cell) - math.log(self.C*lower_limit**2+alpha_cell)) 
+      else: 
+        print("c < |alpha|, No sort of perturbative renormalization possible of fluctuations larger than cell size, skipping order(u) correction to background energy")
+        integral =0
+    correction = self.u*self.temperature**3*4 * integral**2 #multiplicity of this diagram:4 #1/2 in front of u, *2 for 2 fields
+    correction /= self.z_len * self.th_len
+    ans+= correction #correction is per cell
     alpha=self.alpha
     if alpha<0 and ordered_reference:
       energy_ordered_reference = .5 *alpha**2/self.u #this is an energy per unit area
@@ -115,19 +137,15 @@ class Lattice(lattice.Lattice):
 
   def step_lattice_loc(self, amplitude, index_z, index_th):
     z_loc = self.z_pixel_len * index_z 
-    z_loc_neighbor = self.z_pixel_len * (index_z +1)
     z_loc_interstitial = self.z_pixel_len * (index_z -.5)
     z_loc_neighbor_interstitial = self.z_pixel_len * (index_z +.5)
     #properties of the surface at this point
-    A_th= self.surface.A_theta(z=z_loc, amplitude=amplitude) 
-    index_raise = 1/self.surface.g_theta(z=z_loc, amplitude=amplitude) 
-    A_th_neighbor= self.surface.A_theta(z=z_loc_neighbor, amplitude=amplitude) 
-    neighbor_index_raise = 1/self.surface.g_theta(z=z_loc_neighbor, amplitude=amplitude) 
+    A_th= self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
+    index_raise = 1/self.surface.g_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
+    A_th_neighbor= self.surface.A_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
+    neighbor_index_raise = 1/self.surface.g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
     
     sqrt_g = (self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude))
-    sqrt_g_interstitial = (self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))
-    #neighbor_sqrt_g = (self.surface.sqrt_g_theta(z=z_loc_neighbor, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_neighbor, amplitude=amplitude))
-    neighbor_sqrt_g_interstitial = (self.surface.sqrt_g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_neighbor_interstitial, amplitude=amplitude))
     #TODO choose which one to use
     #sqrt_g_interstitial = (self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))
     # random new value with magnitude similar to old value
@@ -150,7 +168,7 @@ class Lattice(lattice.Lattice):
     new_derivative_z = (new_value-left_value_z)/self.z_pixel_len
     new_derivative_th = (new_value -left_value_th)/self.th_pixel_len
     #term |d_i psi|^2 in energy
-    diff_derivative_z = (self.squared(new_derivative_z) - self.squared(self.dz[index_z, index_th]))/(self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))**2*sqrt_g_interstitial/sqrt_g
+    diff_derivative_z = (self.squared(new_derivative_z) - self.squared(self.dz[index_z, index_th]))/(self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))**2
     diff_derivative_th = (self.squared(new_derivative_th) - self.squared(self.dth[index_z, index_th]))*index_raise
     
     diff_energy += self.C*( diff_derivative_z + diff_derivative_th )
@@ -160,8 +178,8 @@ class Lattice(lattice.Lattice):
     right_value_th = self.lattice[index_z, index_th+1]
     new_neighbor_derivative_z = (right_value_z-new_value)/self.z_pixel_len
     new_neighbor_derivative_th = (right_value_th-new_value)/self.th_pixel_len
-    diff_neighbor_derivative_z = (self.squared(new_neighbor_derivative_z) - self.squared(self.dz[index_z+1, index_th]) )/self.surface.sqrt_g_z(z=z_loc_neighbor_interstitial, amplitude=amplitude)**2*neighbor_sqrt_g_interstitial/sqrt_g
-    diff_neighbor_derivative_th = (self.squared(new_neighbor_derivative_th) - self.squared(self.dth[index_z, index_th+1]))*index_raise
+    diff_neighbor_derivative_z = (self.squared(new_neighbor_derivative_z) - self.squared(self.dz[index_z+1, index_th]) )/self.surface.sqrt_g_z(z=z_loc_neighbor_interstitial, amplitude=amplitude)**2
+    diff_neighbor_derivative_th = (self.squared(new_neighbor_derivative_th) - self.squared(self.dth[index_z, index_th+1]))*neighbor_index_raise
     
     diff_energy += self.C*( diff_neighbor_derivative_z + diff_neighbor_derivative_th )
     
@@ -170,22 +188,22 @@ class Lattice(lattice.Lattice):
     # (stored at array location i)
     #i(A_th* Psi* d_th Psi)+c.c. = 2*Im(A_th*Psi* d_th Psi)
     old_cross_term = (A_th.conjugate()*self.lattice[index_z,index_th].conjugate()*
-                      self.dth[index_z, index_th]).imag
+                      self.dth[index_z, index_th]/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)).imag
                       #except for *index raise,*2nC done later to both
     new_interstitial_psi =  (new_value)# +left_value_th)/2
     new_cross_term = (A_th.conjugate()*new_interstitial_psi.conjugate()*
-                      new_derivative_th).imag
+                      new_derivative_th/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)).imag
     diff_energy += self.C*2*self.n*index_raise*(new_cross_term - old_cross_term) 
+
+    #diff in cross-term in(A_th* Psi* d_th Psi) and complex conjugate, for neightbor at i+1
+    old_neighbor_cross_term = (A_th_neighbor.conjugate()*self.lattice[index_z,index_th+1].conjugate()*
+                      self.dth[index_z, index_th+1]/self.surface.sqrt_g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)).imag
+    new_neighbor_cross_term = (A_th_neighbor.conjugate()*self.lattice[index_z,index_th+1].conjugate()*
+                      new_neighbor_derivative_th/self.surface.sqrt_g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)).imag
+    diff_energy += self.C*2*self.n*neighbor_index_raise*(new_neighbor_cross_term - old_neighbor_cross_term)
+
     diff_energy += self.Cnsquared*index_raise*self.squared(A_th)*(self.squared(new_value)-
                    self.squared(self.lattice[index_z,index_th]))
-
-    #diff in cross-term in(A_th* Psi* d_th Psi) and complex conjugate, for neightbor at th=i+1
-    # no neighbor or interstitial quantities - it's all in one z-location
-    old_neighbor_cross_term = (A_th.conjugate()*self.lattice[index_z,index_th+1].conjugate()*
-                      self.dth[index_z, index_th+1]).imag
-    new_neighbor_cross_term = (A_th.conjugate()*self.lattice[index_z,index_th+1].conjugate()*
-                      new_neighbor_derivative_th).imag
-    diff_energy += self.C*2*self.n*index_raise*(new_neighbor_cross_term - old_neighbor_cross_term)
     
     #The scaling of alpha', u' by area
     diff_energy*=sqrt_g
@@ -219,8 +237,8 @@ class Lattice(lattice.Lattice):
       z_spacing = self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)
       th_spacing = self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)
       col_sqrtg = z_spacing*th_spacing
-      col_index_raise_and_sqrtg = self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)/self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)
-      col_A_th = self.surface.A_theta(z=z_loc, amplitude=amplitude)
+      col_index_raise_and_sqrtg = self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_A_th = self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)
       psi_col = lattice[i]
       psi_squared_column = psi_squared[i]
       #TODO could do *sqrtg at the end to whole column, if covariant laplacian returned value/sqrt_g
@@ -254,7 +272,7 @@ class Lattice(lattice.Lattice):
       th_spacing = self.surface.sqrt_g_theta(z=z_loc, amplitude=reference_amplitude)
       col_sqrtg = self.surface.sqrt_g_z(z=z_loc, amplitude=reference_amplitude)*self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)
       col_index_raise_and_sqrtg = col_sqrtg / th_spacing**2
-      col_A_th = self.surface.A_theta(z=z_loc, amplitude=amplitude)
+      col_A_th = self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)
       psi_col = lattice[z_index]
       psi_squared_column = psi_squared[z_index]
       #TODO could do *sqrtg at the end to whole column, if covariant laplacian returned value/sqrt_g

@@ -116,7 +116,7 @@ class Cylinder():
     """
     energy from surface tension * surface area, + bending rigidity constant * mean curvature squared
     """
-    return  (self.effective_gamma * self.evaluate_A_integral_0(amplitude) + 
+    return  2*math.pi*(self.effective_gamma * self.evaluate_A_integral_0(amplitude) + 
              .5*self.kappa * self.calc_bending_energy(amplitude))
 
   def calc_field_bending_energy(self, amplitude, magnitudesquared, Cnsquared):
