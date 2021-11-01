@@ -14,7 +14,8 @@ import argparse
 import metropolisengine
 import surfaces_and_fields.system_cylinder2D as cylinder2d
 import surfaces_and_fields.system_cylinder as cylinder
-import surfaces_and_fields.On_lattice_simple as On_lattice
+#TODO control logic on level of rescale
+import surfaces_and_fields.On_lattice_rescaled_0thorder as On_lattice
 me_version = "0.2.19"#metropolisengine.__version__ #save version number TODO get it automatically 
 
 def loop(single_run_lambda, range1, range2):
@@ -178,11 +179,11 @@ def run_experiment(exp_type,  range1, range2):
     plot_save(range1=range1, range2=range2, results=results[name], title=name, exp_dir=exp_dir)
 
 
-def single_run(temp, n_steps, field_type, method, 
+def single_run(temp, temp_final,  n_steps, field_type, method, 
               num_field_coeffs, fieldsteps_per_ampstep, measure_every,
               alpha, C, n, u, 
               gamma, kappa, radius, intrinsic_curvature, n_substeps,
-              dims, temperature_lattice, 
+              dims,
               wavenumber, 
               amplitude=None, field_coeffs=None, outdir = None, title = None):
   """
@@ -198,6 +199,7 @@ def single_run(temp, n_steps, field_type, method,
                 "lattice" real-space lattice simulation 
                 "fourier" field decomposed in fourier modes
   """
+  print("recieved variables u", u, "alpha", alpha)
   ########### initial values ##############
   # read from files or generate
   if amplitude is None:
@@ -259,7 +261,7 @@ def single_run(temp, n_steps, field_type, method,
     #initialize lattice - includes surface object, metropolisengine
     lattice = On_lattice.Lattice(amplitude=amplitude, wavenumber=wavenumber, radius=radius, gamma=gamma, kappa=kappa,
                 intrinsic_curvature=intrinsic_curvature, alpha=alpha,
-                u=u, C=C, n=n, temperature=temp, temperature_lattice=temperature_lattice,
+                u=u, C=C, n=n, temperature=temp, temperature_final=temp_final,
                 dims = dims, n_substeps=n_substeps)
     #point variable name me to lattice's metropolis engine
     #to facilitate extracting its data: ampltiude,energy history and averages
@@ -320,7 +322,7 @@ def single_run(temp, n_steps, field_type, method,
     lattice.plot_save(outdir, title)
   ########## save, resturn results ################
   if outdir is not None and os.path.isdir(outdir):
-    me.save_time_series()
+    me.save_time_series() #save just the whole time series of me quantities, not field profiles
     df = me.df #pd.DataFrame()
     #print(outdir, title, me.params_names, states)
     df.to_csv(os.path.join(outdir, title + ".csv"))
@@ -335,8 +337,15 @@ def single_run(temp, n_steps, field_type, method,
     f = open('last_sigma.pickle', 'wb')
     pickle.dump(me.real_group_sampling_width, f)
   try:
-    me.save_equilibrium_stats()
+    #lattice profile histories needs to become a dataframe first
+    profiles=lattice.get_profiles_df()
+    me.save_equilibrium_stats(profiles) #include profiles in cuttoff and averaging.  It's a tuple of 2 dfs.
     result_means = me.equilibrated_means 
+    #dict to df
+    field_profile_df = pd.Series(me.field_profile)
+    field_abs_profile_df = pd.Series(me.field_abs_profile)
+    field_profile_df.to_csv(os.path.join(outdir, title+'_profile.csv')) #TODO save this to file
+    field_abs_profile_df.to_csv(os.path.join(outdir, title+'_profile_abs.csv'))
     print("result_means", result_means)
     print("single run returning",  me.params_names, me.observables_names, result_means , me.covariance_matrix_complex)
   except IndexError:
