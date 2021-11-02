@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "../../parallel_single_run.py", line 106, in <module>
-    amplitude=amplitude, field_coeffs=field_coeffs, outdir = outdir, title = filename)
-  File "/nobackup/fsjsk/cylinder/run.py", line 208, in single_run
-    sampling_width = pickle.load(f)
-EOFError: Ran out of input
