@@ -1,6 +1,7 @@
 import math
 import scipy.integrate as integrate
 import numpy as np
+import scipy.special
 
 class Cylinder():
   """
@@ -90,11 +91,14 @@ class Cylinder():
   def evaluate_A_integral_0(self, amplitude):
     #useful in no-field simulations
     #not doing img part, whcih should be 0, every times
-    #img_part, error = integrate.quad(lambda z: self.A_integrand_img_part(0, amplitude, z),
-    #                                 0, 2 * math.pi / self.wavenumber)
-    #assert (math.isclose(img_part, 0, abs_tol=1e-9))
-    real_part, error = integrate.quad(lambda z: self.A_integrand_real_part(0, amplitude, z),
-                                      0, 2 * math.pi / self.wavenumber)
+    #the integral 2 pi r \int^{2pi/k} (1+a sin kz)sqrt{1+ a^2 k^2 r^2 \cos^2ks } dz
+    # evaluates to 8 pi r / k * EllipticE(-a^2 k^2 r^2),
+    # with complete elliptic integral of the first kind EllipticE
+    # faster to retrieve this value from scipy.special than numerically integrate
+    # remember r -> r(a) rescaled radius
+    #real_part_old,error= integrate.quad(lambda z: self.A_integrand_real_part(0,amplitude, z), 0, 2 * math.pi / self.wavenumber)
+    real_part = 4.0*self.radius_rescaled(amplitude)/self.wavenumber*scipy.special.ellipe(-(amplitude*self.radius_rescaled(amplitude)*self.wavenumber)**2)
+    #assert(math.isclose(real_part_old, real_part))
     # this is usually done for surface area - no need to fill into A_matrix
     return real_part
   
