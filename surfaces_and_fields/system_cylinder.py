@@ -19,7 +19,7 @@ class Cylinder():
     self.kappa = kappa
     self.intrinsic_curvature = intrinsic_curvature
     #effective surface tension including H_0^2 constant
-    self.effective_gamma = gamma + kappa*2*intrinsic_curvature**2
+    self.effective_gamma = gamma + kappa/2*intrinsic_curvature**2
 
   ######## common terms in integrals ###########
   def g_theta(self, amplitude, z):
@@ -114,7 +114,7 @@ class Cylinder():
     #for interaction with intrinsic mean curvature H0 
     Kzz_linear_integral = - 2*math.pi / self.wavenumber *(-1+math.sqrt(1+(amplitude*self.wavenumber*self.radius_rescaled(amplitude))**2)) #a simple expression for the integral exists
     Kthth_linear_integral =  -2* math.pi / self.wavenumber
-    return (Kzz_integral + Kthth_integral - 4*self.intrinsic_curvature*(Kzz_linear_integral+Kthth_linear_integral))
+    return (Kzz_integral + Kthth_integral - 2*self.intrinsic_curvature*(Kzz_linear_integral+Kthth_linear_integral))
 
   def calc_surface_energy(self, amplitude):
     """
