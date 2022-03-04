@@ -13,7 +13,7 @@ class Cylinder():
   plus a complex-valued field over the two-dimensional surface, fourier decomposed into an array of modes indexed (j, beta)
   """
   def __init__(self, wavenumber, radius, kappa, gamma=1, intrinsic_curvature=0):
-    assert (all(map(lambda x: x >= 0, [wavenumber, radius, kappa, gamma])))
+    assert(all(map(lambda x: x >= 0, [wavenumber, radius, kappa])))
     self.wavenumber = wavenumber
     self.radius = radius
     self.kappa = kappa
