@@ -11,15 +11,15 @@ import collections
 import timeit
 import seaborn as sb
 import argparse
-import metropolis
-import surfaces.system_cylinder as cylinder
-import fields.nematic as fields
-import fields.On_lattice_rescaled_0thorder as On_lattice
+import metropolisengine
+import surfaces_and_fields.system_cylinder2D as cylinder2d
+import surfaces_and_fields.system_cylinder as cylinder
+#TODO control logic on level of rescale
+import surfaces_and_fields.On_lattice_rescaled_0thorder as On_lattice
+me_version = "0.2.19"#metropolisengine.__version__ #save version number TODO get it automatically 
 
 def loop(single_run_lambda, range1, range2):
   """
-  For local testing.  Usually on the supercomputer the array is handled at script level.
-
   generic loop: runs a 2D grid of single simulations; 
   information about which two simulation parameters to vary is built into argument single_run_lambda()
   
@@ -56,54 +56,6 @@ def loop(single_run_lambda, range1, range2):
     for name in results_line:
       results[name].append(results_line[name])
   return results 
-
-def run_experiment(exp_type,  range1, range2):
-  """
-  Local testing use.  On supercomputer this is taken care of on script level.
-
-  Runs a 2D grid of single simulations 
-  :param exp_type: tuple of strings, indicating which two variables will be varied
-  :param experiment_title:
-  :param range1: list of values for first variable to take
-  :param range2: list of values for second variable to take
-  :rtype: None
-  """
-  #TODO is this used?  we'll find out
-  print("run_experiment being used")
-  #make directory for the experiment
-  global outdir
-  now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-  exp_dir= os.path.join("out", "exp-"+now)
-  outdir = exp_dir
-  os.mkdir(exp_dir)
-  #save descritpion about how the experiment was run
-  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "me_temp":temp, 
-              "C": C,"kappa": kappa, "gamma": gamma, "alpha": alpha, 
-              "n":n, "u":u, "range1":range1, "intrinsic curvature": intrinsic_curvature,
-              "range2": range2, "radius":radius, "amplitude":initial_amplitude, 
-              "wavenumber": wavenumber, "measure every n ampsteps":measure_every, 
-              "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, 
-              "me-version": me_version, "field_type": field_type}
-  exp_notes["dims"]=dims
-  exp_notes["temperature_lattice"] = temperature_lattice
-  exp_notes["n_substeps"] = n_substeps
-  
-  exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
-  exp_notes.to_csv(os.path.join(exp_dir, "notes.csv"))
-  # run experiment of the requested type
-  if exp_type==("num_field_coeffs", "fieldsteps_per_ampstep") and field_type=="lattice":
-    print("experiment type", exp_type, "incompatible with field type", field_type)
-  try: 
-    print("in try")
-    results = loop(functions_dict[exp_type], range1, range2)
-  except KeyError:
-    print("experiment type not found: ", exp_type)
-    print("please set exp_type to one of", list(functions_dict.keys()))
-    results = {}
-  # save and plot results
-  for name in results:
-    plot_save(range1=range1, range2=range2, results=results[name], title=name, exp_dir=exp_dir)
-
 
 functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, 
                                           outdir = outdir, title = ("ncoeffs"+str(num)+"_fsteps"+str(fsteps)),
@@ -176,6 +128,55 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
     sb.heatmap(df, cmap = "viridis")
     plt.savefig(os.path.join(exp_dir, title + ".png"))
     plt.close()
+
+
+def run_experiment(exp_type,  range1, range2):
+  """
+  Runs a 2D grid of single simulations 
+  :param exp_type: tuple of strings, indicating which two variables will be varied
+  :param experiment_title:
+  :param range1: list of values for first variable to take
+  :param range2: list of values for second variable to take
+  :rtype: None
+  """
+  #make directory for the experiment
+  global outdir
+  now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+  exp_dir= os.path.join("out", "exp-"+now)
+  outdir = exp_dir
+  os.mkdir(exp_dir)
+  #save descritpion about how the experiment was run
+  exp_notes = {"experiment type": " ".join(exp_type), "n_steps": n_steps, "me_temp":temp, 
+              "C": C,"kappa": kappa, "gamma": gamma, "alpha": alpha, 
+              "n":n, "u":u, "range1":range1, "intrinsic curvature": intrinsic_curvature,
+              "range2": range2, "radius":radius, "amplitude":initial_amplitude, 
+              "wavenumber": wavenumber, "measure every n ampsteps":measure_every, 
+              "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, 
+              "me-version": me_version, "field_type": field_type}
+  if field_type == "fourier":
+    exp_notes["method"]= method,
+    exp_notes["num_field_coeffs"]=num_field_coeffs
+    if method == "sequential":
+      exp_notes["fieldsteps per ampstep"] = fieldsteps_per_ampstep
+  elif field_type=="lattice":
+    exp_notes["dims"]=dims
+    exp_notes["temperature_lattice"] = temperature_lattice
+    exp_notes["n_substeps"] = n_substeps
+  exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
+  exp_notes.to_csv(os.path.join(exp_dir, "notes.csv"))
+  # run experiment of the requested type
+  if exp_type==("num_field_coeffs", "fieldsteps_per_ampstep") and field_type=="lattice":
+    print("experiment type", exp_type, "incompatible with field type", field_type)
+  try: 
+    print("in try")
+    results = loop(functions_dict[exp_type], range1, range2)
+  except KeyError:
+    print("experiment type not found: ", exp_type)
+    print("please set exp_type to one of", list(functions_dict.keys()))
+    results = {}
+  # save and plot results
+  for name in results:
+    plot_save(range1=range1, range2=range2, results=results[name], title=name, exp_dir=exp_dir)
 
 
 def single_run(temp, temp_final,  n_steps, field_type, method, 

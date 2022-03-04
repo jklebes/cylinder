@@ -97,7 +97,7 @@ class Cylinder():
     # faster to retrieve this value from scipy.special than numerically integrate
     # remember r -> r(a) rescaled radius
     #real_part_old,error= integrate.quad(lambda z: self.A_integrand_real_part(0,amplitude, z), 0, 2 * math.pi / self.wavenumber)
-    real_part = 4.0*self.radius_rescaled(amplitude)/self.wavenumber*scipy.special.ellipe(-(amplitude*self.radius_rescaled(amplitude)*self.wavenumber)**2)
+    real_part = 4.0*self.radius_rescaled(amplitude)/self.wavenumber*scipy.special.ellipse(-(amplitude*self.radius_rescaled(amplitude)*self.wavenumber)**2)
     #assert(math.isclose(real_part_old, real_part))
     # this is usually done for surface area - no need to fill into A_matrix
     return real_part
@@ -109,8 +109,8 @@ class Cylinder():
     """
     calculate bending as (K_i^i)**2.  Gaussian curvature and cross term 2 K_th^th K_z^z are omitted due to gauss-bonnet theorem.
     """
-    Kzz_integral, error = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)
-    Kthth_integral, error = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)
+    Kzz_integral = integrate.quad(lambda z: self.Kzz_integrand(amplitude, z), 0, 2 * math.pi / self.wavenumber)[0]
+    Kthth_integral = integrate.quad(lambda z: self.Kthth_integrand(amplitude, z),  0, 2 * math.pi / self.wavenumber)[0]
     #for interaction with intrinsic mean curvature H0 
     Kzz_linear_integral = - 2*math.pi / self.wavenumber *(-1+math.sqrt(1+(amplitude*self.wavenumber*self.radius_rescaled(amplitude))**2)) #a simple expression for the integral exists
     Kthth_linear_integral =  -2* math.pi / self.wavenumber

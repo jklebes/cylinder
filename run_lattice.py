@@ -126,7 +126,7 @@ def run_experiment(exp_type,  range1, range2):
   for name in results:
     plot_save(range1=range1, range2=range2, varname1 = exp_type[0],varname2 = exp_type[1],results=results[name], title=name, exp_dir=exp_dir)
   if outdir is not None and os.path.isdir(outdir):
-  me.save_time_series()
+    me.save_time_series()
   df = me.df #pd.DataFrame()
   #print(outdir, title, me.params_names, states)
   df.to_csv(os.path.join(outdir, title + ".csv"))
