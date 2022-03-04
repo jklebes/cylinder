@@ -7,44 +7,54 @@ import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
 try:
-  import surfaces_and_fields.system_cylinder as system_cylinder
-  import surfaces_and_field.On_lattice_simple as lattice
+  import surfaces.system_cylinder as system_cylinder
+  import fields.On_lattice_simple as lattice
 except ModuleNotFoundError:
-  #differnt if this file is run ( __name__=="__main__" )
-  #then relatve import:
-  import system_cylinder as system_cylinder
-  import On lattice_simple as lattice
-import metropolisengine
+    #differnt if this file is run directly ( __name__=="__main__" )
+  import sys
+  import os
+  parent = os.getcwd()
+  sys.path.append(parent)
+  import surfaces.system_cylinder as system_cylinder
+  import fields.On_lattice_simple as lattice
+import metropolis
 
-class Lattice_Rescale(lattice.Lattice):
-  def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
-                u, C, n, temperature, temperature_lattice, dims = (100,50), n_substeps=None,
-                short_len_per_pixel = 200 ):
-    # all needs to happen before random_initialize in parent init:
+class Lattice_rescaled(lattice.Lattice):
+  def __init__(self, alpha, u, C, n, dims, shape, wavenumber, radius=1, n_substeps=None,
+                short_len_per_pixel = 200):
+    
+    super().__init__(wavenumber=wavenumber, radius=radius, alpha=alpha,
+                     u=u, C=C, n=n, dims=dims, n_substeps=n_substeps)
+
     # decide a microscpic lengthscale cutoff
-    self.short_lengthscale_th=2*pi*10**(-4)
+    self.short_lengthscale=2*math.pi*10**(-4)
+    #smallest cell area that will ever occur with 50x50 grid and a up to .99, rounded down
+
     # alpha given is for areas 1:
     # therefore use an alpha_0 roughly smallest area * alpha
     # remember alpha_0, u_0, (c=c_0 is const) for microscopic lengthscale, roughly
     self.alpha_0 = self.alpha*self.short_lengthscale**2
-    self.alpha_loop_amplitude=40 #a combinatoric factor
+    self.alpha_one_loop_factor=40 #a combinatoric factor - 12 in Chaikin and Lubensky pg 265 - consider my
+                                 # number of fields (2) and factor of 1/2
     #this value that is always subtracted depends only on short lengscale 
-    self.integral_lower_bound = 
-    #add more arrays to remember between steps where amplitude doesnt change:
-    self.rescaled_alpha=np.zeros((self.z_len)) #just to note this exists, really intializaed in initialize
-    self.background_energy = np.zeros((self.z_len)) #per area in a bigger cell
-    # rescaling correction factor int G_0 dq for each location z
-    super().__init__(amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
-                     u, C, n, temperature, temperature_lattice, dims, n_substeps)
+    self.integral_lower_bound = None
 
-  def correct_alpha_0(cell_dims):
+    #add more arrays to remember between steps where amplitude doesnt change:
+    self.alpha_one_loop=np.zeros(self.z_len) #just to note this exists, really intializaed in initialize
+
+    self.fill_alpha_one_loop(shape)
+
+  def alpha_one_loop_integral(self,cell_dims):
     #implicit, not passed: lower length cutoff is self.short_lengthscale
     #estimate of integral over the central square
-    G_integral =
+    G_integral = 0
+    #TODO
+    qmax_x=1
+    qmax_y=1
     if qmax_x != qmax_y:
       #add estimate for integral over other bits of rectangle not approximated by centrla square
       G_integral += 2*side_width*side_integral
-    return alpha_0 + self.alpha_loop_amplitude*self.u*G_integral
+    return G_integral
  
   def background_energy(cell_dims):
     l_max = max(cell_dims)/cutoff_length
@@ -71,12 +81,14 @@ class Lattice_Rescale(lattice.Lattice):
     return ans/area 
   
 
-  def random_initialize(self):
-    super().random_initialize()
-    #also initial fill of rescaled_alpha:
-    # for amplitude==0 
-    alpha_rescaled = self.correct_alpha_0(cell_dims)
-    self.rescaled_alpha=np.full((self.z_len), alpha_rescaled)
+  def fill_alpha_one_loop(self, shape):
+    for z_index in range(self.z_len):
+      z_loc = z_index * self.z_pixel_len
+      z_spacing = shape.sqrt_g_z(z=z_loc, amplitude=amplitude)
+      th_spacing = shape.sqrt_g_theta(z=z_loc, amplitude=amplitude)
+      cell_dims= (self.z_pixel_len*z_spacing, self.th_pixel_len*th_spacing)
+      self.alpha_one_loop[z_index] = self.alpha_one_loop_integral(cell_dims)
+    
 
   def surface_field_energy(self, amplitude):
     """calculates energy on proposed amplitude change"""
@@ -206,12 +218,49 @@ class Lattice_Rescale(lattice.Lattice):
       
 
 if __name__ == "__main__":
-  lattice = Lattice(amplitude=0, wavenumber=.2, radius=1, gamma=1, kappa=0, intrinsic_curvature=0,
-                  alpha=-1, u=1, C=1, n=6, temperature=.01, temperature_lattice = .01,
-                    dims=(50,25))
-  n_steps=10000
-  n_sub_steps=lattice.z_len*lattice.th_len
-  lattice.run(n_steps, n_sub_steps)
-  print(lattice.lattice)
-  print(lattice.lattice_acceptance_counter)
-  lattice.plot()
+  """
+  main for test
+  """
+  import matplotlib.pyplot as plt
+
+  n_substeps=10
+  base_dims = (50, 50)
+  wavenumber=.9
+  radius=1
+  dims = (int(math.floor(base_dims[0]/wavenumber)), base_dims[1])
+  
+  #mock of run loop fixed_amplitude in main.py:
+  #makes a shape object
+  gamma=1
+  kappa=0
+  amplitude=.6
+  cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius)
+  #now has to take place after shape
+  lattice = Lattice_rescaled(alpha=-4, u=1, C=1.5, n=6, dims=dims, shape=cy, wavenumber=wavenumber, radius=radius, n_substeps=n_substeps)
+
+  #makes a metropolis object
+  temperature=.001
+  sigmas_initial = {"field":.007}
+  me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial)
+
+  #mock data collector
+  field_energy_history= []
+
+  #run
+  n_steps = 100
+  for i in range(n_steps):
+    for j in range(n_substeps):
+      for ii in range(lattice.n_dims):
+        lattice.step_lattice(shape=cy, sampling_width=me.sigmas["field"], me=me)
+    field_energy = lattice.total_field_energy(shape=cy)
+    #print(field_energy)
+    field_energy_history.append(field_energy)
+    lattice.step_lattice_all(shape=cy, sampling_width=me.sigmas["field"], me=me, old_energy=field_energy)
+    print(i)
+
+  #mock output
+  plt.plot(field_energy_history)
+  plt.show()
+  plt.imshow(lattice.psi_squared)
+  plt.show()
+

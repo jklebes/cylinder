@@ -8,7 +8,6 @@ import scipy
 import matplotlib.pyplot as plt
 try:
   import surfaces.system_cylinder as system_cylinder
-  import metropolis
 except ModuleNotFoundError:
   #differnt if this file is run directly ( __name__=="__main__" )
   import sys
@@ -17,7 +16,7 @@ except ModuleNotFoundError:
   sys.path.append(parent)
   #print(sys.path)
   import surfaces.system_cylinder as system_cylinder
-  import metropolis
+import metropolis
 
 class Lattice():
   """
@@ -104,32 +103,7 @@ class Lattice():
     #still need to divide the chole thing by column length -most likely 50
 
 
-  def measure_avgs(self):
-    #update a running avg of |a|
-    self.amplitude_average *= self.step_counter/float(self.step_counter+1)
-    self.amplitude_average += abs(self.amplitude) / float(self.step_counter+1)
-    assert(self.amplitude_average <1)
-    divisor = float(self.step_counter+1)
-    #update a running avg of |Psi|(z) (1D array; avgd in theta direction)
-    #update each cell in avg_lattice with running time avg
-    self.avg_lattice *= self.step_counter/divisor 
-    self.avg_lattice += self.psi / divisor
-    #now collecting whole profile history in measure
-    #only equlibrated part is averaged and recorded later
-
-    #if self.amplitude>=0:
-    #  avg_psi = np.array([sum(abs(col))/len(col) for col in self.psi])
-    #else: #add mirrored version so that we get wde mart matched to wide part etc
-    #  avg_psi=np.array([sum(abs(col))/len(col) for col in self.psi[::-1]])
-    #if a<0 flip the list
-    #self.field_average *= self.step_counter/divisor 
-    #self.field_average += avg_psi / divisor 
-    #print(self.amplitude_average,self.field_average[1] )
-    self.step_counter+=1
-
-
   def random_initialize(self):
-    #assuming that this is called on amplitude=0 cylinders
     for z_index in range(self.z_len):
       for th_index in range(self.th_len):
         #fill lattice
@@ -266,10 +240,10 @@ class Lattice():
     """
     #choose a location
     index_z, index_th = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
-    self.step_lattice_loc(amplitude, index_z, index_th, shape, sampling_width, me)
+    self.step_lattice_loc(index_z, index_th, shape, sampling_width, me)
     #TODO output energy, make metropolis decision here
 
-  def step_lattice_loc(self, amplitude, index_z, index_th, shape, sampling_width, me):
+  def step_lattice_loc(self, index_z, index_th, shape, sampling_width, me):
     """
     Main energy calc of single location change
     """
@@ -360,6 +334,20 @@ class Lattice():
       self.dth[index_z, index_th+1] = new_neighbor_derivative_th
     me.update_sigma(accept, name="field")
       
+  def step_lattice_all(self, shape, sampling_width, me, old_energy):
+    addition = random.gauss(0, sampling_width)+random.gauss(0, sampling_width)*1j 
+    lattice_addition = np.full((self.z_len, self.th_len), addition)
+    new_lattice=self.psi+lattice_addition
+    new_psi_squared = abs(np.multiply(new_lattice, new_lattice.conjugate())) #np.square is elementwise square of complex numbers, z^2 not zz*
+    new_energy=self.total_field_energy(shape) #dz,dth differnces nuchanged by uniform addition
+    accept= me.metropolis_decision(old_energy, new_energy)#TODO check order
+    if accept:
+       self.psi=new_lattice
+       self.psi_squared=new_psi_squared
+    me.update_sigma(accept, name="field")
+
+  
+  
   ########################################  extras  ############################################
   ############## unused group sampling schemes that might be more efficient ####################
 
@@ -608,25 +596,8 @@ class Lattice():
       self.dz = new_dz
       self.energy=new_energy
       #self.me.energy["field"] = field_energy #ok to not do this until later as next steps is field internal
-    self.update_bump_sigma(accept)
+    me.update_sigma(accept, "field_bump")
   
-  def step_lattice_all(self, amplitude):
-    """TODO Unused sampling  proposal: uniform addition"""
-    addition = random.gauss(0,self.sampling_width)+random.gauss(0,self.sampling_width)*1j 
-    lattice_addition = np.full((self.z_len, self.th_len), addition)
-    new_lattice=self.psi+lattice_addition
-    new_psi_squared = np.multiply(new_lattice, new_lattice.conjugate()) #np.square is elementwise square of complex numbers, z^2 not zz*
-    new_energy=shape_field_energy(amplitude, amplitude, new_lattice, new_psi_squared, self.dz, self.dth) #dz,dth differnces nuchanged by uniform addition
-    old_energy=self.energy#calculated just previously in run()
-    accept= self.me.metropolis_decision(old_energy, new_energy)#TODO check order
-    if accept:
-       self.psi=new_lattice
-       self.psi_squared=new_psi_squared
-       #dz, dth do not change
-       self.energy=new_energy
-       self.me.energy["field"] = new_energy
-    self.update_sigma(accept)
-
   def step_lattice_random_wavevector(self, amplitude, qzmax=4, qthmax=8):
     """TODO Unused sampling  proposal"""
     wavevector = (random.randint(-qzmax, qzmax+1)*2*math.pi, random.randint(-qthmax, qthmax+1)*2*math.pi)
@@ -639,7 +610,7 @@ class Lattice():
     #complex exponent when I want to prod rotational states
     return np.fromfunction(lambda i,j: base*np.exp(1j*(i*qz/z_len+j*qth/th_len)) ,(z_len, th_len)) 
 
-  def sublattice_field_energy(self, amplitude, z_index_start, lattice, psi_squared, dz, dth):
+  def sublattice_field_energy(self, amplitude, shape):
     """TODO Unused sampling  proposal"""
     energy=0
     z_dim, th_dim = lattice.shape
@@ -678,28 +649,27 @@ if __name__ == "__main__":
   """
   import matplotlib.pyplot as plt
 
-  n_substeps=20
+  n_substeps=10
   base_dims = (50, 50)
   wavenumber=.9
   radius=1
   dims = (int(math.floor(base_dims[0]/wavenumber)), base_dims[1])
-  lattice = Lattice(alpha=-1, u=1, C=2, n=6, dims=(50,50), wavenumber=wavenumber, radius=radius, n_substeps=n_substeps)
+  lattice = Lattice(alpha=-4, u=1, C=1.5, n=6, dims=dims, wavenumber=wavenumber, radius=radius, n_substeps=n_substeps)
   
   #mock of run loop fixed_amplitude in main.py:
   #makes a shape object
   gamma=1
   kappa=0
-  amplitude=.5
+  amplitude=.6
   cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius)
 
   #makes a metropolis object
-  temperature=.0001
-  sigmas_initial = {"field":.005}
+  temperature=.001
+  sigmas_initial = {"field":.007}
   me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial)
 
   #mock data collector
   field_energy_history= []
-  surface_energy_history=[]
 
   #run
   n_steps = 100
@@ -708,9 +678,10 @@ if __name__ == "__main__":
       for ii in range(lattice.n_dims):
         lattice.step_lattice(shape=cy, sampling_width=me.sigmas["field"], me=me)
     field_energy = lattice.total_field_energy(shape=cy)
-    print(field_energy)
+    #print(field_energy)
     field_energy_history.append(field_energy)
-    surface_energy = 0 #cy.get_energy()
+    lattice.step_lattice_all(shape=cy, sampling_width=me.sigmas["field"], me=me, old_energy=field_energy)
+    print(i)
 
   #mock output
   plt.plot(field_energy_history)
