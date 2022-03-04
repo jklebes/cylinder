@@ -6,17 +6,9 @@ import os
 import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
-try:
-  import surfaces_and_fields.system_cylinder as system_cylinder
-except ModuleNotFoundError:
-  #differnt if this file is run ( __name__=="__main__" )
-  #then relatve import:
-  import system_cylinder as system_cylinder
-import metropolisengine
 
-class Lattice():
-  def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
-                u, C, n, temperature, temperature_final, dims = (100,50), n_substeps=None, fieldsteps_per_ampstep=1):
+class Nematic():
+  def __init__(self, dims, alpha, u, C, n, n_substeps=None):
     #experiment variables
     self.wavenumber = wavenumber
     self.radius=radius

@@ -83,11 +83,11 @@ def run_experiment(exp_type,  range1, range2):
               "range2": range2, "radius":radius, "amplitude":initial_amplitude, 
               "wavenumber": wavenumber, "measure every n ampsteps":measure_every, 
               "total number ampsteps": n_steps*measure_every, "notes":notes, "start_time": now, 
-              "me-version": me_version, "field_type": field_type}
+              "field_type": field_type}
   exp_notes["dims"]=dims
   exp_notes["temperature_lattice"] = temperature_lattice
   exp_notes["n_substeps"] = n_substeps
-  
+
   exp_notes = pd.DataFrame.from_dict(exp_notes, orient="index", columns=["value"])
   exp_notes.to_csv(os.path.join(exp_dir, "notes.csv"))
   # run experiment of the requested type
@@ -104,7 +104,7 @@ def run_experiment(exp_type,  range1, range2):
   for name in results:
     plot_save(range1=range1, range2=range2, results=results[name], title=name, exp_dir=exp_dir)
 
-
+#local testing use?  
 functions_dict = {("num_field_coeffs", "fieldsteps_per_ampstep"): lambda num, fsteps: single_run(n_steps=n_steps, method=method, 
                                           outdir = outdir, title = ("ncoeffs"+str(num)+"_fsteps"+str(fsteps)),
                                           num_field_coeffs=num, fieldsteps_per_ampstep = fsteps, 
@@ -162,6 +162,8 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
   :param expdir: directory path to save to, default here
   :rtype: None
   """
+  #TODO is this used?
+  print("run.plot_save used")
   #cut ranges to shape of data
   range1 = range1[-len(results):]
   range2 = range2[-len(results[0]):]
@@ -178,16 +180,11 @@ def plot_save(range1, range2, results, title, exp_dir = '.'):
     plt.close()
 
 
-def single_run(temp, temp_final,  n_steps, field_type, method, 
-              num_field_coeffs, fieldsteps_per_ampstep, measure_every,
-              alpha, C, n, u, 
-              gamma, kappa, radius, intrinsic_curvature, n_substeps,
-              dims,
-              wavenumber, 
-              amplitude=None, field_coeffs=None, outdir = None, title = None):
+def single_run(temp, temp_final,  n_steps, field_object, surface_object, method, 
+              fieldsteps_per_ampstep, measure_every,
+              amplitude=None, outdir = None, title = None):
   """
-  run a single simulation of lengths nsteps and given method 
-
+  run a single simulation of lengths nsteps and given method
   takes all variables as arguments rather than from global namespace so that some can be set to loop variables as needed
   :param nsteps: 
   :param method: choose from "simultaneous" for stepping all parameters at the same time
@@ -351,34 +348,11 @@ def single_run(temp, temp_final,  n_steps, field_type, method,
     print("indexerror here")
   return me.params_names, me.observables_names, result_means , me.covariance_matrix_complex
 
-# global params - will use values set here if not loop variable
-# coefficients
-alpha = -1
-C = 1
-u = 1
-n = 6
-kappa = 0
-gamma = 1
-temp = .1
-intrinsic_curvature = 0
-
-# system dimensions
-initial_amplitude= 0  #also fixed system amplitude for when amplitude is static
-radius = 1
-wavenumber = .5
-
-# simulation details - for fourier fields
-num_field_coeffs = (2,1) # z-direction modes indices go from -.. to +..; theta direction indices go from -.. to +..
-initial_sampling_width = .025
-measure_every =10
-fieldsteps_per_ampstep = 10  #only relevant for sequential
-
-#for lattice simulations
-dims=(100,50)
-temperature_lattice=temp
-n_substeps = dims[0]*dims[1]
 
 if __name__ == "__main__":
+  """
+  main method: local testing use
+  """
 
   parser = argparse.ArgumentParser(description='get description')
   parser.add_argument('-n', '--notes', dest = 'notes',  type=str, nargs=1,
@@ -392,5 +366,8 @@ if __name__ == "__main__":
   n_steps = 1000
   field_type = "lattice"
   method= "sequential"
+
+  #make a field object
+  #make a shape object
 
   run_experiment(loop_type,  range1, range2)

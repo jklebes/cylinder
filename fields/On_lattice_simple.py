@@ -7,53 +7,49 @@ import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
 try:
-  import surfaces_and_fields.system_cylinder as system_cylinder
+  import surfaces.system_cylinder as system_cylinder
 except ModuleNotFoundError:
   #differnt if this file is run ( __name__=="__main__" )
   #then relatve import:
-  import system_cylinder as system_cylinder
-import metropolisengine
+  import sys
+  import os
+  parent = os.getcwd()
+  sys.path.append(parent)
+  #print(sys.path)
+  import surfaces.system_cylinder as system_cylinder
+  import metropolis
 
 class Lattice():
-  def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
-                u, C, n, temperature, temperature_final, dims = (100,50), n_substeps=None, fieldsteps_per_ampstep=1):
-    #experiment variables
-    self.wavenumber = wavenumber
-    self.radius=radius
-    self.gamma=gamma
-    self.kappa=kappa
-    self.initial_amplitude = amplitude
-    self.intrinsic_curvature = intrinsic_curvature
-    self.initial_amplitude = amplitude
+  def __init__(self, alpha, u, C, n, dims, wavenumber, radius=1, n_substeps=None):
+    #material parameters
     self.alpha = alpha
     self.u = u
     self.C= C
     self.n= n
     self.Cnsquared = self.C*self.n**2
-    self.temperature = temperature
-    self.temperature_final=temperature_final
-    self.fieldsteps_per_ampstep = fieldsteps_per_ampstep
+
     #lattice characteristics
+    self.wavenumber=wavenumber
+    self.radius=radius
     #don't use literally the z-direction number of lattice points provided, but scale with wavenumber
     cylinder_len_z = 2*math.pi / self.wavenumber # = wavelength lambda
     cylinder_radius_th = 2*math.pi*self.radius # circumference - in len units, not radians
     # so that z-direction pixel length is the same and results are comparable with different wavenumber
-    self.z_len = int(round(dims[0]/self.wavenumber))
-    self.th_len =dims[1]
+    self.z_len, self.th_len = dims
+    self.z_pixel_len = cylinder_len_z /self.z_len # length divided py number of pixels
+    #assert(math.isclose(self.z_pixel_len,2*math.pi/float(dims[0]))) #should be same as for wavenumber 1, length 2pi, dims[0] pixels
+    self.th_pixel_len = cylinder_radius_th /self.th_len
+
+    #run settings
     if n_substeps is None:
       self.n_substeps =self.z_len*self.th_len
     else:
       self.n_substeps = n_substeps
-    self.z_pixel_len = cylinder_len_z /self.z_len # length divided py number of pixels
-    #assert(math.isclose(self.z_pixel_len,2*math.pi/float(dims[0]))) #should be same as for wavenumber 1, length 2pi, dims[0] pixels
-    self.th_pixel_len = cylinder_radius_th /self.th_len
-    self.amplitude = self.initial_amplitude
-    #set up metropolis engine coupled to bare cylinder system
-    self.surface = system_cylinder.Cylinder(wavenumber=self.wavenumber, radius=self.radius, gamma=self.gamma, kappa=self.kappa, intrinsic_curvature=self.intrinsic_curvature)
-    #Psi at each point 
+    self.n_dims =dims[0]*dims[1]
+    self.n_sweep = self.n_dims*n_substeps
+
+    #the lattices
     self.lattice = np.zeros((self.z_len, self.th_len), dtype=complex)
-    #running avg at each point
-    self.avg_lattice = np.zeros((self.z_len, self.th_len), dtype=complex)
     #values also saved for convenience
     self.psi_squared = np.zeros((self.z_len, self.th_len)) 
     #self.dz_squared = np.zeros((self.z_len, self.th_len))
@@ -63,16 +59,20 @@ class Lattice():
     # derivative stored at i refers to difference between i-1, i positions in corrseponding 
     # grid of lattice values
 
+    #locals running avgs #TODO keep?
+    self.avg_lattice = np.zeros((self.z_len, self.th_len), dtype=complex)
     self.avg_amplitude_profile=np.zeros((self.z_len))
     #self.avg_amplitude_history()
 
     self.random_initialize()
-    print("initialized\n", self.lattice)
+    print("initialized")
 
-    #simple option with no influence from field energy to surface shape
-    energy_fct_surface_term = lambda real_params, complex_params : self.surface.calc_surface_energy(*real_params) 
+    """
+    TODO final delete
+    #setting up metropolis engine
+    energy_fct_surface_term = lambda real_params, complex_params : shape.calc_surface_energy(*real_params) 
     # advanced option coupling surface fluctutations to the energy it would cause on field
-    energy_fct_field_term = lambda real_params, complex_params : self.surface_field_energy(*real_params, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
+    energy_fct_field_term = lambda real_params, complex_params : shape_field_energy(*real_params, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
     energy_fct_by_params_group = { "real": {"surface": energy_fct_surface_term, 
                                             "field": energy_fct_field_term}, 
                                   "all":{ "surface":energy_fct_surface_term,
@@ -88,7 +88,6 @@ class Lattice():
     self.field_profile_history=[]
     self.field_abs_profile_history=[]
 
-    #dynamic step size
     self.acceptance_counter=0
     self.step_counter=0
     self.bump_step_counter=0
@@ -99,12 +98,14 @@ class Lattice():
         (1 - (1 / self.m)) * math.sqrt(2 * math.pi) * math.exp(self.ppf_alpha ** 2 / 2) / 2 * self.ppf_alpha + 1 / (
         self.m * self.target_acceptance * (1 - self.target_acceptance)))
     self.sampling_width=.005
-    self.bump_sampling_width=.005
+    """
   
 
   def squared(self, c):
+    """
+    a local utility
+    """
     return abs(c*c.conjugate())
-
 
   def get_profiles_df(self):
     #make and return a dataframe of <Psi>(z), <|Psi|>(z) (theta direciton avergaes, mirror corrected) over time
@@ -182,17 +183,17 @@ class Lattice():
     self.dth/= self.th_pixel_len
   
 
-  def surface_field_energy(self, amplitude, reference_amplitude, lattice, psi_squared, dz, dth):
+  def total_field_energy(self, shape):
     """calculates energy on proposed amplitude change or whole lattice change"""
     energy=0
     for z_index in range(0,self.z_len):
       z_loc = z_index * self.z_pixel_len
       z_loc_interstitial = (z_index-.5) * self.z_pixel_len
-      z_spacing = self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)
-      th_spacing = self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)
+      z_spacing = shape.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)
+      th_spacing = shape.sqrt_g_theta(z=z_loc, amplitude=amplitude)
       col_sqrtg = z_spacing*th_spacing
-      col_index_raise_and_sqrtg = self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
-      col_A_th = self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_index_raise_and_sqrtg = shape.sqrt_g_z(z=z_loc, amplitude=amplitude)/shape.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_A_th = shape.A_theta(z=z_loc_interstitial, amplitude=amplitude)
       psi_col = lattice[z_index]
       psi_squared_column = psi_squared[z_index]
       #TODO could do *sqrtg at the end to whole column, if covariant laplacian returned value/sqrt_g
@@ -214,17 +215,18 @@ class Lattice():
 
 
   def sublattice_field_energy(self, amplitude, z_index_start, lattice, psi_squared, dz, dth):
+    """TODO Unused sampling  proposal"""
     energy=0
     z_dim, th_dim = lattice.shape
     #again passed end index because negative indeices out of range are better handled
     for i, z_index in enumerate(range(z_index_start,z_index_start+z_dim)): # not taking energy from first row & col, which are padding
       z_loc = z_index * self.z_pixel_len
       z_loc_interstitial = (z_index-.5) * self.z_pixel_len
-      z_spacing = self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)
-      th_spacing = self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)
+      z_spacing = shape.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)
+      th_spacing = shape.sqrt_g_theta(z=z_loc, amplitude=amplitude)
       col_sqrtg = z_spacing*th_spacing
-      col_index_raise_and_sqrtg = self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude)/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
-      col_A_th = self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_index_raise_and_sqrtg = shape.sqrt_g_z(z=z_loc, amplitude=amplitude)/shape.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_A_th = shape.A_theta(z=z_loc_interstitial, amplitude=amplitude)
       psi_col = lattice[i]
       psi_squared_column = psi_squared[i]
       #TODO could do *sqrtg at the end to whole column, if covariant laplacian returned value/sqrt_g
@@ -245,11 +247,12 @@ class Lattice():
 
 
   def step_lattice_all(self, amplitude):
+    """TODO Unused sampling  proposal: uniform addition"""
     addition = random.gauss(0,self.sampling_width)+random.gauss(0,self.sampling_width)*1j 
     lattice_addition = np.full((self.z_len, self.th_len), addition)
     new_lattice=self.lattice+lattice_addition
     new_psi_squared = np.multiply(new_lattice, new_lattice.conjugate()) #np.square is elementwise square of complex numbers, z^2 not zz*
-    new_energy=self.surface_field_energy(amplitude, amplitude, new_lattice, new_psi_squared, self.dz, self.dth) #dz,dth differnces nuchanged by uniform addition
+    new_energy=shape_field_energy(amplitude, amplitude, new_lattice, new_psi_squared, self.dz, self.dth) #dz,dth differnces nuchanged by uniform addition
     old_energy=self.energy#calculated just previously in run()
     accept= self.me.metropolis_decision(old_energy, new_energy)#TODO check order
     if accept:
@@ -261,16 +264,19 @@ class Lattice():
     self.update_sigma(accept)
 
   def step_lattice_random_wavevector(self, amplitude, qzmax=4, qthmax=8):
+    """TODO Unused sampling  proposal"""
     wavevector = (random.randint(-qzmax, qzmax+1)*2*math.pi, random.randint(-qthmax, qthmax+1)*2*math.pi)
     self.step_lattice_wavevector(amplitude,wavevector)
 
   def wave_array(self,base, wavevector, z_len, th_len):
+    """TODO Unused sampling  proposal"""
     qz, qth= wavevector
     # sine, not complex exponent becaue I want spatially varying amplitude
     #complex exponent when I want to prod rotational states
     return np.fromfunction(lambda i,j: base*np.exp(1j*(i*qz/z_len+j*qth/th_len)) ,(z_len, th_len)) 
 
   def step_lattice_wavevector(self, amplitude, wavevector):
+    """TODO Unused sampling  proposal"""
     addition = random.gauss(0,self.bump_sampling_width)+random.gauss(0,self.bump_sampling_width)*1j
     #repurposing bump sampling width to give this its own sampling width 
     lattice_addition = self.wave_array(addition, wavevector, self.z_len, self.th_len)
@@ -287,7 +293,7 @@ class Lattice():
         new_dth[z_index, th_index]  =   value-left_value_th
     new_dz/= self.z_pixel_len
     new_dth/= self.th_pixel_len
-    new_energy=self.surface_field_energy(amplitude, amplitude, new_lattice, new_psi_squared, new_dz, new_dth) #dz,dth differnces nuchanged by uniform addition
+    new_energy=shape_field_energy(amplitude, amplitude, new_lattice, new_psi_squared, new_dz, new_dth) #dz,dth differnces nuchanged by uniform addition
     old_energy=self.energy#calculated just previously in run()
     accept= self.me.metropolis_decision(old_energy, new_energy)
     if accept:
@@ -301,6 +307,7 @@ class Lattice():
 
 
   def step_row_rotate(self, amplitude, maxrows=1):
+    """TODO Unused sampling  proposal"""
     n_rot = random.choice([-1,1]) #give the row a twist of n_rot discrete rotations
     phase = random.uniform(0, 2*math.pi)
     num_rows = random.randint(1,maxrows)
@@ -384,6 +391,8 @@ class Lattice():
 
   def bump_array(self, addition, width_z, width_th, bump_width_z, bump_width_th):
     """
+    TODO Unused sampling  proposal
+
     this needs to return a rectangular array holding a gaussian bump stretched out form 1x1 pixel to
     bump_idth_z x bump_width_th pixels
     with (complex) amplitude equivalent to a 1x1 bump with amplitude 'addition'
@@ -412,12 +421,13 @@ class Lattice():
 
 
   def step_lattice_bump(self, amplitude, bumpdims=(math.pi/25, math.pi/25)):
+    """TODO Unused sampling  proposal"""
     bump_center_z, bump_center_th = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
     addition = random.gauss(0,self.bump_sampling_width)+random.gauss(0,self.bump_sampling_width)*1j 
     # find sublattice affected
-    exact_width_z = bumpdims[0]/(self.z_pixel_len * self.surface.sqrt_g_z(z=bump_center_z, amplitude=amplitude))#how many cells make up length math.pi/25, equivalent to one cell on flat surface
+    exact_width_z = bumpdims[0]/(self.z_pixel_len * shape.sqrt_g_z(z=bump_center_z, amplitude=amplitude))#how many cells make up length math.pi/25, equivalent to one cell on flat surface
     bump_width_z = math.ceil(exact_width_z)#size of array needed to represent this
-    exact_width_th =bumpdims[1]/(self.th_pixel_len * self.surface.sqrt_g_theta(z=bump_center_z, amplitude=amplitude))
+    exact_width_th =bumpdims[1]/(self.th_pixel_len * shape.sqrt_g_theta(z=bump_center_z, amplitude=amplitude))
     bump_width_th = math.ceil(exact_width_th)
     #goes from back because python  handles negative indices better than too large
     bump_start_z = (bump_center_z - bump_width_z//2)%self.z_len
@@ -517,19 +527,21 @@ class Lattice():
 
 
   def run_fixed_amplitude(self, n_steps, n_sub_steps):
+    """current main run - TODO export to run.py"""
     for i in range(n_steps):
       self.measure_avgs() #running avgs amplitude, field profile 
       self.measure() # add to lists
       for n in self.fieldsteps_per_ampstep:
-        self.energy=self.surface_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
+        self.energy=shape_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
         self.step_lattice_all(self.amplitude)
         for j in range(n_sub_steps):
           self.step_lattice(self.amplitude)
-      field_energy=self.surface_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
+      field_energy=shape_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
       self.me.energy["field"] = field_energy
       self.me.measure_real_system()
 
   def run(self, n_steps, n_sub_steps):
+    """alternative main run "sequantial"- TODO export to run.py"""
     n_sub_steps = 50
     for i in range(500):
       for j in range(n_sub_steps):
@@ -547,7 +559,7 @@ class Lattice():
         #update rescale-related values as applicable:
         self.update_rescale_params(self.amplitude)
       #maybe reset self.energy
-      self.energy=self.surface_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
+      self.energy=shape_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
       #lattice step
       #step whole lattic at once
       for n in self.fieldsteps_per_ampstep:
@@ -557,7 +569,7 @@ class Lattice():
       #for j in range(self.z_len):
       #  self.step_row_rotate(self.amplitude, maxrows=self.z_len//4)
       #pass on info on change in field energy to metropolis engine, when field changed but amplitude didn;t
-      field_energy=self.surface_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
+      field_energy=shape_field_energy(self.amplitude, self.amplitude, self.lattice, self.psi_squared, self.dz, self.dth)
       #self.field_energy_time_series.append(field_energy)
       self.me.energy["field"] = field_energy
       self.me.measure_real_system()
@@ -590,27 +602,34 @@ class Lattice():
       col = self.lattice[z_index]
       self.avg_amplitude_profile[z_index]+=sum(abs(col)) / len(col)
 
-  def step_lattice(self, amplitude):
+  def step_lattice(self, shape, sampling_width, me):
+    """
+    A single location step - dims*n_substeps of these make up a sweep
+    """
     #choose a location
     index_z, index_th = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
-    self.step_lattice_loc(amplitude, index_z, index_th)
+    self.step_lattice_loc(amplitude, index_z, index_th, shape, sampling_width, me)
+    #TODO output energy, make metropolis decision here
 
-  def step_lattice_loc(self, amplitude, index_z, index_th):
+  def step_lattice_loc(self, amplitude, index_z, index_th, shape, sampling_width, me):
+    """
+    Main energy calc of single location change
+    """
     z_loc = self.z_pixel_len * index_z 
     z_loc_interstitial = self.z_pixel_len * (index_z -.5)
     z_loc_neighbor_interstitial = self.z_pixel_len * (index_z +.5)
     #properties of the surface at this point
-    A_th= self.surface.A_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
-    index_raise = 1/self.surface.g_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
-    A_th_neighbor= self.surface.A_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
-    neighbor_index_raise = 1/self.surface.g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
+    A_th= shape.A_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
+    index_raise = 1/shape.g_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
+    A_th_neighbor= shape.A_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
+    neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
     
-    sqrt_g = (self.surface.sqrt_g_theta(z=z_loc, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc, amplitude=amplitude))
+    sqrt_g = (shape.sqrt_g_theta(z=z_loc, amplitude=amplitude)*shape.sqrt_g_z(z=z_loc, amplitude=amplitude))
     #TODO choose which one to use
-    #sqrt_g_interstitial = (self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)*self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))
+    #sqrt_g_interstitial = (shape.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)*shape.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude))
     # random new value with magnitude similar to old value
     #TODO dynamic stepsize
-    stepsize=self.sampling_width#choose something order of magnitude of predicted width of distribution
+    stepsize=sampling_width#choose something order of magnitude of predicted width of distribution
     #stepsize *= self.sqrt_g
     #print("sampling stepsize", stepsize)
     value=self.lattice[index_z, index_th]
@@ -630,8 +649,8 @@ class Lattice():
     new_derivative_z = (new_value-left_value_z)/self.z_pixel_len
     new_derivative_th = (new_value -left_value_th)/self.th_pixel_len
     #term |d_i psi|^2 in energy
-    diff_derivative_z = (self.squared(new_derivative_z) - self.squared(self.dz[index_z, index_th]))/self.surface.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)**2
-    diff_derivative_th = (self.squared(new_derivative_th) - self.squared(self.dth[index_z, index_th]))*index_raise/self.surface.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)**2
+    diff_derivative_z = (self.squared(new_derivative_z) - self.squared(self.dz[index_z, index_th]))/shape.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)**2
+    diff_derivative_th = (self.squared(new_derivative_th) - self.squared(self.dth[index_z, index_th]))*index_raise/shape.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)**2
     
     diff_energy += self.C*( diff_derivative_z + diff_derivative_th )
 
@@ -640,8 +659,8 @@ class Lattice():
     right_value_th = self.lattice[index_z, index_th+1]
     new_neighbor_derivative_z = (right_value_z-new_value)/self.z_pixel_len
     new_neighbor_derivative_th = (right_value_th-new_value)/self.th_pixel_len
-    diff_neighbor_derivative_z = (self.squared(new_neighbor_derivative_z) - self.squared(self.dz[index_z+1, index_th]) )/self.surface.sqrt_g_z(z=z_loc_neighbor_interstitial, amplitude=amplitude)**2
-    diff_neighbor_derivative_th = (self.squared(new_neighbor_derivative_th) - self.squared(self.dth[index_z, index_th+1]))*neighbor_index_raise/self.surface.sqrt_g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)**2
+    diff_neighbor_derivative_z = (self.squared(new_neighbor_derivative_z) - self.squared(self.dz[index_z+1, index_th]) )/shape.sqrt_g_z(z=z_loc_neighbor_interstitial, amplitude=amplitude)**2
+    diff_neighbor_derivative_th = (self.squared(new_neighbor_derivative_th) - self.squared(self.dth[index_z, index_th+1]))*neighbor_index_raise/shape.sqrt_g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)**2
     
     diff_energy += self.C*( diff_neighbor_derivative_z + diff_neighbor_derivative_th )
     
@@ -667,13 +686,12 @@ class Lattice():
     #The naive or 0th order scaling: \alpha, u by cell area; c by cell area but was /lx^2, /ly^2 earlier
     diff_energy*=sqrt_g
     diff_energy*=self.z_pixel_len*self.th_pixel_len #- included in renormalizing coefficients
-    accept = self.me.metropolis_decision(0,diff_energy)
+    accept = me.metropolis_decision(0,diff_energy)
     if accept:
       #change stored value of pixel
       self.lattice[index_z,index_th] = new_value
       #change stored values of dth, dz across its boundaries
       #self.energy += diff_energy
-      self.lattice_acceptance_counter+=1
       #fill stored energy density, 
       self.psi_squared[index_z, index_th]  = new_psi_squared
       #dz
@@ -682,22 +700,10 @@ class Lattice():
       #dth
       self.dth[index_z, index_th] = new_derivative_th 
       self.dth[index_z, index_th+1] = new_neighbor_derivative_th
-      self.acceptance_counter+=1
-    self.update_sigma(accept)
-      
-  def update_sigma(self, accept):
-    self.step_counter+=1
-    step_number_factor = max((self.step_counter / self.m, 200))
-    steplength_c = self.sampling_width * self.ratio
-    if accept:
-      self.sampling_width += steplength_c * (1 - self.target_acceptance) / step_number_factor
-    else:
-      self.sampling_width -= steplength_c * self.target_acceptance / step_number_factor
-    assert (self.sampling_width) > 0
-    #print(self.step_counter)
-    #print("acceptance" , self.acceptance_counter, self.acceptance_counter/self.step_counter,self.sampling_width)
+    me.update_sigma(accept, name="field")
       
   def update_bump_sigma(self, accept):
+    """Unused sampling scheme"""
     self.bump_step_counter+=1
     step_number_factor = max((self.step_counter / self.m, 200))
     steplength_c = self.bump_sampling_width * self.ratio
@@ -710,32 +716,43 @@ class Lattice():
     #print("acceptance" , self.acceptance_counter, self.acceptance_counter/self.step_counter,self.sampling_width)
       
 
-  def plot(self):
-    zs = [i for i in range(self.z_len)]
-    #draw two sin curves for cylinder shape
-    amplitude_scaling = 10
-    cylinder_top = [-15+amplitude_scaling*self.amplitude*math.sin(z*2*math.pi/self.z_len) for z in zs]
-    cylinder_bottom = [-35-amplitude_scaling*self.amplitude*math.sin(z*2*math.pi/self.z_len) for z in zs]
-    plt.plot(zs, cylinder_top, color='g', linewidth=10)
-    plt.plot(zs, cylinder_bottom, color='g', linewidth=10)
-    #plot binary lattice field
-    plt.imshow(abs(self.lattice.transpose()))
-
-    plt.show()
-    plt.imshow((self.lattice.transpose()).real)
-
-    plt.show()
-    plt.plot(zs, self.avg_amplitude_profile)
-    plt.show()
 
 if __name__ == "__main__":
-  lattice = Lattice(amplitude=0, wavenumber=.2, radius=1, gamma=1, kappa=0, intrinsic_curvature=0,
-                  alpha=-1, u=1, C=1, n=6, temperature=.01, temperature_lattice = .01,
-                    dims=(50,25))
-  n_steps=10000
-  n_sub_steps=lattice.z_len*lattice.th_len
-  lattice.run(n_steps, n_sub_steps)
-  print(lattice.lattice)
-  print(lattice.amplitude)
-  print(lattice.lattice_acceptance_counter)
-  lattice.plot()
+  """
+  main for test
+  """
+
+  n_substeps=10
+  base_dims = (50, 50)
+  wavenumber=.9
+  radius=1
+  dims = (int(math.floor(base_dims[0]/wavenumber)), base_dims[1])
+  lattice = Lattice(alpha=-1, u=1, C=1, n=6, dims=(50,50), wavenumber=wavenumber, radius=radius, n_substeps=n_substeps)
+  
+  #mock of run loop fixed_amplitude in main.py:
+  #makes a shape object
+  gamma=1
+  kappa=0
+  amplitude=.5
+  cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius)
+
+  #makes a metropolis object
+  temperature=.001
+  sigmas_initial = {"field":.005}
+  me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial)
+
+  #mock data collector
+  field_energy_history= []
+  surface_energy_history=[]
+
+  #run
+  n_steps = 1000
+  for i in range(n_steps):
+    for j in range(n_substeps):
+      for ii in range(lattice.n_dims):
+        lattice.step_lattice(shape=cy, sampling_width=me.sigmas["field"], me=me)
+    field_energy = lattice.total_field_energy(shape=cy)
+    surface_energy = 0 #cy.get_energy()
+
+  #mock output
+  print(field_energy_history)
