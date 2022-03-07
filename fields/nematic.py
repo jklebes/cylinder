@@ -75,7 +75,7 @@ class Lattice():
     #local fields  
     for z_index in range(self.z_len):
       for th_index in range(self.th_len):
-        alpha2=  random.uniform(0,1)
+        alpha2=  1#random.uniform(0,1)
         self.alpha2[z_index, th_index] = alpha2
         self.etas[z_index, th_index] = self.eta(alpha2)
         self.K1s[z_index, th_index] = self.K1(alpha2)
@@ -97,7 +97,7 @@ class Lattice():
         #TODO line element is wrong
         gradn=(nz-leftnz)/self.z_pixel_len + (nth - downnth)/self.th_pixel_len
         self.gradn[z_index, th_index] = gradn
-        delcrossn = (nth-leftnth)/self.z_pixel_len + (nz - downnz)/self.th_pixel_len
+        delcrossn = (nz - downnz)/self.th_pixel_len -(nth-leftnth)/self.z_pixel_len
         self.delcrossn[z_index, th_index] =delcrossn
 
         self.gradientenergies[z_index, th_index] = self.gradientenergy(nz, nth, gradn, delcrossn, self.K1s[z_index, th_index], self.K3s[z_index, th_index], Ath)
@@ -141,11 +141,11 @@ class Lattice():
     for z_index in range(0,self.z_len):
       z_loc = z_index * self.z_pixel_len
       z_loc_interstitial = (z_index-.5) * self.z_pixel_len
-      z_spacing = shape.sqrt_g_z(z=z_loc_interstitial, amplitude=amplitude)
-      th_spacing = shape.sqrt_g_theta(z=z_loc, amplitude=amplitude)
+      z_spacing = shape.sqrt_g_z(z=z_loc_interstitial, amplitude=shape.amplitude)
+      th_spacing = shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)
       col_sqrtg = z_spacing*th_spacing
-      col_index_raise_and_sqrtg = shape.sqrt_g_z(z=z_loc, amplitude=amplitude)/shape.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
-      col_A_th = shape.A_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_index_raise_and_sqrtg = shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude)/shape.sqrt_g_theta(z=z_loc_interstitial, amplitude=amplitude)
+      col_A_th = shape.A_theta(z=z_loc_interstitial, amplitude=shape.amplitude)
       psi_col = self.psi[z_index]
       psi_squared_column = self.psi_squared[z_index]
       #TODO could do *sqrtg at the end to whole column, if covariant laplacian returned value/sqrt_g
@@ -190,11 +190,11 @@ class Lattice():
     z_loc_interstitial = self.z_pixel_len * (index_z -.5)
     z_loc_neighbor_interstitial = self.z_pixel_len * (index_z +.5)
     #properties of the surface at this point
-    A_th= shape.A_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
-    index_raise = 1/shape.g_theta(z=z_loc_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
-    A_th_neighbor= shape.A_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s
-    neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_interstitial, amplitude=amplitude)  #only needed at i-1/2 s 
-    sqrt_g = (shape.sqrt_g_theta(z=z_loc, amplitude=amplitude)*shape.sqrt_g_z(z=z_loc, amplitude=amplitude))
+    A_th= shape.A_theta(z=z_loc_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
+    index_raise = 1/shape.g_theta(z=z_loc_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
+    A_th_neighbor= shape.A_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
+    neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s 
+    sqrt_g = (shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude))
     
     old_director = self.director[index_z, index_th]
     old_nz = self.nz[index_z, index_th]
@@ -216,26 +216,25 @@ class Lattice():
     downnth= self.nth[index_z, index_th-1]
     #TODO line element is wrong
     new_gradn = (new_nz-leftnz)/self.z_pixel_len + (new_nth - downnth)/self.th_pixel_len
-    new_delcrossn = (new_nth-leftnth)/self.z_pixel_len + (new_nz - downnz)/self.th_pixel_len
+    new_delcrossn =  (new_nz - downnz)/self.th_pixel_len - (new_nth-leftnth)/self.z_pixel_len
     new_energy = self.gradientenergy(new_nz, new_nth, new_gradn, new_delcrossn, K1, K3, A_th)
     diff_energy = new_energy - old_energy
     #TODO up and right neighbors gradient energy!
 
     new_rightgradn = self.gradn[index_z+1, index_th] - (self.nz[index_z+1, index_th]-old_nz)/self.z_pixel_len + (self.nz[index_z+1, index_th]-new_nz)/self.z_pixel_len
-    new_rightdelcrossn = self.delcrossn[index_z+1, index_th] -(self.nth[index_z+1, index_th]-old_nth)/self.z_pixel_len  + (self.nth[index_z+1, index_th]-new_nth)/self.z_pixel_len 
+    new_rightdelcrossn = self.delcrossn[index_z+1, index_th] +(self.nth[index_z+1, index_th]-old_nth)/self.z_pixel_len - (self.nth[index_z+1, index_th]-new_nth)/self.z_pixel_len 
     new_rightenergy = self.gradientenergy(self.nz[index_z+1, index_th], self.nth[index_z+1, index_th], new_rightgradn, new_rightdelcrossn,
                                          self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], A_th_neighbor)
     old_rightenergy = self.gradientenergies[index_z+1, index_th]
     diff_energy += (new_rightenergy - old_rightenergy)
 
     new_upgradn = self.gradn[index_z, index_th+1] - (self.nth[index_z, index_th+1]-old_nth)/self.th_pixel_len + (self.nth[index_z, index_th+1]-new_nth)/self.th_pixel_len
-    new_updelcrossn = self.delcrossn[index_z, index_th+1] +(self.nz[index_z, index_th+1]-old_nz)/self.th_pixel_len  + (self.nz[index_z, index_th+1]-new_nz)/self.th_pixel_len 
-    new_upenergy = self.gradientenergy(self.nz[index_z, index_th+1], self.nth[index_z, index_th+1], new_rightgradn, new_rightdelcrossn,
+    new_updelcrossn = self.delcrossn[index_z, index_th+1] -(self.nz[index_z, index_th+1]-old_nz)/self.th_pixel_len  +(self.nz[index_z, index_th+1]-new_nz)/self.th_pixel_len 
+    new_upenergy = self.gradientenergy(self.nz[index_z, index_th+1], self.nth[index_z, index_th+1], new_upgradn, new_updelcrossn,
                                          self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], A_th)
     old_upenergy = self.gradientenergies[index_z, index_th+1]
     diff_energy += (new_upenergy - old_upenergy)
 
-    diff_energy = new_energy - old_energy
     diff_energy*=sqrt_g
     diff_energy*=self.z_pixel_len*self.th_pixel_len #- included in renormalizing coefficients
     accept = me.metropolis_decision(0,diff_energy)
@@ -286,12 +285,12 @@ if __name__ == "__main__":
   #makes a shape object
   gamma=1
   kappa=0
-  amplitude=.6
-  cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius, amplitude = .6)
+  amplitude=0
+  cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius, amplitude = amplitude)
 
 
   dims = (int(math.floor(base_dims[0]/wavenumber)), base_dims[1])
-  lattice = Lattice(aspect_ratio=5, n=2, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
+  lattice = Lattice(aspect_ratio=5, n=1, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
   
   
   #test random initialize
@@ -306,7 +305,7 @@ if __name__ == "__main__":
 
   #makes a metropolis object
   temperature=.001
-  sigmas_initial = {"field":.025}
+  sigmas_initial = {"field":.1}
   me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial)
 
   #mock data collector
@@ -314,7 +313,7 @@ if __name__ == "__main__":
 
   #run - test director stepping
 
-  n_steps = 150
+  n_steps = 60
   
   for i in range(n_steps):
     for j in range(n_substeps):
@@ -339,5 +338,12 @@ if __name__ == "__main__":
   plt.legend()
   plt.show()
   
-  plt.imshow(lattice.director)
+  m=  lambda x: (x+2*math.pi)%math.pi
+  plt.imshow(m(lattice.director), cmap='hsv') 
+  plt.show()
+  plt.imshow(abs(lattice.nz))
+  plt.show()
+  plt.imshow(abs(lattice.nth))
+  plt.show()
+  plt.imshow(abs(lattice.gradn))
   plt.show()
