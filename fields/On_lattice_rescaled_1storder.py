@@ -14,11 +14,11 @@ except ModuleNotFoundError:
   #then relatve import:
   import system_cylinder as system_cylinder
   import On_lattice_simple as lattice
-import metropolisengine
+import metropolis
 
 class Lattice(lattice.Lattice):
   def __init__(self, amplitude, wavenumber, radius, gamma, kappa, intrinsic_curvature, alpha,
-                u, C, n, temperature, temperature_final, dims = (100,50), n_substeps=None):
+                u, C, n, temperature, dims = (100,50), n_substeps=None):
     # all needs to happen before random_initialize in parent init:
     # alpha given is for areas 1:
     # therefore use an alpha_0 roughly smallest area * alpha
@@ -297,7 +297,7 @@ class Lattice(lattice.Lattice):
 
 if __name__ == "__main__":
   lattice = Lattice(amplitude=0, wavenumber=.2, radius=1, gamma=1, kappa=0, intrinsic_curvature=0,
-                  alpha=-1, u=1, C=1, n=6, temperature=.01, temperature_lattice = .01,
+                  alpha=-1, u=1, C=1, n=6, temperature=.01, 
                     dims=(50,25))
   n_steps=10000
   n_sub_steps=lattice.z_len*lattice.th_len

@@ -12,10 +12,11 @@ class Cylinder():
   Representing a section of sinusoidally perturbed cylindrical surface / surface of revolution r(z) = r(a) (1+a sin(kz))
   plus a complex-valued field over the two-dimensional surface, fourier decomposed into an array of modes indexed (j, beta)
   """
-  def __init__(self, wavenumber, radius, kappa, gamma=1, intrinsic_curvature=0):
+  def __init__(self, wavenumber, radius, kappa, gamma=1, intrinsic_curvature=0, amplitude=0):
     assert(all(map(lambda x: x >= 0, [wavenumber, radius, kappa])))
     self.wavenumber = wavenumber
     self.radius = radius
+    self.amplitude=amplitude
     self.kappa = kappa
     self.intrinsic_curvature = intrinsic_curvature
     #effective surface tension including H_0^2 constant

@@ -124,6 +124,7 @@ class Lattice():
         # involves multiplying these by A_th(i-1/2) in various combinations
         left_value_th = self.psi[z_index, th_index-1]
         self.dth[z_index, th_index]  =   value-left_value_th
+    #TODO line element is wrong for nonflat!
     self.dz/= self.z_pixel_len
     self.dth/= self.th_pixel_len
   
