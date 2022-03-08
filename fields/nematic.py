@@ -89,6 +89,8 @@ class Lattice():
     for z_index in range(self.z_len):
       z_loc = z_index * self.z_pixel_len
       Ath = cy.A_theta(z=z_loc, amplitude = cy.amplitude)
+      sqrtgzz = cy.sqrt_g_z(z=z_loc, amplitude = cy.amplitude)
+      sqrtgthth = cy.sqrt_g_theta(z=z_loc, amplitude = cy.amplitude)
       for th_index in range(self.th_len):    
         nz = cmath.rect(1, self.director[z_index, th_index]).real  
         nth= cmath.rect(1, self.director[z_index, th_index]).imag  
@@ -111,17 +113,19 @@ class Lattice():
         self.na[z_index, th_index]=na
         self.nb[z_index, th_index]=nb
         #TODO line element is wrong
-        diag_pixel_len = math.sqrt(self.z_pixel_len**2+self.th_pixel_len**2)
-        gradn=(nz-leftnz)/self.z_pixel_len + (nth - downnth)/self.th_pixel_len
+        z_pixel_len = self.z_pixel_len*sqrtgzz
+        th_pixel_len = self.th_pixel_len*sqrtgthth
+        diag_pixel_len = math.sqrt((self.z_pixel_len*sqrtgthth)**2+(self.th_pixel_len*sqrtgthth)**2)
+        gradn=(nz-leftnz)/z_pixel_len + (nth - downnth)/th_pixel_len
         diaggradn= (na-downleftna)/diag_pixel_len + (nb-downrightnb)/diag_pixel_len
         self.gradn[z_index, th_index] = gradn
         self.diaggradn[z_index, th_index] = diaggradn
-        delcrossn = (nz - downnz)/self.th_pixel_len -(nth-leftnth)/self.z_pixel_len
+        delcrossn = (nz - downnz)/th_pixel_len -(nth-leftnth)/z_pixel_len
         diagdelcrossn =  (na - downrightna)/diag_pixel_len -(nb-downleftnb)/diag_pixel_len
         self.delcrossn[z_index, th_index] =delcrossn
         self.diagdelcrossn[z_index, th_index] =diagdelcrossn
-        self.gradientenergies[z_index, th_index] =(self.gradientenergy(nz, nth, gradn, delcrossn, self.K1s[z_index, th_index], self.K3s[z_index, th_index], Ath)
-          +self.gradientenergy(nz, nth, diaggradn, diagdelcrossn, self.K1s[z_index, th_index], self.K3s[z_index, th_index], Ath) #TODO get its own diaggradennergy fct
+        self.gradientenergies[z_index, th_index] =(self.gradientenergy(nz, nth, gradn, delcrossn, self.K1s[z_index, th_index], self.K3s[z_index, th_index], Ath, 1/sqrtgthth)
+          +self.diaggradientenergy(na, nb, diaggradn, diagdelcrossn, self.K1s[z_index, th_index], self.K3s[z_index, th_index], Ath, 1/sqrtgthth) 
           )/2
 
   def S(self, alpha2):
@@ -154,8 +158,14 @@ class Lattice():
     ans*= (1+l**2)*l*S + .5*(18*l - 2*l**3 + 3*math.pi)*P
     return ans
 
-  def gradientenergy(self, nz, nth, gradn, delcrossn, K1, K3, Ath):
-    return K1*(gradn- self.n*Ath*nz)**2 + K3*(delcrossn- self.n*Ath*nth)**2 
+  def gradientenergy(self, nz, nth, gradn, delcrossn, K1, K3, Ath, index_raise):
+    Ath*= index_raise
+    return K1*(gradn+ self.n*Ath*nz)**2 + K3*(delcrossn+self.n*Ath*nth)**2 
+
+  def diaggradientenergy(self, na, nb, diaggradn, diagdelcrossn, K1, K3, Ath, index_raise):
+    Ab = math.sqrt(2)/2 *(Ath*index_raise)
+    Aa= Ab
+    return K1*(diaggradn+ self.n*(Ab*na-Aa*nb))**2 + K3*(diagdelcrossn+self.n*(Ab*nb-Aa*na))**2 
 
   def total_field_energy(self, shape):
     """calculates energy on proposed amplitude change or whole lattice change"""
@@ -215,9 +225,12 @@ class Lattice():
     #properties of the surface at this point
     A_th= shape.A_theta(z=z_loc_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
     index_raise = 1/shape.g_theta(z=z_loc_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
+    z_pixel_len = self.z_pixel_len*shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude)
+    th_pixel_len = self.th_pixel_len*shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)
     A_th_neighbor= shape.A_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
     A_th_left_neighbor= shape.A_theta(z=z_loc_neighbor_left_interstitial, amplitude=shape.amplitude)  
     neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s 
+    left_neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_left_interstitial, amplitude=shape.amplitude)
     sqrt_g = (shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude))
     
     old_director = self.director[index_z, index_th]
@@ -248,40 +261,39 @@ class Lattice():
     downrightna= self.na[index_z+1, index_th-1]
     downrightnb= self.nb[index_z+1, index_th-1]
     #TODO line element is wrong
-    diag_pixel_len = math.sqrt(self.z_pixel_len**2+self.th_pixel_len**2)
-    new_gradn = (new_nz-leftnz)/self.z_pixel_len + (new_nth - downnth)/self.th_pixel_len
+    diag_pixel_len = math.sqrt(z_pixel_len**2+th_pixel_len**2)
+    new_gradn = (new_nz-leftnz)/z_pixel_len + (new_nth - downnth)/th_pixel_len
     #assert(math.isclose(new_gradn,self.gradn[index_z, index_th]))
     new_diaggradn =  (new_na-downleftna)/diag_pixel_len + (new_nb - downrightnb)/diag_pixel_len
     #print(new_diaggradn,self.diaggradn[index_z, index_th])
     #assert(math.isclose(new_diaggradn,self.diaggradn[index_z, index_th]))
-    new_delcrossn =  (new_nz - downnz)/self.th_pixel_len - (new_nth-leftnth)/self.z_pixel_len
+    new_delcrossn =  (new_nz - downnz)/th_pixel_len - (new_nth-leftnth)/z_pixel_len
     #assert(math.isclose(new_delcrossn,self.delcrossn[index_z, index_th]))
     new_diagdelcrossn= (new_na-downrightna)/diag_pixel_len - (new_nb - downleftnb)/diag_pixel_len
     #assert(math.isclose(new_diagdelcrossn,self.diagdelcrossn[index_z, index_th]))
-    new_energy = (self.gradientenergy(new_nz, new_nth, new_gradn, new_delcrossn, K1, K3, A_th)+
-    self.gradientenergy(new_nz, new_nth, new_diaggradn, new_diagdelcrossn, K1, K3, A_th))/2
+    new_energy = (self.gradientenergy(new_nz, new_nth, new_gradn, new_delcrossn, K1, K3, A_th, index_raise)+
+    self.diaggradientenergy(new_na, new_nb, new_diaggradn, new_diagdelcrossn, K1, K3, A_th, index_raise))/2
     diff_energy = new_energy - old_energy
     #print(diff_energy)
     #assert(math.isclose(new_energy,old_energy))
-    #TODO up and right neighbors gradient energy!
 
-    new_rightgradn = self.gradn[index_z+1, index_th] -(self.nz[index_z+1, index_th]-old_nz)/self.z_pixel_len + (self.nz[index_z+1, index_th]-new_nz)/self.z_pixel_len
-    new_rightdelcrossn = self.delcrossn[index_z+1, index_th] +(self.nth[index_z+1, index_th]-old_nth)/self.z_pixel_len - (self.nth[index_z+1, index_th]-new_nth)/self.z_pixel_len 
+    new_rightgradn = self.gradn[index_z+1, index_th] -(self.nz[index_z+1, index_th]-old_nz)/z_pixel_len + (self.nz[index_z+1, index_th]-new_nz)/z_pixel_len
+    new_rightdelcrossn = self.delcrossn[index_z+1, index_th] +(self.nth[index_z+1, index_th]-old_nth)/z_pixel_len - (self.nth[index_z+1, index_th]-new_nth)/z_pixel_len 
     new_rightenergy = (self.gradientenergy(self.nz[index_z+1, index_th], self.nth[index_z+1, index_th], new_rightgradn, new_rightdelcrossn,
-                                         self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], A_th_neighbor)
-                                         + self.gradientenergy(self.nz[index_z+1, index_th], self.nth[index_z+1, index_th], self.diaggradn[index_z+1, index_th], 
+                                         self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], A_th_neighbor, neighbor_index_raise)
+                                         + self.diaggradientenergy(self.na[index_z+1, index_th], self.nb[index_z+1, index_th], self.diaggradn[index_z+1, index_th], 
                                          self.diagdelcrossn[index_z+1, index_th],
-                                         self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], A_th_neighbor))/2
+                                         self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], A_th_neighbor, neighbor_index_raise))/2
     old_rightenergy = self.gradientenergies[index_z+1, index_th]
     diff_energy += (new_rightenergy - old_rightenergy)
 
-    new_upgradn = self.gradn[index_z, index_th+1] -(self.nth[index_z, index_th+1]-old_nth)/self.th_pixel_len + (self.nth[index_z, index_th+1]-new_nth)/self.th_pixel_len
-    new_updelcrossn = self.delcrossn[index_z, index_th+1] -(self.nz[index_z, index_th+1]-old_nz)/self.th_pixel_len  +(self.nz[index_z, index_th+1]-new_nz)/self.th_pixel_len 
+    new_upgradn = self.gradn[index_z, index_th+1] -(self.nth[index_z, index_th+1]-old_nth)/th_pixel_len + (self.nth[index_z, index_th+1]-new_nth)/th_pixel_len
+    new_updelcrossn = self.delcrossn[index_z, index_th+1] -(self.nz[index_z, index_th+1]-old_nz)/th_pixel_len  +(self.nz[index_z, index_th+1]-new_nz)/th_pixel_len 
     new_upenergy = (self.gradientenergy(self.nz[index_z, index_th+1], self.nth[index_z, index_th+1], new_upgradn, new_updelcrossn,
-                                         self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], A_th)
-                                         + self.gradientenergy(self.nz[index_z, index_th+1], self.nth[index_z, index_th+1], self.diaggradn[index_z, index_th+1], 
+                                         self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], A_th, index_raise)
+                                         + self.diaggradientenergy(self.na[index_z, index_th+1], self.nb[index_z, index_th+1], self.diaggradn[index_z, index_th+1], 
                                          self.diagdelcrossn[index_z, index_th+1],
-                                         self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], A_th_neighbor))/2
+                                         self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], A_th_neighbor, neighbor_index_raise))/2
     old_upenergy = self.gradientenergies[index_z, index_th+1]
     diff_energy += (new_upenergy - old_upenergy)
 
@@ -293,11 +305,11 @@ class Lattice():
     new_uprightdelcrossn = self.diagdelcrossn[index_z+1, index_th+1] + (uprightnb-old_nb)/diag_pixel_len - (uprightnb-new_nb)/diag_pixel_len
     #print(new_uprightdelcrossn,self.delcrossn[index_z+1, index_th+1])
     #assert(math.isclose(new_uprightdelcrossn,self.diagdelcrossn[index_z+1, index_th+1]))
-    new_uprightenergy = (self.gradientenergy(self.nz[index_z+1, index_th+1], self.nth[index_z+1, index_th+1], new_uprightgradn, new_uprightdelcrossn,
-                                         self.K1s[index_z+1, index_th+1], self.K3s[index_z+1, index_th+1], A_th_neighbor)
+    new_uprightenergy = (self.diaggradientenergy(self.na[index_z+1, index_th+1], self.nb[index_z+1, index_th+1], new_uprightgradn, new_uprightdelcrossn,
+                                         self.K1s[index_z+1, index_th+1], self.K3s[index_z+1, index_th+1], A_th_neighbor, neighbor_index_raise)
                                          + self.gradientenergy(self.nz[index_z+1, index_th+1], self.nth[index_z+1, index_th+1], self.gradn[index_z+1, index_th+1], 
                                          self.delcrossn[index_z+1, index_th+1],
-                                         self.K1s[index_z+1, index_th+1], self.K3s[index_z+1, index_th+1], A_th_neighbor))/2
+                                         self.K1s[index_z+1, index_th+1], self.K3s[index_z+1, index_th+1], A_th_neighbor, neighbor_index_raise))/2
     old_uprightenergy = self.gradientenergies[index_z+1, index_th+1]
     #assert(math.isclose(new_uprightenergy, old_uprightenergy))
     diff_energy += (new_uprightenergy - old_uprightenergy)
@@ -307,11 +319,11 @@ class Lattice():
     new_upleftgradn = self.diaggradn[index_z-1, index_th+1] -(upleftnb-old_nb)/diag_pixel_len + (upleftnb-new_nb)/diag_pixel_len
     #assert(math.isclose(new_upleftgradn,self.diaggradn[index_z-1, index_th+1]))
     new_upleftdelcrossn = self.diagdelcrossn[index_z-1, index_th+1] -(upleftna-old_na)/diag_pixel_len  +(upleftna-new_na)/diag_pixel_len
-    new_upleftenergy = (self.gradientenergy(self.nz[index_z-1, index_th+1], self.nth[index_z-1, index_th+1], new_upleftgradn, new_upleftdelcrossn,
-                                         self.K1s[index_z-1, index_th+1], self.K3s[index_z-1, index_th+1], A_th_left_neighbor)
+    new_upleftenergy = (self.diaggradientenergy(self.na[index_z-1, index_th+1], self.nb[index_z-1, index_th+1], new_upleftgradn, new_upleftdelcrossn,
+                                         self.K1s[index_z-1, index_th+1], self.K3s[index_z-1, index_th+1], A_th_left_neighbor, left_neighbor_index_raise)
                                           + self.gradientenergy(self.nz[index_z-1, index_th+1], self.nth[index_z-1, index_th+1], self.gradn[index_z-1, index_th+1], 
                                          self.delcrossn[index_z-1, index_th+1],
-                                         self.K1s[index_z-1, index_th+1], self.K3s[index_z-1, index_th+1], A_th_neighbor))/2
+                                         self.K1s[index_z-1, index_th+1], self.K3s[index_z-1, index_th+1], A_th_neighbor, neighbor_index_raise))/2
     old_upleftenergy = self.gradientenergies[index_z-1, index_th+1]
     #assert(math.isclose(new_upleftenergy, old_upleftenergy))
     diff_energy += (new_upleftenergy - old_upleftenergy)
@@ -380,12 +392,12 @@ if __name__ == "__main__":
   #makes a shape object
   gamma=1
   kappa=0
-  amplitude=0
+  amplitude=.8
   cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius, amplitude = amplitude)
 
 
   dims = (int(math.floor(base_dims[0]/wavenumber)), base_dims[1])
-  lattice = Lattice(aspect_ratio=5, n=1, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
+  lattice = Lattice(aspect_ratio=5, n=2, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
   
   
   #test random initialize
@@ -401,7 +413,7 @@ if __name__ == "__main__":
   #plt.plot(lattice.K3s[16], label="K3", linestyle=":")
 
   #makes a metropolis object
-  temperature=.001
+  temperature=.01
   sigmas_initial = {"field":.01}
   me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial, target_acceptance=.4)
 
@@ -410,7 +422,7 @@ if __name__ == "__main__":
 
   #run - test director stepping
 
-  n_steps =80
+  n_steps =50
   
   for i in range(n_steps):
     for j in range(n_substeps):
