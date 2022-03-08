@@ -263,7 +263,7 @@ class Lattice():
     # random new value with magnitude similar to old value
     #TODO dynamic stepsize
     stepsize=sampling_width#choose something order of magnitude of predicted width of distribution
-    #stepsize *= self.sqrt_g
+    stepsize *= self.sqrt_g
     #print("sampling stepsize", stepsize)
     value=self.psi[index_z, index_th]
     new_value = complex(value.real+random.gauss(0,stepsize), value.imag+random.gauss(0,stepsize))

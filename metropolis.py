@@ -4,7 +4,7 @@ import random
 import scipy.stats as stats
 
 class Metropolis():
-    def __init__(self, temperature, sigmas_init):
+    def __init__(self, temperature, sigmas_init, target_acceptance=.4):
         self.temperature=temperature
         self.sigmas_init = sigmas_init
         self.sigmas = copy.copy(sigmas_init)
@@ -15,7 +15,7 @@ class Metropolis():
         self.acceptance_counter=0
         self.step_counter=0
         self.bump_step_counter=0
-        self.target_acceptance = .5 #TODO: hard code as fct of nuber of parameter space dims
+        self.target_acceptance = target_acceptance #TODO: hard code as fct of nuber of parameter space dims
         self.ppf_alpha = -1 * stats.norm.ppf(self.target_acceptance / 2)
         self.m = 1
         self.ratio = ( #  a constant - no need to recalculate 
@@ -46,7 +46,7 @@ class Metropolis():
             else:
                 return False
 
-    def update_sigma(self, accept, name):
+    def update_sigma_max2pi(self, accept, name):
         """
         TODO move to metropolis
         """
@@ -57,6 +57,7 @@ class Metropolis():
             self.sigmas[name] += steplength_c * (1 - self.target_acceptance) / step_number_factor
         else:
             self.sigmas[name] -= steplength_c * self.target_acceptance / step_number_factor
+        self.sigmas[name]= min(self.sigmas[name], 2*math.pi)
         assert (self.sigmas[name]) > 0
         #print(self.step_counter)
         #print("acceptance" , self.acceptance_counter, self.acceptance_counter/self.step_counter,self.sampling_width)
