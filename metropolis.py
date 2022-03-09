@@ -61,3 +61,17 @@ class Metropolis():
         assert (self.sigmas[name]) > 0
         #print(self.step_counter)
         #print("acceptance" , self.acceptance_counter, self.acceptance_counter/self.step_counter,self.sampling_width)
+
+    def update_sigma(self, accept, name):
+        """
+        TODO move to metropolis
+        """
+        self.step_counter+=1
+        step_number_factor = max((self.step_counter / self.m, 200))
+        steplength_c = self.sigmas[name] * self.ratio
+        if accept:
+            self.sigmas[name] += steplength_c * (1 - self.target_acceptance) / step_number_factor
+        else:
+            self.sigmas[name] -= steplength_c * self.target_acceptance / step_number_factor
+        self.sigmas[name]= min(self.sigmas[name], 2*math.pi)
+        assert (self.sigmas[name]) > 0
