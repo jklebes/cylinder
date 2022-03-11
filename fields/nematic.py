@@ -159,11 +159,16 @@ class Lattice():
     return (curl-self.n*Ath*nth)**2 #there is also an index raising 1/sqrtg in there - all of gradient term has that so its put in later
 
   def generalcurl(self,na, nb, leftnth, downnz, left_diag_dist, right_diag_dist, Ath):
+    volumeelement = None
+    h1 = None
+    h2 = None
+    h3 = None
+    curl = None
     pass 
 
-  def orthogonaldivsquared(self,nz, nth, downleftna, downrightnb, z_dist, th_dist, Ath):
+  def orthogonaldivsquared(self,nz, nth, leftnz, downnth, z_dist, th_dist, Ath):
     #formula when a and b are not exactly orthogonal?
-    
+
     div = (nz-leftnz)/z_dist + (nth - downnth)/th_dist
     return (div+self.n*Ath*nz)**2
 
