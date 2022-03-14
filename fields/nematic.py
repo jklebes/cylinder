@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
+from bisect import bisect
 try:
   import surfaces.system_cylinder as system_cylinder
 except ModuleNotFoundError:
@@ -61,8 +62,8 @@ class Lattice():
     self.nb = np.zeros((self.z_len, self.th_len))
     self.divsquared = np.zeros((self.z_len, self.th_len))
     self.curlsquared = np.zeros((self.z_len, self.th_len))
-    self.diaggradn = np.zeros((self.z_len, self.th_len))
-    self.diagdelcrossn = np.zeros((self.z_len, self.th_len))
+    self.diagdivsquared = np.zeros((self.z_len, self.th_len))
+    self.diagcurlsquared = np.zeros((self.z_len, self.th_len))
     self.gradientenergies = np.zeros((self.z_len, self.th_len))
     #angle of director
     self.director = np.zeros((self.z_len, self.th_len))
@@ -72,16 +73,34 @@ class Lattice():
     self.avg_amplitude_profile=np.zeros((self.z_len))
     #self.avg_amplitude_history()
 
+
+    self.fill_alpha2_lookup(self.aspect_ratio)
     self.random_initialize(shape)
     print("initialized")
+
+  def fill_alpha2_lookup(self, aspect_ratio):
+    #we can only do eta(alpha2)
+    #make a list (alpha2, eta)
+    alpha=0
+    a2s=[alpha**2]
+    etas=[self.eta(alpha**2, aspect_ratio)]
+    while self.eta(alpha**2,aspect_ratio)==0:
+      alpha+=.01 #don't fill table while eta=0
+    for a in np.arange(alpha, 50, .01):
+      a2s.append(a**2)
+      etas.append(self.eta(a**2, aspect_ratio))
+    self.alpha2lookup=(etas, a2s)
+    #plt.plot(list(self.alpha2lookup.keys()), list(self.alpha2lookup.values()))
+    #plt.show()
 
   def random_initialize(self, shape):
     #local fields  
     for z_index in range(self.z_len):
       for th_index in range(self.th_len):
-        alpha2=  .5#random.uniform(0,1)
+        eta=random.uniform(.4,.6)
+        alpha2=self.get_alpha2(eta)
+        self.etas[z_index, th_index] =eta
         self.alpha2[z_index, th_index] = alpha2
-        self.etas[z_index, th_index] = self.eta(alpha2)
         self.K1s[z_index, th_index] = self.K1(alpha2)
         self.K3s[z_index, th_index] = self.K3(alpha2)
         self.director[z_index, th_index] =  random.uniform(0,2*math.pi)
@@ -115,13 +134,16 @@ class Lattice():
         #TODO line element is wrong
         z_dist = self.z_pixel_len*sqrtgzz
         th_dist = self.th_pixel_len*sqrtgthth
-        diag_pixel_len = math.sqrt((self.z_pixel_len*sqrtgthth)**2+(self.th_pixel_len*sqrtgthth)**2)
-        diaggradn= (na-downleftna)/diag_pixel_len + (nb-downrightnb)/diag_pixel_len
-        self.divsquared[z_index, th_index] = self.orthogonaldivsquared(nth=nth, nz=nz, leftnz=leftnz, downnth=downnth, z_dist=z_dist, th_dist=th_dist, Ath=Ath)
-        self.diaggradn[z_index, th_index] = diaggradn
-        diagdelcrossn =  (na - downrightna)/diag_pixel_len -(nb-downleftnb)/diag_pixel_len
-        self.curlsquared[z_index, th_index] = self.orthogonalcurlsquared(nth=nth, nz=nz, leftnth=leftnth, downnz=downnz, z_dist=z_dist, th_dist=th_dist, Ath=Ath)
-        self.diagdelcrossn[z_index, th_index] =diagdelcrossn
+        diag_pixel_len = math.sqrt(z_dist**2+th_dist**2)
+        diagdivsquared= self.get_diagdivsquared(na=na, nb=nb, downleftna=downleftna, downrightnb=downrightnb, left_diag_dist=diag_pixel_len, right_diag_dist=diag_pixel_len, Ath=Ath)
+        divsquared = self.get_orthogonaldivsquared(nth=nth, nz=nz, leftnz=leftnz, downnth=downnth, z_dist=z_dist, th_dist=th_dist, Ath=Ath)
+        self.divsquared[z_index, th_index] = divsquared
+        self.diagdivsquared[z_index, th_index] = diagdivsquared
+        diagcurlsquared= self.get_diagcurlsquared(na=na, nb=nb, downleftna=downleftna, downrightnb=downrightnb, downrightna=downrightna, downleftnb=downleftnb,  z_dist = z_dist, th_dist = th_dist, left_diag_dist=diag_pixel_len, right_diag_dist=diag_pixel_len, Ath=Ath)
+        curlsquared= self.get_orthogonalcurlsquared(nth=nth, nz=nz, leftnth=leftnth, downnz=downnz, z_dist=z_dist, th_dist=th_dist, Ath=Ath)
+        self.curlsquared[z_index, th_index] = curlsquared
+        self.diagcurlsquared[z_index, th_index] =diagcurlsquared
+        self.gradientenergies[z_index, th_index] =self.gradientenergy(self.K1s[z_index, th_index], self.K3s[z_index, th_index], divsquared, diagdivsquared, curlsquared, diagcurlsquared)
 
   def S(self, alpha2):
     return scipy.special.iv(1,alpha2)/scipy.special.iv(0,alpha2)
@@ -129,15 +151,25 @@ class Lattice():
   def P(self, alpha2):
     return scipy.special.iv(2,alpha2)/scipy.special.iv(0,alpha2)
 
-  def eta(self, alpha2):
-    l=self.aspect_ratio
+  def eta(self, alpha2, aspect_ratio):
     S = self.S(alpha2)
-    inveta = 1 + (8*l**2 *2 *S)/(3 * math.pi * (4*l+math.pi) * alpha2)
-    return 1/inveta
+    inveta = 1 + (8*aspect_ratio**2 *2 *S)/(3 * math.pi * (4*aspect_ratio+math.pi) * alpha2)
+    return 1/inveta #TODO sometimes returns nan, not 0 
+
+  def get_alpha2(self, eta):
+    #print(self.alpha2lookup)
+    index=bisect(self.alpha2lookup[0], eta)
+    try:
+      alpha2=self.alpha2lookup[1][index]
+    except IndexError:
+      #eta too big, located after end of list of etas generated
+      # > return alpha2 corresponding to last eta generated
+      alpha2=self.alpha2lookup[1][index-1]
+    return alpha2
 
   def K1(self, alpha2):
     l=self.aspect_ratio
-    eta = self.eta(alpha2)
+    eta = self.eta(alpha2, self.aspect_ratio)
     S = self.S(alpha2)
     P= self.P(alpha2)
     ans = 128*math.pi*eta**2*l**2*S/(9*(1-eta)*(4*l+math.pi)**2)
@@ -146,34 +178,37 @@ class Lattice():
 
   def K3(self,alpha2):
     l=self.aspect_ratio
-    eta = self.eta(alpha2)
+    eta = self.eta(alpha2, self.aspect_ratio)
     S = self.S(alpha2)
     P= self.P(alpha2)
     ans = 128*math.pi*eta**2*l*S/(9*(1-eta)*(4*l+math.pi)**2)
     ans*= (1+l**2)*l*S + .5*(18*l - 2*l**3 + 3*math.pi)*P
     return ans
 
-  def orthogonalcurlsquared(self,nz, nth, leftnth, downnz, z_dist, th_dist, Ath):
+  def get_orthogonalcurlsquared(self,nz, nth, leftnth, downnz, z_dist, th_dist, Ath):
     #TODO unit test these
     curl = (nz - downnz)/th_dist -(nth-leftnth)/z_dist
-    return (curl-self.n*Ath*nth)**2 #there is also an index raising 1/sqrtg in there - all of gradient term has that so its put in later
+    return (curl+self.n*Ath*nth)**2 #there is also an index raising 1/sqrtg in there - all of gradient term has that so its put in later
 
-  def generalcurl(self,na, nb, leftnth, downnz, left_diag_dist, right_diag_dist, Ath):
-    volumeelement = None
-    h1 = None
-    h2 = None
-    h3 = None
-    curl = None
-    pass 
+  def get_diagcurlsquared(self,na, nb, downleftna, downleftnb, downrightna, downrightnb, z_dist, th_dist, left_diag_dist, right_diag_dist, Ath):
+    #TODO test, unit test this
+    #curl in skew basis where angle between a,b is >90degress by phi
+    phi = math.pi/4 - math.atan2(th_dist, z_dist) #angle off from orthogonal: actual angle a,b = 90degrees+phi
+    volumeelement = math.cos(phi)
+    curl = (na - downrightna)/right_diag_dist -(nb-downleftnb)/left_diag_dist
+    curl += math.sin(phi)*((na - downleftna)/left_diag_dist -(nb-downrightnb)/right_diag_dist)
+    curl /= volumeelement
+    #TODO how dows Ath fit in?
+    return (curl+self.n*Ath*na)**2 
 
-  def orthogonaldivsquared(self,nz, nth, leftnz, downnth, z_dist, th_dist, Ath):
-    #formula when a and b are not exactly orthogonal?
-
+  def get_orthogonaldivsquared(self,nz, nth, leftnz, downnth, z_dist, th_dist, Ath):
     div = (nz-leftnz)/z_dist + (nth - downnth)/th_dist
     return (div+self.n*Ath*nz)**2
 
-  def generaldivsquared(self):
-    pass
+  def get_diagdivsquared(self,na, nb, downleftna, downrightnb, left_diag_dist, right_diag_dist, Ath):
+    #the same as in orthonormal coordinates?
+    div = (na-downleftna)/left_diag_dist + (nb - downrightnb)/right_diag_dist
+    return (div+self.n*Ath*nb)**2
 
   def gradientenergy(self,K1, K3, divsquared, diagdivsquared, curlsquared, diagcurlsquared):
     return K1/2*(divsquared+diagdivsquared)+K3/2*(curlsquared+diagcurlsquared)
@@ -183,10 +218,10 @@ class Lattice():
     Ath*= index_raise
     return K1*(gradn+ self.n*Ath*nz)**2 + K3*(delcrossn+self.n*Ath*nth)**2 
 
-  def diaggradientenergy(self, na, nb, diaggradn, diagdelcrossn, K1, K3, Ath, index_raise):
+  def diaggradientenergy(self, na, nb, diagdivsquared, diagdelcrossn, K1, K3, Ath, index_raise):
     Ab = math.sqrt(2)/2 *(Ath*index_raise)
     Aa= Ab
-    return K1*(diaggradn+ self.n*(Ab*na-Aa*nb))**2 + K3*(diagdelcrossn+self.n*(Ab*nb-Aa*na))**2 
+    return K1*(diagdivsquared+ self.n*(Ab*na-Aa*nb))**2 + K3*(diagdelcrossn+self.n*(Ab*nb-Aa*na))**2 
   """
   def total_field_energy(self, shape):
     """calculates energy on proposed amplitude change or whole lattice change"""
@@ -240,18 +275,21 @@ class Lattice():
     Main energy calc of single location change
     """
     z_loc = self.z_pixel_len * index_z 
-    z_loc_interstitial = self.z_pixel_len * (index_z -.5)
-    z_loc_neighbor_interstitial = self.z_pixel_len * (index_z +.5)
-    z_loc_neighbor_left_interstitial = self.z_pixel_len * (index_z -.5)
+    z_loc_neighbor = self.z_pixel_len * (index_z +1)
+    z_loc_neighbor_left = self.z_pixel_len * (index_z -1)
     #properties of the surface at this point
-    A_th= shape.A_theta(z=z_loc_interstitial, amplitude=shape.amplitude) 
-    index_raise = 1/shape.g_theta(z=z_loc_interstitial, amplitude=shape.amplitude) 
+    A_th= shape.A_theta(z=z_loc, amplitude=shape.amplitude)
+    index_raise = 1/shape.g_theta(z=z_loc, amplitude=shape.amplitude) 
     z_pixel_len = self.z_pixel_len*shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude)
     th_pixel_len = self.th_pixel_len*shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)
-    A_th_neighbor= shape.A_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude) 
-    A_th_left_neighbor= shape.A_theta(z=z_loc_neighbor_left_interstitial, amplitude=shape.amplitude)  
-    neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude)
-    left_neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_left_interstitial, amplitude=shape.amplitude)
+    z_pixel_len_neighbor = self.z_pixel_len*shape.sqrt_g_z(z=z_loc_neighbor, amplitude=shape.amplitude)
+    th_pixel_len_neighbor = self.th_pixel_len*shape.sqrt_g_theta(z=z_loc_neighbor, amplitude=shape.amplitude)
+    z_pixel_len_left_neighbor = self.z_pixel_len*shape.sqrt_g_z(z=z_loc_neighbor_left, amplitude=shape.amplitude)
+    th_pixel_len_left_neighbor = self.th_pixel_len*shape.sqrt_g_theta(z=z_loc_neighbor_left, amplitude=shape.amplitude)
+    A_th_neighbor= shape.A_theta(z=z_loc_neighbor, amplitude=shape.amplitude) 
+    A_th_left_neighbor= shape.A_theta(z=z_loc_neighbor_left, amplitude=shape.amplitude)  
+    neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor, amplitude=shape.amplitude)
+    left_neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_left, amplitude=shape.amplitude)
     sqrt_g = (shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude))
     
     old_director = self.director[index_z, index_th]
@@ -264,7 +302,7 @@ class Lattice():
     K3 = self.K3s[index_z, index_th]
     old_energy = self.gradientenergies[index_z, index_th]
 
-    stepsize=0#sampling_width#choose something order of magnitude of predicted width of distribution
+    stepsize=sampling_width#choose something order of magnitude of predicted width of distribution
     #stepsize *= sqrt_g
     new_director = random.gauss(old_director,stepsize)
     #new_director += random.choice([0, 0, 0, math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, math.pi])
@@ -283,71 +321,55 @@ class Lattice():
     downrightnb= self.nb[index_z+1, index_th-1]
     #TODO line element is wrong
     diag_pixel_len = math.sqrt(z_pixel_len**2+th_pixel_len**2)
-    new_divsquared = self.orthogonaldivsquared(nth=new_nth, nz=new_nz, leftnz=leftnz, downnth=downnth, z_dist=z_pixel_len, th_dist=th_pixel_len, Ath=A_th)
-    assert(math.isclose(new_divsquared,self.divsquared[index_z, index_th]))
-    new_diaggradn =  (new_na-downleftna)/diag_pixel_len + (new_nb - downrightnb)/diag_pixel_len
-    #print(new_diaggradn,self.diaggradn[index_z, index_th])
-    assert(math.isclose(new_diaggradn,self.diaggradn[index_z, index_th]))
-    new_curlsquared =  self.orthogonalcurlsquared(nth=new_nth, nz=new_nz, leftnth=leftnth, downnz=downnz, z_dist=z_pixel_len, th_dist=th_pixel_len, Ath=A_th)
-    assert(math.isclose(new_curlsquared,self.curlsquared[index_z, index_th]))
-    new_diagdelcrossn= (new_na-downrightna)/diag_pixel_len - (new_nb - downleftnb)/diag_pixel_len
-    assert(math.isclose(new_diagdelcrossn,self.diagdelcrossn[index_z, index_th]))
-    new_energy = self.gradientenergy(K1, K3, new_divsquared, new_diaggradn, new_curlsquared, new_diagdelcrossn)
+    diag_pixel_len_neighbor = math.sqrt(z_pixel_len_neighbor**2+th_pixel_len_neighbor**2)
+    diag_pixel_len_left_neighbor = math.sqrt(z_pixel_len_left_neighbor**2+th_pixel_len_left_neighbor**2)
+    new_divsquared = self.get_orthogonaldivsquared(nth=new_nth, nz=new_nz, leftnz=leftnz, downnth=downnth, z_dist=z_pixel_len, th_dist=th_pixel_len, Ath=A_th)
+    #assert(math.isclose(new_divsquared,self.divsquared[index_z, index_th]))
+    new_diagdivsquared =  self.get_diagdivsquared(na=new_na, nb=new_nb, downleftna=downleftna, downrightnb=downrightnb, left_diag_dist=diag_pixel_len, right_diag_dist=diag_pixel_len, Ath=A_th)
+    #assert(math.isclose(new_diagdivsquared,self.diagdivsquared[index_z, index_th]))
+    new_curlsquared =  self.get_orthogonalcurlsquared(nth=new_nth, nz=new_nz, leftnth=leftnth, downnz=downnz, z_dist=z_pixel_len, th_dist=th_pixel_len, Ath=A_th)
+    #assert(math.isclose(new_curlsquared,self.curlsquared[index_z, index_th]))
+    new_diagdelcrossn=self.get_diagcurlsquared(na=new_na, nb=new_nb, downleftna=downleftna, downrightnb=downrightnb, downrightna=downrightna, downleftnb=downleftnb,  z_dist = z_pixel_len, th_dist = th_pixel_len, left_diag_dist=diag_pixel_len, right_diag_dist=diag_pixel_len, Ath=A_th)
+    #assert(math.isclose(new_diagdelcrossn,self.diagcurlsquared[index_z, index_th]))
+    new_energy = self.gradientenergy(K1, K3, new_divsquared, new_diagdivsquared, new_curlsquared, new_diagdelcrossn)
     diff_energy = new_energy - old_energy
-    #print(diff_energy)
-    assert(math.isclose(new_energy,old_energy))
+    #assert(math.isclose(new_energy,old_energy))
 
-    new_rightgradn = self.divsquared[index_z+1, index_th] -(self.nz[index_z+1, index_th]-old_nz)/z_pixel_len + (self.nz[index_z+1, index_th]-new_nz)/z_pixel_len
-    new_rightdelcrossn = self.curlsquared[index_z+1, index_th] +(self.nth[index_z+1, index_th]-old_nth)/z_pixel_len - (self.nth[index_z+1, index_th]-new_nth)/z_pixel_len 
-    new_rightenergy = (self.gradientenergy(self.nz[index_z+1, index_th], self.nth[index_z+1, index_th], new_rightgradn, new_rightdelcrossn,
-                                         self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], A_th_neighbor, neighbor_index_raise)
-                                         + self.diaggradientenergy(self.na[index_z+1, index_th], self.nb[index_z+1, index_th], self.diaggradn[index_z+1, index_th], 
-                                         self.diagdelcrossn[index_z+1, index_th],
-                                         self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], A_th_neighbor, neighbor_index_raise))/2
+    new_rightdivsquared = self.get_orthogonaldivsquared(nth=self.nth[index_z+1, index_th], nz=self.nz[index_z+1, index_th], leftnz=new_nz, downnth=self.nth[index_z+1, index_th-1], z_dist=z_pixel_len_neighbor, th_dist=th_pixel_len_neighbor, Ath=A_th_neighbor)
+    new_rightcurlsquared = self.get_orthogonalcurlsquared(nth=self.nth[index_z+1, index_th], nz=self.nz[index_z+1, index_th], downnz=self.nz[index_z+1, index_th-1], leftnth=new_nth, z_dist=z_pixel_len_neighbor, th_dist=th_pixel_len_neighbor, Ath=A_th_neighbor)
+    new_rightenergy = self.gradientenergy(self.K1s[index_z+1, index_th], self.K3s[index_z+1, index_th], new_rightdivsquared, self.diagdivsquared[index_z+1, index_th], new_rightcurlsquared, self.diagcurlsquared[index_z+1, index_th])
     old_rightenergy = self.gradientenergies[index_z+1, index_th]
+    #assert(math.isclose(new_rightenergy,old_rightenergy))
     diff_energy += (new_rightenergy - old_rightenergy)
 
-    new_upgradn = self.divsquared[index_z, index_th+1] -(self.nth[index_z, index_th+1]-old_nth)/th_pixel_len + (self.nth[index_z, index_th+1]-new_nth)/th_pixel_len
-    new_updelcrossn = self.curlsquared[index_z, index_th+1] -(self.nz[index_z, index_th+1]-old_nz)/th_pixel_len  +(self.nz[index_z, index_th+1]-new_nz)/th_pixel_len 
-    new_upenergy = (self.gradientenergy(self.nz[index_z, index_th+1], self.nth[index_z, index_th+1], new_upgradn, new_updelcrossn,
-                                         self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], A_th, index_raise)
-                                         + self.diaggradientenergy(self.na[index_z, index_th+1], self.nb[index_z, index_th+1], self.diaggradn[index_z, index_th+1], 
-                                         self.diagdelcrossn[index_z, index_th+1],
-                                         self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], A_th_neighbor, neighbor_index_raise))/2
+    new_updivsquared = self.get_orthogonaldivsquared(nth=self.nth[index_z, index_th+1], nz=self.nz[index_z, index_th+1], leftnz=self.nz[index_z-1, index_th+1], downnth=new_nth, z_dist=z_pixel_len, th_dist=th_pixel_len, Ath=A_th)
+    new_upcurlsquared = self.get_orthogonalcurlsquared(nth=self.nth[index_z, index_th+1], nz=self.nz[index_z, index_th+1], leftnth=self.nth[index_z-1, index_th+1], downnz=new_nz, z_dist=z_pixel_len, th_dist=th_pixel_len, Ath=A_th)
+    new_upenergy = self.gradientenergy(self.K1s[index_z, index_th+1], self.K3s[index_z, index_th+1], new_updivsquared, self.diagdivsquared[index_z, index_th+1], new_upcurlsquared, self.diagcurlsquared[index_z, index_th+1])
     old_upenergy = self.gradientenergies[index_z, index_th+1]
+    #assert(math.isclose(new_upenergy, old_upenergy))
     diff_energy += (new_upenergy - old_upenergy)
 
     uprightna = self.na[index_z+1, index_th+1]
     uprightnb = self.nb[index_z+1, index_th+1]
-    new_uprightgradn = self.diaggradn[index_z+1, index_th+1] -(uprightna-old_na)/diag_pixel_len + (uprightna-new_na)/diag_pixel_len
-    #print(new_uprightgradn,self.diaggradn[index_z+1, index_th+1])
-    #assert(math.isclose(new_uprightgradn,self.diaggradn[index_z+1, index_th+1]))
-    new_uprightdelcrossn = self.diagdelcrossn[index_z+1, index_th+1] + (uprightnb-old_nb)/diag_pixel_len - (uprightnb-new_nb)/diag_pixel_len
-    #print(new_uprightdelcrossn,self.curlsquared[index_z+1, index_th+1])
-    assert(math.isclose(new_uprightdelcrossn,self.diagdelcrossn[index_z+1, index_th+1]))
-    new_uprightenergy = (self.diaggradientenergy(self.na[index_z+1, index_th+1], self.nb[index_z+1, index_th+1], new_uprightgradn, new_uprightdelcrossn,
-                                         self.K1s[index_z+1, index_th+1], self.K3s[index_z+1, index_th+1], A_th_neighbor, neighbor_index_raise)
-                                         + self.gradientenergy(self.nz[index_z+1, index_th+1], self.nth[index_z+1, index_th+1], self.divsquared
-                                    [index_z+1, index_th+1], 
-                                         self.curlsquared[index_z+1, index_th+1],
-                                         self.K1s[index_z+1, index_th+1], self.K3s[index_z+1, index_th+1], A_th_neighbor, neighbor_index_raise))/2
+    try:
+      new_uprightdivsquared = self.get_diagdivsquared(uprightna, uprightnb, downleftna=new_na, downrightnb=self.nb[index_z+2, index_th], left_diag_dist=diag_pixel_len_neighbor, right_diag_dist=diag_pixel_len_neighbor, Ath=A_th_neighbor)
+      new_uprightcurlsquared = self.get_diagcurlsquared(uprightna, uprightnb, downleftna=new_na, downrightnb=self.nb[index_z+2, index_th],downleftnb=new_nb, downrightna=self.na[index_z+2, index_th], z_dist=z_pixel_len_neighbor, th_dist=th_pixel_len_neighbor, left_diag_dist=diag_pixel_len_neighbor, right_diag_dist=diag_pixel_len_neighbor, Ath=A_th_neighbor)
+    except IndexError:
+      new_uprightdivsquared = self.get_diagdivsquared(uprightna, uprightnb, downleftna=new_na, downrightnb=self.nb[index_z+2-self.z_len, index_th], left_diag_dist=diag_pixel_len_neighbor, right_diag_dist=diag_pixel_len_neighbor, Ath=A_th_neighbor)
+      new_uprightcurlsquared = self.get_diagcurlsquared(uprightna, uprightnb, downleftna=new_na, downrightnb=self.nb[index_z+2-self.z_len, index_th],downleftnb=new_nb, downrightna=self.na[index_z+2-self.z_len, index_th], z_dist=z_pixel_len_neighbor, th_dist=th_pixel_len_neighbor, left_diag_dist=diag_pixel_len_neighbor, right_diag_dist=diag_pixel_len_neighbor, Ath=A_th_neighbor)
+    #assert(math.isclose(new_uprightcurlsquared,self.diagcurlsquared[index_z+1, index_th+1]))
+    new_uprightenergy = self.gradientenergy(self.K1s[index_z+1, index_th+1], self.K3s[index_z+1, index_th+1], self.divsquared[index_z+1, index_th+1], new_uprightdivsquared , self.curlsquared[index_z+1, index_th+1], new_uprightcurlsquared)
     old_uprightenergy = self.gradientenergies[index_z+1, index_th+1]
-    assert(math.isclose(new_uprightenergy, old_uprightenergy))
+    #assert(math.isclose(new_uprightenergy, old_uprightenergy))
     diff_energy += (new_uprightenergy - old_uprightenergy)
 
     upleftna = self.na[index_z-1, index_th+1]
     upleftnb = self.nb[index_z-1, index_th+1]
-    new_upleftgradn = self.diaggradn[index_z-1, index_th+1] -(upleftnb-old_nb)/diag_pixel_len + (upleftnb-new_nb)/diag_pixel_len
-    assert(math.isclose(new_upleftgradn,self.diaggradn[index_z-1, index_th+1]))
-    new_upleftdelcrossn = self.diagdelcrossn[index_z-1, index_th+1] -(upleftna-old_na)/diag_pixel_len  +(upleftna-new_na)/diag_pixel_len
-    new_upleftenergy = (self.diaggradientenergy(self.na[index_z-1, index_th+1], self.nb[index_z-1, index_th+1], new_upleftgradn, new_upleftdelcrossn,
-                                         self.K1s[index_z-1, index_th+1], self.K3s[index_z-1, index_th+1], A_th_left_neighbor, left_neighbor_index_raise)
-                                          + self.gradientenergy(self.nz[index_z-1, index_th+1], self.nth[index_z-1, index_th+1], self.divsquared
-                                    [index_z-1, index_th+1], 
-                                         self.curlsquared[index_z-1, index_th+1],
-                                         self.K1s[index_z-1, index_th+1], self.K3s[index_z-1, index_th+1], A_th_neighbor, neighbor_index_raise))/2
+    new_upleftdivsquared = self.get_diagdivsquared(upleftna, upleftnb, downleftna=self.na[index_z-2, index_th], downrightnb=new_nb, left_diag_dist=diag_pixel_len_left_neighbor, right_diag_dist=diag_pixel_len_left_neighbor, Ath=A_th_left_neighbor)
+    new_upleftcurlsquared = self.get_diagcurlsquared(upleftna, upleftnb, downleftna=self.na[index_z-2, index_th], downrightna=new_na,downleftnb=self.nb[index_z-2, index_th], downrightnb=new_nb,th_dist=th_pixel_len_left_neighbor, z_dist=z_pixel_len_left_neighbor, left_diag_dist=diag_pixel_len_left_neighbor, right_diag_dist=diag_pixel_len_left_neighbor, Ath=A_th_left_neighbor)
+    new_upleftenergy = self.gradientenergy(self.K1s[index_z-1, index_th+1], self.K3s[index_z-1, index_th+1], self.divsquared[index_z-1, index_th+1], new_upleftdivsquared , self.curlsquared[index_z-1, index_th+1], new_upleftcurlsquared)
     old_upleftenergy = self.gradientenergies[index_z-1, index_th+1]
-    assert(math.isclose(new_upleftenergy, old_upleftenergy))
+    #assert(math.isclose(new_upleftenergy, old_upleftenergy))
     diff_energy += (new_upleftenergy - old_upleftenergy)
 
     diff_energy*=sqrt_g
@@ -366,28 +388,28 @@ class Lattice():
 
       self.divsquared[index_z, index_th] = new_divsquared
       self.curlsquared[index_z, index_th] = new_curlsquared
-      self.diaggradn[index_z, index_th] = new_diaggradn
-      self.diagdelcrossn[index_z, index_th] = new_diagdelcrossn
+      self.diagdivsquared[index_z, index_th] = new_diagdivsquared
+      self.diagcurlsquared[index_z, index_th] = new_diagdelcrossn
       self.gradientenergies[index_z, index_th] = new_energy
 
-      self.divsquared[index_z+1, index_th] = new_rightgradn
-      self.curlsquared[index_z+1, index_th] = new_rightdelcrossn
+      self.divsquared[index_z+1, index_th] = new_rightdivsquared
+      self.curlsquared[index_z+1, index_th] = new_rightcurlsquared
       self.gradientenergies[index_z+1, index_th] = new_rightenergy
 
-      self.divsquared[index_z, index_th+1] = new_upgradn
-      self.curlsquared[index_z, index_th+1] = new_updelcrossn
+      self.divsquared[index_z, index_th+1] = new_updivsquared
+      self.curlsquared[index_z, index_th+1] = new_upcurlsquared
       self.gradientenergies[index_z, index_th+1] = new_upenergy
 
-      self.diaggradn[index_z+1, index_th+1] = new_uprightgradn
-      self.diagdelcrossn[index_z+1, index_th+1] = new_uprightdelcrossn
+      self.diagdivsquared[index_z+1, index_th+1] = new_uprightdivsquared
+      self.diagcurlsquared[index_z+1, index_th+1] = new_uprightcurlsquared
       self.gradientenergies[index_z+1, index_th+1] = new_uprightenergy
 
-      self.diaggradn[index_z-1, index_th+1] = new_upleftgradn
-      self.diagdelcrossn[index_z-1, index_th+1] = new_upleftdelcrossn
+      self.diagdivsquared[index_z-1, index_th+1] = new_upleftdivsquared
+      self.diagcurlsquared[index_z-1, index_th+1] = new_upleftcurlsquared
       self.gradientenergies[index_z-1, index_th+1] = new_upleftenergy
     me.update_sigma_max2pi(accept, name="director")
 
-  def step_alpha2(self, shape, sampling_width, me):
+  def step_alpha2_single(self, shape, sampling_width, me):
     """
     A single location step - dims*n_substeps of these make up a sweep
     """
@@ -396,27 +418,14 @@ class Lattice():
     self.step_alpha2_loc(index_z, index_th, shape, sampling_width, me)
     #TODO output energy, make metropolis decision here
 
-  def step_alpha2_loc(self, index_z, index_th, shape, sampling_width, me):
+  def step_alpha2_loc_single(self, index_z, index_th, shape, sampling_width, me):
     """
     Main energy calc of single location change
     """
     z_loc = self.z_pixel_len * index_z 
-    z_loc_interstitial = self.z_pixel_len * (index_z -.5)
-    z_loc_neighbor_interstitial = self.z_pixel_len * (index_z +.5)
-    z_loc_neighbor_left_interstitial = self.z_pixel_len * (index_z -.5)
-    #properties of the surface at this point
-    A_th= shape.A_theta(z=z_loc_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
-    index_raise = 1/shape.g_theta(z=z_loc_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
-    z_pixel_len = self.z_pixel_len*shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude)
-    th_pixel_len = self.th_pixel_len*shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)
-    A_th_neighbor= shape.A_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s
-    A_th_left_neighbor= shape.A_theta(z=z_loc_neighbor_left_interstitial, amplitude=shape.amplitude)  
-    neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_interstitial, amplitude=shape.amplitude)  #only needed at i-1/2 s 
-    left_neighbor_index_raise = 1/shape.g_theta(z=z_loc_neighbor_left_interstitial, amplitude=shape.amplitude)
     sqrt_g = (shape.sqrt_g_theta(z=z_loc, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc, amplitude=shape.amplitude))
-    
+
     old_alpha2 = self.alpha2[index_z, index_th]
-    #get K1, K3
     K1 = self.K1s[index_z, index_th]
     K3 = self.K3s[index_z, index_th]
     old_energy = self.gradientenergies[index_z, index_th]
@@ -425,16 +434,165 @@ class Lattice():
     #stepsize *= sqrt_g
     new_alpha2 = random.gauss(old_alpha2,stepsize)
     #new_director += random.choice([0, 0, 0, math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, math.pi])
-    new_energy = None
+    new_K1 = self.K1(new_alpha2)
+    new_K3 = self.K3(new_alpha2)
+    new_energy = self.gradientenergy(new_K1, new_K3, self.divsquared[index_z, index_th], self.diagdivsquared[index_z, index_th-1], self.curlsquared[index_z, index_th-1], self.diagcurlsquared[index_z, index_th-1])
 
     diff_energy = new_energy - old_energy
+    diff_energy*=sqrt_g
+    diff_energy*=self.z_pixel_len*self.th_pixel_len
     accept  = me.metropolis_decision(0, diff_energy)
     if accept:
       #print("accept")
       #change stored value of pixel
       self.alpha2[index_z,index_th] = new_alpha2
-    me.update_sigma_max(accept, name="alpha2")
+    me.update_sigma(accept, name="alpha2")
+
+  def step_alpha2(self, shape, sampling_width, me):
+    """
+    Switch step
+    """
+    #choose a location
+    index_z_1, index_th_1 = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
+    index_z_2, index_th_2 = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
+    self.step_alpha2_loc(index_z_1, index_th_1,  index_z_2, index_th_2, shape, sampling_width, me)
+    #TODO output energy, make metropolis decision here
+
+  def step_alpha2_loc(self, index_z_1, index_th_1, index_z_2, index_th_2, shape, sampling_width, me):
+    """
+    Main energy calc of single location change
+    """
+    z_loc_1 = self.z_pixel_len * index_z_1 
+    sqrt_g_1 = (shape.sqrt_g_theta(z=z_loc_1, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc_1, amplitude=shape.amplitude))
+    z_loc_2 = self.z_pixel_len * index_z_2 
+    sqrt_g_2 = (shape.sqrt_g_theta(z=z_loc_2, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc_2, amplitude=shape.amplitude))
+
+    old_alpha2_1 = self.alpha2[index_z_1, index_th_1]
+    old_energy_1 = self.gradientenergies[index_z_1, index_th_1]
+    old_alpha2_2 = self.alpha2[index_z_2, index_th_2]
+    old_energy_2 = self.gradientenergies[index_z_2, index_th_2]
+
+    stepsize=sampling_width#choose something order of magnitude of predicted width of distribution
+    #stepsize *= sqrt_g
+    new_alpha2_1 = random.gauss(old_alpha2_1,stepsize)
+    #new_director += random.choice([0, 0, 0, math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, math.pi])
+    new_K1_1 = self.K1(new_alpha2_1)
+    new_K3_1 = self.K3(new_alpha2_1)
+    new_energy_1 = self.gradientenergy(new_K1_1, new_K3_1, self.divsquared[index_z_1, index_th_1], self.diagdivsquared[index_z_1, index_th_1-1], self.curlsquared[index_z_1, index_th_1-1], self.diagcurlsquared[index_z_1, index_th_1-1])
+    diff_energy_1 = new_energy_1 - old_energy_1
+    diff_energy_1*=sqrt_g_1
+
+    #balance material exchange
+    old_density_1 = self.eta(old_alpha2_1, self.aspect_ratio)
+    new_density_1 = self.eta(new_alpha2_1, self.aspect_ratio)
+    density_diff_1 = new_density_1 - old_density_1
+    density_diff_2 = density_diff_1/sqrt_g_1*sqrt_g_2
+    print(density_diff_1, sqrt_g_1,density_diff_2,sqrt_g_2)
+    old_density_2 = self.eta(old_alpha2_2, self.aspect_ratio)
+    target_density_2 =old_density_2-density_diff_2
+
+    new_alpha2_2 = self.get_alpha2(target_density_2)
+    #new_director += random.choice([0, 0, 0, math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, math.pi])
+    new_K1_2 = self.K1(new_alpha2_2)
+    new_K3_2 = self.K3(new_alpha2_2)
+    new_energy_2 = self.gradientenergy(new_K1_2, new_K3_2, self.divsquared[index_z_2, index_th_2], self.diagdivsquared[index_z_2, index_th_2-1], self.curlsquared[index_z_2, index_th_2-1], self.diagcurlsquared[index_z_2, index_th_2-1])
+    diff_energy_2 = new_energy_2 - old_energy_2
+    diff_energy_2*=sqrt_g_2
+
+    diff_energy=diff_energy_1+diff_energy_2
+    diff_energy*=self.z_pixel_len*self.th_pixel_len
+    accept  = me.metropolis_decision(0, diff_energy)
+    print(diff_energy, accept)
+    if accept:
+      #print("accept")
+      #change stored value of pixel
+      self.alpha2[index_z_1,index_th_1] = new_alpha2_1s
+      self.etas[index_z_1,index_th_1] = new_density_1
+      self.K1s[index_z_1,index_th_1] = new_K1_1
+      self.K3s[index_z_1,index_th_1] = new_K1_1
+
+      self.alpha2[index_z_2,index_th_2] = new_alpha2_2
+      self.etas[index_z_1,index_th_1] = new_density_2
+      self.K1s[index_z_2,index_th_2] = new_K1_2
+      self.K3s[index_z_2,index_th_2] = new_K1_2
+    me.update_sigma(accept, name="alpha2")
     
+  def step_eta(self, shape, sampling_width, me):
+    """
+    Switch step
+    """
+    #choose a location
+    index_z_1, index_th_1 = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
+    index_z_2, index_th_2 = (random.randrange(-1,(self.z_len-1)), random.randrange(-1,(self.th_len-1)))
+    self.step_eta_loc(index_z_1, index_th_1,  index_z_2, index_th_2, shape, sampling_width, me)
+    #TODO output energy, make metropolis decision here
+
+  def step_eta_loc(self, index_z_1, index_th_1, index_z_2, index_th_2, shape, sampling_width, me):
+    """
+    Main energy calc of single location change
+    """
+    z_loc_1 = self.z_pixel_len * index_z_1 
+    sqrt_g_1 = (shape.sqrt_g_theta(z=z_loc_1, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc_1, amplitude=shape.amplitude))
+    z_loc_2 = self.z_pixel_len * index_z_2 
+    sqrt_g_2 = (shape.sqrt_g_theta(z=z_loc_2, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc_2, amplitude=shape.amplitude))
+
+    old_eta_1 = self.etas[index_z_1, index_th_1]
+    old_energy_1 = self.gradientenergies[index_z_1, index_th_1]
+    old_eta_2 = self.etas[index_z_2, index_th_2]
+    old_energy_2 = self.gradientenergies[index_z_2, index_th_2]
+
+    stepsize=sampling_width#choose something order of magnitude of predicted width of distribution
+    #stepsize *= sqrt_g
+    diff = random.gauss(0,stepsize)
+    new_eta_1 = old_eta_1 + diff
+    #balance material exchange
+    scaled_diff = diff/sqrt_g_2*sqrt_g_1
+    #print(diff, sqrt_g_1,scaled_diff,sqrt_g_2)
+    new_eta_2 =old_eta_2-scaled_diff
+    #TODO could transfer this rule to metropolis module
+    #try again while generating invalid volume fractions
+    while new_eta_1<0 or new_eta_2<0 or new_eta_1>1 or new_eta_2>1:
+      me.update_sigma(False, name="eta")
+      diff = random.gauss(0,stepsize)
+      new_eta_1 = old_eta_1 + diff
+      #balance material exchange
+      scaled_diff = diff/sqrt_g_2*sqrt_g_1
+      #print(diff, sqrt_g_1,scaled_diff,sqrt_g_2)
+      new_eta_2 =old_eta_2-scaled_diff
+
+    #new_director += random.choice([0, 0, 0, math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, math.pi])
+    new_alpha2_1 = self.get_alpha2(new_eta_1)
+    new_K1_1 = self.K1(new_alpha2_1)
+    new_K3_1 = self.K3(new_alpha2_1)
+    new_energy_1 = self.gradientenergy(new_K1_1, new_K3_1, self.divsquared[index_z_1, index_th_1], self.diagdivsquared[index_z_1, index_th_1-1], self.curlsquared[index_z_1, index_th_1-1], self.diagcurlsquared[index_z_1, index_th_1-1])
+    diff_energy_1 = new_energy_1 - old_energy_1
+    diff_energy_1*=sqrt_g_1
+
+    new_alpha2_2 = self.get_alpha2(new_eta_2)
+    #new_director += random.choice([0, 0, 0, math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, math.pi])
+    new_K1_2 = self.K1(new_alpha2_2)
+    new_K3_2 = self.K3(new_alpha2_2)
+    new_energy_2 = self.gradientenergy(new_K1_2, new_K3_2, self.divsquared[index_z_2, index_th_2], self.diagdivsquared[index_z_2, index_th_2-1], self.curlsquared[index_z_2, index_th_2-1], self.diagcurlsquared[index_z_2, index_th_2-1])
+    diff_energy_2 = new_energy_2 - old_energy_2
+    diff_energy_2*=sqrt_g_2
+
+    diff_energy=diff_energy_1+diff_energy_2
+    diff_energy*=self.z_pixel_len*self.th_pixel_len
+    accept  = me.metropolis_decision(0, diff_energy)
+    #print(diff_energy, accept)
+    if accept:
+      #print("accept")
+      #change stored value of pixel
+      self.alpha2[index_z_1,index_th_1] = new_alpha2_1
+      self.etas[index_z_1,index_th_1] = new_eta_1
+      self.K1s[index_z_1,index_th_1] = new_K1_1
+      self.K3s[index_z_1,index_th_1] = new_K1_1
+
+      self.alpha2[index_z_2,index_th_2] = new_alpha2_2
+      self.etas[index_z_2,index_th_2] = new_eta_2
+      self.K1s[index_z_2,index_th_2] = new_K1_2
+      self.K3s[index_z_2,index_th_2] = new_K1_2
+    me.update_sigma(accept, name="eta")
       
   def step_lattice_all(self, shape, sampling_width, me, old_energy):
     addition = random.gauss(0, sampling_width)+random.gauss(0, sampling_width)*1j 
@@ -462,7 +620,7 @@ if __name__ == "__main__":
   #makes a shape object
   gamma=1
   kappa=0
-  amplitude=0
+  amplitude=0.7
   cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius, amplitude = amplitude)
 
 
@@ -471,20 +629,15 @@ if __name__ == "__main__":
   
   
   #test random initialize
-  plt.plot(lattice.alpha2[16], label="a2", linestyle=":")
+  m=  lambda x: (x+2*math.pi)%(2*math.pi)
+  #plt.plot(lattice.alpha2[16], label="a2", linestyle=":")
   plt.plot(lattice.etas[16], label="eta", linestyle=":")
-  #plt.plot(lattice.nth[16], label="nth", linestyle=":")
-  #plt.plot(lattice.nz[16], label="nz", linestyle=":")
-  plt.plot(lattice.divsquared[16], label="grad", linestyle=":")
-  plt.plot(lattice.curlsquared[16], label="cross", linestyle=":")
-  plt.plot(lattice.diaggradn[16], label="dgrad", linestyle=":")
-  plt.plot(lattice.diagdelcrossn[16], label="dcross", linestyle=":")
-  #plt.plot(lattice.K1s[16], label="K1", linestyle=":")
-  #plt.plot(lattice.K3s[16], label="K3", linestyle=":")
+  #plt.plot(lattice.K1s[16], label="alpha2", linestyle=":")
+  #plt.plot(lattice.gradientenergies[16], label="energy", linestyle=":")
 
   #makes a metropolis object
-  temperature=.01
-  sigmas_initial = {"director":.01, "alpha2":.01}
+  temperature=.1
+  sigmas_initial = {"director":.01, "eta":.01}
   me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial, target_acceptance=.4)
 
   #mock data collector
@@ -492,11 +645,18 @@ if __name__ == "__main__":
 
   #run - test director stepping
 
-  n_steps =5
+  n_steps =150
   
+  for i in range(50):
+    for j in range(n_substeps):
+      for ii in range(lattice.n_dims):
+        lattice.step_eta(shape=cy, sampling_width=me.sigmas["eta"], me=me)
+    print(me.sigmas)
+    print(i)
   for i in range(n_steps):
     for j in range(n_substeps):
       for ii in range(lattice.n_dims):
+        lattice.step_eta(shape=cy, sampling_width=me.sigmas["eta"], me=me)
         lattice.step_director(shape=cy, sampling_width=me.sigmas["director"], me=me)
     #field_energy = lattice.total_field_energy(shape=cy)
     #print(field_energy)
@@ -506,23 +666,19 @@ if __name__ == "__main__":
     print(i)
 
   #mock output
-  plt.plot(lattice.alpha2[16], label="a2")
+  #plt.plot(lattice.alpha2[16], label="a2")
   plt.plot(lattice.etas[16], label="eta")
-  #plt.plot(lattice.nth[16], label="nth")
-  #plt.plot(lattice.nz[16], label="nz")
-  plt.plot(lattice.gradn[16], label="grad")
-  plt.plot(lattice.delcrossn[16], label="cross")
-  plt.plot(lattice.diaggradn[16], label="dgrad")
-  plt.plot(lattice.diagdelcrossn[16], label="dcross")
-  #plt.plot(lattice.K1s[16], label="K1")
-  #plt.plot(lattice.K3s[16], label="K3")
+  #plt.plot(lattice.K1s[16], label="alpha2")
+  #plt.plot(lattice.gradientenergies[16], label="energy")
   plt.legend()
   plt.show()
   
   m=  lambda x: (x+2*math.pi)%(2*math.pi)
   plt.imshow(m(lattice.director), cmap='hsv') 
   plt.show()
-  plt.imshow(abs(lattice.divsquared))
+  plt.imshow(abs(lattice.etas))
   plt.show()
-  plt.imshow(abs(lattice.diaggradn))
+  plt.imshow(abs(lattice.alpha2))
+  plt.show()
+  plt.imshow(abs(lattice.gradientenergies))
   plt.show()
