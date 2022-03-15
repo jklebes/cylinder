@@ -25,10 +25,14 @@ class Lattice():
   Works together with a surface shape and a metropolis engine.
   """
 
-  def __init__(self, aspect_ratio, n, dims, wavenumber, radius=1, shape=None, n_substeps=None):
+  def __init__(self, aspect_ratio, D, n, dims, wavenumber, radius=1, shape=None, n_substeps=None):
     #material parameters
     self.aspect_ratio = aspect_ratio
     self.n=n
+    self.D=D
+    self.L=self.aspect_ratio*self.D
+    self.particlearea= self.L*self.D+math.pi/4*self.D**2
+    self.particleperimeter=2*self.L+math.pi*self.D
 
     #lattice characteristics
     self.wavenumber=wavenumber
@@ -65,6 +69,7 @@ class Lattice():
     self.diagdivsquared = np.zeros((self.z_len, self.th_len))
     self.diagcurlsquared = np.zeros((self.z_len, self.th_len))
     self.gradientenergies = np.zeros((self.z_len, self.th_len))
+    self.densityenergies = np.zeros((self.z_len, self.th_len))
     #angle of director
     self.director = np.zeros((self.z_len, self.th_len))
 
@@ -97,13 +102,14 @@ class Lattice():
     #local fields  
     for z_index in range(self.z_len):
       for th_index in range(self.th_len):
-        eta=random.uniform(.4,.6)
+        eta=.6#random.uniform(.6,.8)
         alpha2=self.get_alpha2(eta)
         self.etas[z_index, th_index] =eta
         self.alpha2[z_index, th_index] = alpha2
         self.K1s[z_index, th_index] = self.K1(alpha2)
         self.K3s[z_index, th_index] = self.K3(alpha2)
-        self.director[z_index, th_index] =  random.uniform(0,2*math.pi)
+        self.densityenergies[z_index, th_index] = self.densityenergy(eta=eta, alpha2=alpha2)
+        self.director[z_index, th_index] = random.uniform(0,2*math.pi)
     #fill derivatives
     for z_index in range(self.z_len):
       z_loc = z_index * self.z_pixel_len
@@ -198,8 +204,12 @@ class Lattice():
     curl = (na - downrightna)/right_diag_dist -(nb-downleftnb)/left_diag_dist
     curl += math.sin(phi)*((na - downleftna)/left_diag_dist -(nb-downrightnb)/right_diag_dist)
     curl /= volumeelement
+    #print(phi, math.cos(phi), math.sin(phi))
     #TODO how dows Ath fit in?
-    return (curl+self.n*Ath*na)**2 
+    # not exactly right
+    Aa = math.sqrt(2)/2*Ath
+    Ab=Aa
+    return (curl+self.n*(Ab*nb-Aa*na))**2 
 
   def get_orthogonaldivsquared(self,nz, nth, leftnz, downnth, z_dist, th_dist, Ath):
     div = (nz-leftnz)/z_dist + (nth - downnth)/th_dist
@@ -208,10 +218,24 @@ class Lattice():
   def get_diagdivsquared(self,na, nb, downleftna, downrightnb, left_diag_dist, right_diag_dist, Ath):
     #the same as in orthonormal coordinates?
     div = (na-downleftna)/left_diag_dist + (nb - downrightnb)/right_diag_dist
-    return (div+self.n*Ath*nb)**2
+    Aa = math.sqrt(2)/2*Ath
+    Ab=Aa
+    return (div+self.n*(Ab*na-Aa*nb))**2
 
   def gradientenergy(self,K1, K3, divsquared, diagdivsquared, curlsquared, diagcurlsquared):
     return K1/2*(divsquared+diagdivsquared)+K3/2*(curlsquared+diagcurlsquared)
+
+  def densityenergy(self, eta, alpha2):
+    #TODO examine and test
+    numberdensity=eta/self.particlearea
+    energy =  0 #id part?  constant for whole object?
+    S = scipy.special.iv(1, alpha2)/scipy.special.iv(0, alpha2)
+    n1=numberdensity*self.particleperimeter
+    tensorn11= self.L*(1+S) + math.pi/2 *self.D
+    tensorn22= self.L*(1-S) + math.pi/2 *self.D
+    N = 5/(6*math.pi)*n1**2-2/(3*math.pi)*numberdensity**2*(tensorn11**2+tensorn22**2)
+    energy += -numberdensity *math.log(1-eta) + N/(2*(1-eta))
+    return energy
 
   """
   def gradientenergy(self, nz, nth, gradn, delcrossn, K1, K3, Ath, index_raise):
@@ -329,9 +353,9 @@ class Lattice():
     #assert(math.isclose(new_diagdivsquared,self.diagdivsquared[index_z, index_th]))
     new_curlsquared =  self.get_orthogonalcurlsquared(nth=new_nth, nz=new_nz, leftnth=leftnth, downnz=downnz, z_dist=z_pixel_len, th_dist=th_pixel_len, Ath=A_th)
     #assert(math.isclose(new_curlsquared,self.curlsquared[index_z, index_th]))
-    new_diagdelcrossn=self.get_diagcurlsquared(na=new_na, nb=new_nb, downleftna=downleftna, downrightnb=downrightnb, downrightna=downrightna, downleftnb=downleftnb,  z_dist = z_pixel_len, th_dist = th_pixel_len, left_diag_dist=diag_pixel_len, right_diag_dist=diag_pixel_len, Ath=A_th)
+    new_diagcurlsquared=self.get_diagcurlsquared(na=new_na, nb=new_nb, downleftna=downleftna, downrightnb=downrightnb, downrightna=downrightna, downleftnb=downleftnb,  z_dist = z_pixel_len, th_dist = th_pixel_len, left_diag_dist=diag_pixel_len, right_diag_dist=diag_pixel_len, Ath=A_th)
     #assert(math.isclose(new_diagdelcrossn,self.diagcurlsquared[index_z, index_th]))
-    new_energy = self.gradientenergy(K1, K3, new_divsquared, new_diagdivsquared, new_curlsquared, new_diagdelcrossn)
+    new_energy = self.gradientenergy(K1, K3, new_divsquared, new_diagdivsquared, new_curlsquared, new_diagcurlsquared)
     diff_energy = new_energy - old_energy
     #assert(math.isclose(new_energy,old_energy))
 
@@ -389,7 +413,7 @@ class Lattice():
       self.divsquared[index_z, index_th] = new_divsquared
       self.curlsquared[index_z, index_th] = new_curlsquared
       self.diagdivsquared[index_z, index_th] = new_diagdivsquared
-      self.diagcurlsquared[index_z, index_th] = new_diagdelcrossn
+      self.diagcurlsquared[index_z, index_th] = new_diagcurlsquared
       self.gradientenergies[index_z, index_th] = new_energy
 
       self.divsquared[index_z+1, index_th] = new_rightdivsquared
@@ -537,9 +561,9 @@ class Lattice():
     sqrt_g_2 = (shape.sqrt_g_theta(z=z_loc_2, amplitude=shape.amplitude)*shape.sqrt_g_z(z=z_loc_2, amplitude=shape.amplitude))
 
     old_eta_1 = self.etas[index_z_1, index_th_1]
-    old_energy_1 = self.gradientenergies[index_z_1, index_th_1]
+    old_energy_1 = self.gradientenergies[index_z_1, index_th_1]+self.densityenergies[index_z_1, index_th_1]
     old_eta_2 = self.etas[index_z_2, index_th_2]
-    old_energy_2 = self.gradientenergies[index_z_2, index_th_2]
+    old_energy_2 = self.gradientenergies[index_z_2, index_th_2]+self.densityenergies[index_z_2, index_th_2]
 
     stepsize=sampling_width#choose something order of magnitude of predicted width of distribution
     #stepsize *= sqrt_g
@@ -565,6 +589,7 @@ class Lattice():
     new_K1_1 = self.K1(new_alpha2_1)
     new_K3_1 = self.K3(new_alpha2_1)
     new_energy_1 = self.gradientenergy(new_K1_1, new_K3_1, self.divsquared[index_z_1, index_th_1], self.diagdivsquared[index_z_1, index_th_1-1], self.curlsquared[index_z_1, index_th_1-1], self.diagcurlsquared[index_z_1, index_th_1-1])
+    new_energy_1+=self.densityenergy(eta=new_eta_1, alpha2=new_alpha2_1)
     diff_energy_1 = new_energy_1 - old_energy_1
     diff_energy_1*=sqrt_g_1
 
@@ -573,6 +598,7 @@ class Lattice():
     new_K1_2 = self.K1(new_alpha2_2)
     new_K3_2 = self.K3(new_alpha2_2)
     new_energy_2 = self.gradientenergy(new_K1_2, new_K3_2, self.divsquared[index_z_2, index_th_2], self.diagdivsquared[index_z_2, index_th_2-1], self.curlsquared[index_z_2, index_th_2-1], self.diagcurlsquared[index_z_2, index_th_2-1])
+    new_energy_2+=self.densityenergy(eta=new_eta_2, alpha2=new_alpha2_2)
     diff_energy_2 = new_energy_2 - old_energy_2
     diff_energy_2*=sqrt_g_2
 
@@ -620,12 +646,12 @@ if __name__ == "__main__":
   #makes a shape object
   gamma=1
   kappa=0
-  amplitude=0.7
+  amplitude=.7
   cy = system_cylinder.Cylinder(gamma=gamma, kappa=kappa, wavenumber=wavenumber, radius=radius, amplitude = amplitude)
 
 
   dims = (int(math.floor(base_dims[0]/wavenumber)), base_dims[1])
-  lattice = Lattice(aspect_ratio=5, n=2, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
+  lattice = Lattice(aspect_ratio=5, n=2, D=.001, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
   
   
   #test random initialize
@@ -636,7 +662,7 @@ if __name__ == "__main__":
   #plt.plot(lattice.gradientenergies[16], label="energy", linestyle=":")
 
   #makes a metropolis object
-  temperature=.1
+  temperature=1
   sigmas_initial = {"director":.01, "eta":.01}
   me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial, target_acceptance=.4)
 
@@ -645,9 +671,15 @@ if __name__ == "__main__":
 
   #run - test director stepping
 
-  n_steps =150
+  n_steps =500
   
-  for i in range(50):
+  for i in range(20):
+    for j in range(n_substeps):
+      for ii in range(lattice.n_dims):
+        lattice.step_director(shape=cy, sampling_width=me.sigmas["director"], me=me)
+    print(me.sigmas)
+    print(i)
+  for i in range(20):
     for j in range(n_substeps):
       for ii in range(lattice.n_dims):
         lattice.step_eta(shape=cy, sampling_width=me.sigmas["eta"], me=me)
