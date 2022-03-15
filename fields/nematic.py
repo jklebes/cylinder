@@ -651,7 +651,7 @@ if __name__ == "__main__":
 
 
   dims = (int(math.floor(base_dims[0]/wavenumber)), base_dims[1])
-  lattice = Lattice(aspect_ratio=5, n=2, D=.001, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
+  lattice = Lattice(aspect_ratio=5, n=2, D=.0001, dims=dims, wavenumber=wavenumber, radius=radius, shape=cy, n_substeps=n_substeps)
   
   
   #test random initialize
@@ -664,7 +664,7 @@ if __name__ == "__main__":
   #makes a metropolis object
   temperature=1
   sigmas_initial = {"director":.01, "eta":.01}
-  me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial, target_acceptance=.4)
+  me = metropolis.Metropolis(temperature=temperature, sigmas_init=sigmas_initial, target_acceptance=.3)
 
   #mock data collector
   field_energy_history= []
